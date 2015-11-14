@@ -16,16 +16,14 @@ def _adjacent_move_direction(from_, to):
     return direction
 
 
-def is_within_board(position):
-    return (
-        position[COL] >= MIN_POS and position[COL] <= MAX_POS
-    ) and (
-        position[ROW] >= MIN_POS and position[ROW] <= MAX_POS
+def pawn_within_board(pos):
+    return MIN_POS <= pos[COL] <= MAX_POS and (
+        MIN_POS <= pos[ROW] <= MAX_POS
     )
 
 
 def adjacent_spaces(position):
-    assert is_within_board(position), position
+    assert pawn_within_board(position), position
     spaces = []
     if position[ROW] > MIN_POS:
         spaces.append((position[COL], position[ROW] - 1))

@@ -6,7 +6,7 @@ from q2 import (
     VERTICAL,
     HORIZONTAL,
     _adjacent_move_direction,
-    is_within_board,
+    pawn_within_board,
     adjacent_spaces,
 )
 
@@ -42,16 +42,16 @@ def test_adjacent_move_direction_horizontal_2():
     assert_equal(_adjacent_move_direction([7, 0], [8, 0]), HORIZONTAL)
 
 
-def test_is_within_board_wrong_1():
-    assert_false(is_within_board([-1, 0]))
+def test_pawn_within_board_wrong_1():
+    assert_false(pawn_within_board([-1, 0]))
 
 
-def test_is_within_board_wrong_2():
-    assert_false(is_within_board([1, 257]))
+def test_pawn_within_board_wrong_2():
+    assert_false(pawn_within_board([1, 257]))
 
 
-def test_is_within_board_wrong_3():
-    assert_false(is_within_board([2147483649, -2147483649]))
+def test_pawn_within_board_wrong_3():
+    assert_false(pawn_within_board([2147483649, -2147483649]))
 
 
 def test_adjacent_spaces_left_top_corner():
