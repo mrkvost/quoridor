@@ -1,3 +1,5 @@
+# TODO: make test names more descriptive and apparent
+
 from nose.tools import (
     assert_true, assert_false, assert_equal,
 )
@@ -20,6 +22,8 @@ from q2 import (
     pawn_legal_moves,
     is_correct_pawn_move,
     wall_intersects,
+    pawn_can_reach_goal,
+    is_correct_wall_move,
 )
 
 
@@ -937,6 +941,121 @@ def test_wall_intersects_11():
             {
                 HORIZONTAL: set([(5, 5)]),
                 VERTICAL: set()
+            }
+        )
+    )
+
+
+def test_pawn_can_reach_goal_1():
+    assert_true(
+        pawn_can_reach_goal(
+            RED,
+            (3, 4),
+            {HORIZONTAL: set(), VERTICAL: set()}
+        )
+    )
+
+
+def test_pawn_can_reach_goal_2():
+    assert_true(
+        pawn_can_reach_goal(
+            GREEN,
+            (2, 5),
+            {HORIZONTAL: set(), VERTICAL: set()}
+        )
+    )
+
+
+def test_pawn_can_reach_goal_3():
+    assert_true(
+        pawn_can_reach_goal(
+            RED,
+            (4, 0),
+            {
+                HORIZONTAL: set([
+                    (1, 0), (3, 1), (5, 1), (0, 2), (2, 2), (5, 2), (7, 2)
+                ]),
+                VERTICAL: set()
+            }
+        )
+    )
+
+
+def test_pawn_can_reach_goal_4():
+    assert_true(
+        pawn_can_reach_goal(
+            GREEN,
+            (4, 4),
+            {
+                HORIZONTAL: set([
+                    (2, 2), (3, 3), (4, 4), (4, 2), (1, 4)
+                ]),
+                VERTICAL: set([
+                    (1, 3), (5, 3)
+                ])
+            }
+        )
+    )
+
+
+def test_pawn_can_reach_goal_4():
+    assert_false(
+        pawn_can_reach_goal(
+            RED,
+            (4, 4),
+            {
+                HORIZONTAL: set([
+                    (2, 2), (3, 3), (4, 4), (4, 2), (2, 4)
+                ]),
+                VERTICAL: set([
+                    (1, 3), (5, 3)
+                ])
+            }
+        )
+    )
+
+
+def test_pawn_can_reach_goal_5():
+    assert_false(
+        pawn_can_reach_goal(
+            GREEN,
+            (3, 8),
+            {
+                HORIZONTAL: set([
+                    (0, 0), (2, 0), (4, 0), (6, 0), (7, 1)
+                ]),
+                VERTICAL: set([
+                    (7, 0)
+                ])
+            }
+        )
+    )
+
+
+def test_is_correct_wall_move_1():
+    assert_true(
+        is_correct_wall_move(
+            HORIZONTAL,
+            (4, 0),
+            {RED: (4, 0), GREEN: (4, 8)},
+            {HORIZONTAL: set(), VERTICAL: set()}
+        )
+    )
+
+
+def test_is_correct_wall_move_2():
+    assert_true(
+        is_correct_wall_move(
+            HORIZONTAL,
+            (6, 5),
+            {RED: (4, 0), GREEN: (4, 8)},
+            {
+                HORIZONTAL: set([
+                    (0, 5), (2, 5), (4, 5), (0, 1), (2, 1), (4, 1), (6, 1)
+                ]),
+                VERTICAL: set([
+                    (7, 1), (7, 3), (7, 5)
+                ])
             }
         )
     )

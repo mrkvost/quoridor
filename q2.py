@@ -9,6 +9,7 @@ WALL_POS_MAX = SIZE - 2
 VERTICAL = (0, 1)
 HORIZONTAL = (1, 0)
 DIRECTIONS = (VERTICAL, HORIZONTAL)
+OPPOSITE_DIRECTION = {VERTICAL: HORIZONTAL, HORIZONTAL: VERTICAL}
 
 # It is possible to jump over single pawn
 JUMP_DISTANCE_MAX = 2
@@ -19,7 +20,10 @@ ROW = 1
 RED = 0
 GREEN = 1
 
-OPPOSITE_DIRECTION = {VERTICAL: HORIZONTAL, HORIZONTAL: VERTICAL}
+GOAL_ROW = {
+    RED: PAWN_POS_MAX,
+    GREEN: PAWN_POS_MIN,
+}
 
 
 def add_direction(position, direction):
@@ -122,3 +126,30 @@ def wall_intersects(direction, position, walls):
     elif substract_direction(position, direction) in walls[direction]:
         return True
     return False
+
+
+def pawn_can_reach_goal(color, current_position, walls):
+    # TODO: optimize!, what if pawn already reached goal?
+    to_visit = set([current_position])
+    visited = set()
+    while to_visit:
+        position = to_visit.pop()
+        if position[ROW] == GOAL_ROW[color]:
+            return True
+        visited.add(position)
+        new_positions = adjacent_pawn_spaces_not_blocked(position, walls)
+        for new_position in new_positions:
+            if new_position not in visited:
+                to_visit.add(new_position)
+    return False
+
+
+def is_correct_wall_move(direction, position, pawns, walls):
+    if not wall_within_board(position):
+        return False
+    elif wall_intersects(direction, position, walls):
+        return False
+    for color, pawn_position in pawns.items():
+        if not pawn_can_reach_goal(color, pawn_position, walls):
+            return False
+    return True
