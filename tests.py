@@ -7,6 +7,8 @@ from q2 import (
     GREEN,
     VERTICAL,
     HORIZONTAL,
+    add_direction,
+    substract_direction,
     adjacent_move_direction,
     pawn_within_board,
     adjacent_pawn_spaces,
@@ -17,7 +19,48 @@ from q2 import (
     adjacent_pawn_spaces_not_blocked,
     pawn_legal_moves,
     is_correct_pawn_move,
+    wall_intersects,
 )
+
+
+def test_add_direction_1():
+    assert_equal(add_direction((0, 0), VERTICAL), (0, 1))
+
+
+def test_add_direction_2():
+    assert_equal(add_direction((6, 2), VERTICAL), (6, 3))
+
+
+def test_add_direction_3():
+    assert_equal(add_direction((4, 8), VERTICAL), (4, 9))
+
+
+def test_add_direction_4():
+    assert_equal(add_direction((1, 5), HORIZONTAL), (2, 5))
+
+
+def test_add_direction_5():
+    assert_equal(add_direction((0, 3), HORIZONTAL), (1, 3))
+
+
+def test_add_direction_6():
+    assert_equal(add_direction((8, 7), HORIZONTAL), (9, 7))
+
+
+def test_substract_direction_1():
+    assert_equal(substract_direction((7, 0), VERTICAL), (7, -1))
+
+
+def test_substract_direction_2():
+    assert_equal(substract_direction((8, 8), VERTICAL), (8, 7))
+
+
+def test_substract_direction_3():
+    assert_equal(substract_direction((4, 3), HORIZONTAL), (3, 3))
+
+
+def test_substract_direction_4():
+    assert_equal(substract_direction((0, 6), HORIZONTAL), (-1, 6))
 
 
 def test_adjacent_move_direction_wrong_1():
@@ -757,6 +800,143 @@ def test_is_correct_pawn_move_wrong_6():
             {
                 HORIZONTAL: set(),
                 VERTICAL: set(),
+            }
+        )
+    )
+
+
+def test_wall_intersects_1():
+    assert_false(
+        wall_intersects(
+            VERTICAL,
+            (0, 0),
+            {HORIZONTAL: set(), VERTICAL: set()}
+        )
+    )
+
+
+def test_wall_intersects_2():
+    assert_false(
+        wall_intersects(
+            VERTICAL,
+            (4, 4),
+            {
+                HORIZONTAL: set([(3, 4), (5, 4), (4, 3), (4, 5)]),
+                VERTICAL: set([(4, 2), (4, 6)])
+            }
+        )
+    )
+
+
+def test_wall_intersects_3():
+    assert_false(
+        wall_intersects(
+            HORIZONTAL,
+            (7, 0),
+            {HORIZONTAL: set(), VERTICAL: set()}
+        )
+    )
+
+
+def test_wall_intersects_4():
+    assert_false(
+        wall_intersects(
+            HORIZONTAL,
+            (2, 1),
+            {
+                HORIZONTAL: set([(0, 1), (4, 1)]),
+                VERTICAL: set([(1, 1), (2, 0), (2, 2), (3, 1)])
+            }
+        )
+    )
+
+
+def test_wall_intersects_5():
+    assert_true(
+        wall_intersects(
+            HORIZONTAL,
+            (5, 6),
+            {
+                HORIZONTAL: set([(4, 6)]),
+                VERTICAL: set()
+            }
+        )
+    )
+
+
+def test_wall_intersects_6():
+    assert_true(
+        wall_intersects(
+            HORIZONTAL,
+            (3, 1),
+            {
+                HORIZONTAL: set([(4, 1)]),
+                VERTICAL: set()
+            }
+        )
+    )
+
+
+def test_wall_intersects_7():
+    assert_true(
+        wall_intersects(
+            HORIZONTAL,
+            (7, 7),
+            {
+                HORIZONTAL: set(),
+                VERTICAL: set([(7, 7)])
+            }
+        )
+    )
+
+
+def test_wall_intersects_8():
+    assert_true(
+        wall_intersects(
+            VERTICAL,
+            (0, 1),
+            {
+                HORIZONTAL: set(),
+                VERTICAL: set([(0, 0)])
+            }
+        )
+    )
+
+
+def test_wall_intersects_9():
+    assert_true(
+        wall_intersects(
+            VERTICAL,
+            (2, 6),
+            {
+                HORIZONTAL: set(),
+                VERTICAL: set([(2, 7)])
+            }
+        )
+    )
+
+
+def test_wall_intersects_10():
+    assert_true(
+        wall_intersects(
+            VERTICAL,
+            (2, 2),
+            {
+                HORIZONTAL: set([(2, 2)]),
+                VERTICAL: set()
+            }
+        )
+    )
+
+
+def test_wall_intersects_11():
+    assert_true(
+        wall_intersects(
+            HORIZONTAL,
+            (5, 5),
+            {
+                HORIZONTAL: set([(5, 5)]),
+                VERTICAL: set()
             }
         )
     )
