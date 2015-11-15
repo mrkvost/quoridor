@@ -22,7 +22,7 @@ GREEN = 1
 
 def adjacent_move_direction(from_, to):
     direction = (abs(from_[COL] - to[COL]), abs(from_[ROW] - to[ROW]))
-    if not direction in DIRECTIONS:
+    if direction not in DIRECTIONS:
         return None
     return direction
 

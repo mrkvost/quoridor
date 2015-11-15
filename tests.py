@@ -1,5 +1,5 @@
 from nose.tools import (
-    assert_true, assert_false, assert_equal, raises,
+    assert_true, assert_false, assert_equal,
 )
 
 from q2 import (
@@ -17,7 +17,6 @@ from q2 import (
     adjacent_pawn_spaces_not_blocked,
     pawn_legal_moves,
     is_correct_pawn_move,
-    wall_within_board,
 )
 
 
@@ -368,7 +367,7 @@ def test_adjacent_pawn_spaces_not_blocked_middle_3():
         set(adjacent_pawn_spaces_not_blocked(
             (5, 3),
             {
-                HORIZONTAL: set([(4 ,3)]),
+                HORIZONTAL: set([(4, 3)]),
                 VERTICAL: set([(5, 2)]),
             }
         )),
@@ -381,7 +380,7 @@ def test_adjacent_pawn_spaces_not_blocked_middle_4():
         set(adjacent_pawn_spaces_not_blocked(
             (2, 1),
             {
-                HORIZONTAL: set([(2 ,0), (1, 1)]),
+                HORIZONTAL: set([(2, 0), (1, 1)]),
                 VERTICAL: set([(1, 0)]),
             }
         )),
