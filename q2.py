@@ -24,6 +24,7 @@ GOAL_ROW = {
     RED: PAWN_POS_MAX,
     GREEN: PAWN_POS_MIN,
 }
+FOLLOWING_PLAYER = {RED: GREEN, GREEN: RED}
 
 
 def add_direction(position, direction):
@@ -153,3 +154,206 @@ def is_correct_wall_move(direction, position, pawns, walls):
         if not pawn_can_reach_goal(color, pawn_position, walls):
             return False
     return True
+
+
+class InvalidMove(Exception):
+    pass
+
+
+class Quoridor2(object):
+
+    def __init__(self):
+        self._state = {
+            'winner': None,
+            'game_ended': False,
+            'on_move': RED,
+            'players': {
+                RED: {
+                    'pawn': (4, PAWN_POS_MIN),
+                    'walls': 10,
+                },
+                GREEN: {
+                    'pawn': (4, PAWN_POS_MAX),
+                    'walls': 10,
+                },
+            },
+            'pawns': {
+                (4, PAWN_POS_MIN): RED,
+                (4, PAWN_POS_MAX): GREEN,
+            },
+            'walls': {
+                VERTICAL: set(),
+                HORIZONTAL: set(),
+            },
+        }
+
+    def game_ended(self):
+        return self._state['game_ended']
+
+    @property
+    def current_wall_count(self):
+        return self._state['pawns'][self._state['on_move']]['walls']
+
+    def place_wall(self, direction, position):
+        if self.game_ended():
+            raise InvalidMove('Game already ended.')
+
+        if not self.current_wall_count > 0:
+            raise InvalidMove('No walls to play with.')
+
+        is_correct = is_correct_pawn_move(
+            direction,
+            position,
+            self._state['pawns'],
+            self._state['walls']
+        )
+
+        if not is_correct:
+            # TODO: reason the move is invalid would be nice, e.g. no path...
+            raise InvalidMove()
+
+        color = self._state['on_move']
+        self._state['wals'][direction].add(position)
+        self._state['players'][color]['walls'] -= 1
+        self._state['on_move'] = FOLLOWING_PLAYER[color]
+
+    @property
+    def current_pawn_position(self):
+        return self._state['players'][self._state['on_move']]['pawn']
+
+    def move_pawn(self, new_position):
+        if self.game_ended():
+            raise InvalidMove('Game already ended.')
+
+        pawn_position = self.current_pawn_position,
+        is_correct = is_correct_pawn_move(
+            pawn_position,
+            new_position,
+            self._state['pawns'],
+            self._state['walls']
+        )
+
+        if not is_correct:
+            raise InvalidMove()
+
+        color = self._state['on_move']
+        self._state['players'][color]['pawn'] = new_position
+        del self._state['pawns'][pawn_position]
+        self._state['pawns'][new_position] = color
+        # Check end of the game...
+        if new_positions[ROW] == GOAL_ROW[color]:
+            self._state['game_ended'] = True
+            self._state['winner'] = color
+
+        self._state['on_move'] = FOLLOWING_PLAYER[color]
+
+    @property
+    def pawns(self):
+        return self._state['pawns']
+
+    @property
+    def walls(self):
+        return self._state['walls']
+
+
+INNER_WIDTH = 72
+INNER_HEIGHT = 36
+
+
+def make_base():
+    base = {
+        (0, 0): u'\u2554',                      # TOP LEFT CORNER
+        (INNER_WIDTH, 0): u'\u2557',            # TOP RIGHT CORNER
+        (0, INNER_HEIGHT): u'\u255a',           # BOTTOM LEFT CORNER
+        (INNER_WIDTH, INNER_HEIGHT): u'\u255d', # BOTTOM RIGHT CORNER
+    }
+
+    for i in range(1, INNER_WIDTH):
+        base[(i, 0)] = u'\u2550'              # TOP SIDE
+        base[(i, INNER_HEIGHT)] = u'\u2550'   # BOTTOM SIDE
+
+    for row in range(1, INNER_HEIGHT):
+        base[(0, row)] = u'\u2551'            # LEFT SIDE
+        base[(INNER_WIDTH, row)] = u'\u2551'  # RIGHT SIDE
+        for col in range(1, INNER_WIDTH):
+            col_mod_8 = col % 8 == 0
+            if row % 4 == 0:
+                if col % 2 == 0 and not col_mod_8:
+                    base[(col, row)] = '-'
+                else:
+                    base[(col, row)] = ' '
+            else:
+                if row % 2 != 0 and col_mod_8:
+                    base[(col, row)] = '|'
+                else:
+                    base[(col, row)] = ' '
+    return base
+
+
+def print_base(base):
+    print '\n'.join([
+        ''.join([base[(c, r)] for c in range(INNER_WIDTH + 1)])
+        for r in range(INNER_HEIGHT + 1)
+    ])
+
+
+def wall_to_base(direction, position, base):
+    cm, rm = 8, 4
+    boc = direction[1] * cm + direction[0]
+    bor = direction[0] * rm + direction[1]
+    col = position[COL] * cm
+    row = position[ROW] * rm
+
+    if direction == HORIZONTAL:
+        for col_delta in range(15):
+            base[(boc + col + col_delta, bor + row)] = u'\u2550'
+    else:
+        for row_delta in range(7):
+            base[(boc + col, bor + row + row_delta)] = u'\u2551'
+
+
+from termcolor import colored
+
+
+def pawn_to_base(position, color, base):
+    LETTER = {RED: u'Y', GREEN: u'G'}
+    cm, rm = 8, 4
+    col = position[COL] * cm + 1
+    row = position[ROW] * rm + 1
+    base.update({
+        (col + 1, row): u'\u27cb',
+        (col + 2, row): u'\u203e',
+        (col + 3, row): u'\u203e',
+        (col + 4, row): u'\u203e',
+        (col + 5, row): u'\u27cd',
+
+        (col + 1, row + 1): u'\u23b8',
+        (col + 2, row + 1): LETTER[color],
+        (col + 3, row + 1): LETTER[color],
+        (col + 4, row + 1): LETTER[color],
+        (col + 5, row + 1): u'\u23b9',
+
+        (col + 1, row + 2): u'\u27cd',
+        (col + 2, row + 2): u'_',
+        (col + 3, row + 2): u'_',
+        (col + 4, row + 2): u'_',
+        (col + 5, row + 2): u'\u27cb',
+    })
+
+
+def main():
+    game = Quoridor2()
+    while not game.game_ended():
+        base = make_base()
+        for direction, walls in game.walls.items():
+            for wall in walls:
+                wall_to_base(direction, wall, base)
+        for pawn, color in game.pawns.items():
+            pawn_to_base(pawn, color, base)
+
+        print_base(base)
+        break   # TODO: TO BE REMOVED
+
+
+if __name__ == '__main__':
+    main()
