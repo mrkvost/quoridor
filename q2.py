@@ -394,6 +394,23 @@ def random_walls(game):
             pass
 
 
+def random_pawn_positions(game):
+    game._state['pawns'] = {}
+    for color, goal_row in GOAL_ROW.items():
+        position = Vector(
+            row=random.randint(PAWN_POS_MIN, PAWN_POS_MAX),
+            col=random.randint(PAWN_POS_MIN, PAWN_POS_MAX),
+        )
+        while position in game._state['pawns'] or position.row == goal_row:
+            position = Vector(
+                row=random.randint(PAWN_POS_MIN, PAWN_POS_MAX),
+                col=random.randint(PAWN_POS_MIN, PAWN_POS_MAX),
+            )
+
+        game._state['players'][color]['pawn'] = position
+        game._state['pawns'][position] = color
+
+
 def console_run(options):
     colors_on = options.colors_on
     if os.getenv('ANSI_COLORS_DISABLED') is not None:
@@ -401,6 +418,7 @@ def console_run(options):
 
     game = Quoridor2()
     if options.example:
+        random_pawn_positions(game)
         random_walls(game)
 
     while not game.game_ended():
