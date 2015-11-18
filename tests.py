@@ -1235,7 +1235,7 @@ def test_is_correct_wall_move_using_tuples_1():
     assert_true(
         is_correct_wall_move(
             HORIZONTAL,
-            Vector(row=5, col=6),
+            (5, 6),
             {YELLOW: (0, 4), GREEN: (8, 4)},
             {
                 HORIZONTAL: set([
