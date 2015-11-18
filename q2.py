@@ -17,14 +17,14 @@ JUMP_DISTANCE_MAX = 2
 COL = 0
 ROW = 1
 
-RED = 0
+YELLOW = 0
 GREEN = 1
 
 GOAL_ROW = {
-    RED: PAWN_POS_MAX,
+    YELLOW: PAWN_POS_MAX,
     GREEN: PAWN_POS_MIN,
 }
-FOLLOWING_PLAYER = {RED: GREEN, GREEN: RED}
+FOLLOWING_PLAYER = {YELLOW: GREEN, GREEN: YELLOW}
 
 
 def add_direction(position, direction):
@@ -166,9 +166,9 @@ class Quoridor2(object):
         self._state = {
             'winner': None,
             'game_ended': False,
-            'on_move': RED,
+            'on_move': YELLOW,
             'players': {
-                RED: {
+                YELLOW: {
                     'pawn': (4, PAWN_POS_MIN),
                     'walls': 10,
                 },
@@ -178,7 +178,7 @@ class Quoridor2(object):
                 },
             },
             'pawns': {
-                (4, PAWN_POS_MIN): RED,
+                (4, PAWN_POS_MIN): YELLOW,
                 (4, PAWN_POS_MAX): GREEN,
             },
             'walls': {
@@ -316,7 +316,7 @@ from termcolor import colored
 
 
 def pawn_to_base(position, color, base):
-    LETTER = {RED: u'Y', GREEN: u'G'}
+    LETTER = {YELLOW: u'Y', GREEN: u'G'}
     cm, rm = 8, 4
     col = position[COL] * cm + 1
     row = position[ROW] * rm + 1

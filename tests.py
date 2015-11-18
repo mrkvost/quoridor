@@ -5,7 +5,7 @@ from nose.tools import (
 )
 
 from q2 import (
-    RED,
+    YELLOW,
     GREEN,
     VERTICAL,
     HORIZONTAL,
@@ -440,7 +440,7 @@ def test_pawn_legal_moves_corner_1():
         set(pawn_legal_moves(
             (0, 0),
             {
-                (0, 0): RED,
+                (0, 0): YELLOW,
                 (5, 5): GREEN,
             },
             {
@@ -457,7 +457,7 @@ def test_pawn_legal_moves_corner_2():
         set(pawn_legal_moves(
             (8, 8),
             {
-                (8, 7): RED,
+                (8, 7): YELLOW,
                 (8, 8): GREEN,
             },
             {
@@ -474,7 +474,7 @@ def test_pawn_legal_moves_corner_3():
         set(pawn_legal_moves(
             (0, 8),
             {
-                (0, 7): RED,
+                (0, 7): YELLOW,
                 (0, 8): GREEN,
             },
             {
@@ -491,7 +491,7 @@ def test_pawn_legal_moves_corner_4():
         set(pawn_legal_moves(
             (8, 0),
             {
-                (8, 0): RED,
+                (8, 0): YELLOW,
                 (8, 1): GREEN,
             },
             {
@@ -508,7 +508,7 @@ def test_pawn_legal_moves_corner_5():
         set(pawn_legal_moves(
             (0, 0),
             {
-                (0, 0): RED,
+                (0, 0): YELLOW,
                 (0, 1): GREEN,
             },
             {
@@ -525,7 +525,7 @@ def test_pawn_legal_moves_side_1():
         set(pawn_legal_moves(
             (3, 0),
             {
-                (3, 0): RED,
+                (3, 0): YELLOW,
                 (3, 1): GREEN,
             },
             {
@@ -542,7 +542,7 @@ def test_pawn_legal_moves_side_2():
         set(pawn_legal_moves(
             (8, 1),
             {
-                (8, 1): RED,
+                (8, 1): YELLOW,
                 (8, 2): GREEN,
             },
             {
@@ -559,7 +559,7 @@ def test_pawn_legal_moves_side_3():
         set(pawn_legal_moves(
             (7, 8),
             {
-                (7, 7): RED,
+                (7, 7): YELLOW,
                 (7, 8): GREEN,
             },
             {
@@ -576,7 +576,7 @@ def test_pawn_legal_moves_side_4():
         set(pawn_legal_moves(
             (0, 2),
             {
-                (1, 2): RED,
+                (1, 2): YELLOW,
                 (0, 2): GREEN,
             },
             {
@@ -593,7 +593,7 @@ def test_pawn_legal_moves_middle_1():
         set(pawn_legal_moves(
             (4, 2),
             {
-                (4, 2): RED,
+                (4, 2): YELLOW,
                 (4, 3): GREEN,
             },
             {
@@ -610,7 +610,7 @@ def test_pawn_legal_moves_middle_2():
         set(pawn_legal_moves(
             (5, 5),
             {
-                (4, 5): RED,
+                (4, 5): YELLOW,
                 (5, 5): GREEN,
             },
             {
@@ -627,7 +627,7 @@ def test_pawn_legal_moves_middle_3():
         set(pawn_legal_moves(
             (1, 7),
             {
-                (1, 7): RED,
+                (1, 7): YELLOW,
                 (1, 6): GREEN,
             },
             {
@@ -644,7 +644,7 @@ def test_pawn_legal_moves_middle_4():
         set(pawn_legal_moves(
             (6, 2),
             {
-                (5, 2): RED,
+                (5, 2): YELLOW,
                 (6, 2): GREEN,
             },
             {
@@ -662,7 +662,7 @@ def test_is_correct_pawn_move_correct_1():
             (4, 0),
             (4, 1),
             {
-                (4, 0): RED,
+                (4, 0): YELLOW,
                 (4, 8): GREEN,
             },
             {
@@ -679,7 +679,7 @@ def test_is_correct_pawn_move_correct_2():
             (5, 6),
             (5, 5),
             {
-                (3, 2): RED,
+                (3, 2): YELLOW,
                 (5, 6): GREEN,
             },
             {
@@ -696,7 +696,7 @@ def test_is_correct_pawn_move_correct_3():
             (2, 4),
             (3, 5),
             {
-                (2, 4): RED,
+                (2, 4): YELLOW,
                 (2, 5): GREEN,
             },
             {
@@ -713,7 +713,7 @@ def test_is_correct_pawn_move_wrong_1():
             (0, 0),
             (0, 2),
             {
-                (0, 0): RED,
+                (0, 0): YELLOW,
                 (4, 3): GREEN,
             },
             {
@@ -730,7 +730,7 @@ def test_is_correct_pawn_move_wrong_2():
             (0, 7),
             (-1, 6),
             {
-                (0, 6): RED,
+                (0, 6): YELLOW,
                 (0, 7): GREEN,
             },
             {
@@ -747,7 +747,7 @@ def test_is_correct_pawn_move_wrong_3():
             (7, 5),
             (9, 5),
             {
-                (7, 5): RED,
+                (7, 5): YELLOW,
                 (8, 5): GREEN,
             },
             {
@@ -764,7 +764,7 @@ def test_is_correct_pawn_move_wrong_4():
             (4, 5),
             (4, 2),
             {
-                (4, 4): RED,
+                (4, 4): YELLOW,
                 (4, 5): GREEN,
             },
             {
@@ -781,7 +781,7 @@ def test_is_correct_pawn_move_wrong_5():
             (3, 3),
             (3, 3),
             {
-                (3, 3): RED,
+                (3, 3): YELLOW,
                 (3, 4): GREEN,
             },
             {
@@ -798,7 +798,7 @@ def test_is_correct_pawn_move_wrong_6():
             (5, 1),
             (5, 3),
             {
-                (5, 1): RED,
+                (5, 1): YELLOW,
                 (5, 3): GREEN,
             },
             {
@@ -949,7 +949,7 @@ def test_wall_intersects_11():
 def test_pawn_can_reach_goal_1():
     assert_true(
         pawn_can_reach_goal(
-            RED,
+            YELLOW,
             (3, 4),
             {HORIZONTAL: set(), VERTICAL: set()}
         )
@@ -969,7 +969,7 @@ def test_pawn_can_reach_goal_2():
 def test_pawn_can_reach_goal_3():
     assert_true(
         pawn_can_reach_goal(
-            RED,
+            YELLOW,
             (4, 0),
             {
                 HORIZONTAL: set([
@@ -1001,7 +1001,7 @@ def test_pawn_can_reach_goal_4():
 def test_pawn_can_reach_goal_4():
     assert_false(
         pawn_can_reach_goal(
-            RED,
+            YELLOW,
             (4, 4),
             {
                 HORIZONTAL: set([
@@ -1037,7 +1037,7 @@ def test_is_correct_wall_move_1():
         is_correct_wall_move(
             HORIZONTAL,
             (4, 0),
-            {RED: (4, 0), GREEN: (4, 8)},
+            {YELLOW: (4, 0), GREEN: (4, 8)},
             {HORIZONTAL: set(), VERTICAL: set()}
         )
     )
@@ -1048,7 +1048,7 @@ def test_is_correct_wall_move_2():
         is_correct_wall_move(
             HORIZONTAL,
             (6, 5),
-            {RED: (4, 0), GREEN: (4, 8)},
+            {YELLOW: (4, 0), GREEN: (4, 8)},
             {
                 HORIZONTAL: set([
                     (0, 5), (2, 5), (4, 5), (0, 1), (2, 1), (4, 1), (6, 1)
