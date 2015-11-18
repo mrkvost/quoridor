@@ -1199,7 +1199,7 @@ def test_is_correct_wall_move_1():
         is_correct_wall_move(
             HORIZONTAL,
             Vector(row=0, col=4),
-            {YELLOW: Vector(row=0, col=4), GREEN: Vector(row=8, col=4)},
+            {Vector(row=0, col=4): YELLOW, Vector(row=8, col=4): GREEN},
             {HORIZONTAL: set(), VERTICAL: set()}
         )
     )
@@ -1210,7 +1210,7 @@ def test_is_correct_wall_move_2():
         is_correct_wall_move(
             HORIZONTAL,
             Vector(row=5, col=6),
-            {YELLOW: Vector(row=0, col=4), GREEN: Vector(row=8, col=4)},
+            {Vector(row=0, col=4): YELLOW, Vector(row=8, col=4): GREEN},
             {
                 HORIZONTAL: set([
                     Vector(row=5, col=0),
@@ -1236,7 +1236,7 @@ def test_is_correct_wall_move_using_tuples_1():
         is_correct_wall_move(
             HORIZONTAL,
             (5, 6),
-            {YELLOW: (0, 4), GREEN: (8, 4)},
+            {(0, 4): YELLOW, (8, 4): GREEN},
             {
                 HORIZONTAL: set([
                     (5, 0),
@@ -1251,6 +1251,26 @@ def test_is_correct_wall_move_using_tuples_1():
                     (1, 7),
                     (3, 7),
                     (5, 7),
+                ])
+            }
+        )
+    )
+
+
+def test_is_correct_wall_move_3():
+    assert_false(
+        is_correct_wall_move(
+            HORIZONTAL,
+            Vector(row=0, col=2),
+            {Vector(row=0, col=4): YELLOW, Vector(row=8, col=4): GREEN},
+            {
+                HORIZONTAL: set([
+                    Vector(row=1, col=4),
+                ]),
+                VERTICAL: set([
+                    Vector(row=0, col=1),
+                    Vector(row=0, col=5),
+                    Vector(row=1, col=3),
                 ])
             }
         )

@@ -1,6 +1,7 @@
 # TODO: documentation
 
 import os
+import random
 
 from optparse import OptionParser
 from collections import namedtuple
@@ -177,9 +178,14 @@ def is_correct_wall_move(direction, position, pawns, walls):
         return False
     elif wall_intersects(direction, position, walls):
         return False
-    for color, pawn_position in pawns.items():
+
+    walls[direction].add(position)
+    for pawn_position, color in pawns.items():
         if not pawn_can_reach_goal(color, pawn_position, walls):
+            walls[direction].remove(position)
             return False
+
+    walls[direction].remove(position)
     return True
 
 
@@ -219,7 +225,7 @@ class Quoridor2(object):
 
     @property
     def current_wall_count(self):
-        return self._state['pawns'][self._state['on_move']]['walls']
+        return self._state['players'][self._state['on_move']]['walls']
 
     def place_wall(self, direction, position):
         if self.game_ended():
@@ -228,7 +234,7 @@ class Quoridor2(object):
         if not self.current_wall_count > 0:
             raise InvalidMove('No walls to play with.')
 
-        is_correct = is_correct_pawn_move(
+        is_correct = is_correct_wall_move(
             direction,
             position,
             self._state['pawns'],
@@ -240,7 +246,7 @@ class Quoridor2(object):
             raise InvalidMove()
 
         color = self._state['on_move']
-        self._state['wals'][direction].add(position)
+        self._state['walls'][direction].add(position)
         self._state['players'][color]['walls'] -= 1
         self._state['on_move'] = FOLLOWING_PLAYER[color]
 
@@ -325,17 +331,24 @@ def print_base(base):
 
 
 def wall_to_base(direction, position, base, colors_on=False):
-    boc = direction[1] * FIELD_WIDTH_CONSOLE + direction[0]
-    bor = direction[0] * FIELD_HEIGHT_CONSOLE + direction[1]
+    basic_col_offset = direction[COL] + direction[ROW] * FIELD_WIDTH_CONSOLE
+    basic_row_offset = direction[ROW] + direction[COL] * FIELD_HEIGHT_CONSOLE
+
     col = position[COL] * FIELD_WIDTH_CONSOLE
-    row = position.row * FIELD_HEIGHT_CONSOLE
+    row = position[ROW] * FIELD_HEIGHT_CONSOLE
 
     if direction == HORIZONTAL:
         for col_delta in range(15):
-            base[(boc + col + col_delta, bor + row)] = u'\u2550'
+            base[(
+                basic_col_offset + col + col_delta,
+                basic_row_offset + row,
+            )] = u'\u2550'
     else:
         for row_delta in range(7):
-            base[(boc + col, bor + row + row_delta)] = u'\u2551'
+            base[(
+                basic_col_offset + col,
+                basic_row_offset + row + row_delta,
+            )] = u'\u2551'
 
 
 def pawn_to_base(position, pawn_color, base, colors_on=False):
@@ -368,12 +381,28 @@ def pawn_to_base(position, pawn_color, base, colors_on=False):
     })
 
 
+def random_walls(game):
+    for i in range(random.randint(10, 20)):
+        position = Vector(
+            row=random.randint(WALL_POS_MIN, WALL_POS_MAX),
+            col=random.randint(WALL_POS_MIN, WALL_POS_MAX),
+        )
+        direction = random.choice(DIRECTIONS)
+        try:
+            game.place_wall(direction, position)
+        except InvalidMove:
+            pass
+
+
 def console_run(options):
     colors_on = options.colors_on
     if os.getenv('ANSI_COLORS_DISABLED') is not None:
         colors_on = False
 
     game = Quoridor2()
+    if options.example:
+        random_walls(game)
+
     while not game.game_ended():
         base = make_base()
         for direction, walls in game.walls.items():
@@ -383,6 +412,8 @@ def console_run(options):
             pawn_to_base(pawn, color, base, colors_on=colors_on)
 
         print_base(base)
+        if options.example:
+            return
         break   # TODO: TO BE REMOVED
 
 
@@ -391,6 +422,14 @@ def main():
     parser.add_option(
         '-c', '--colors', dest='colors_on', default=False, action='store_true',
         help='Enable color output in console mode. Disabled by default.'
+    )
+
+    parser.add_option(
+        '-e', '--example', dest='example', default=False, action='store_true',
+        help=(
+            'In console mode, create random board position display it and end.'
+            ' Serves for debugging.'
+        )
     )
 
     options, args = parser.parse_args()
