@@ -1,24 +1,34 @@
 # TODO: documentation
 
+import os
+
+from optparse import OptionParser
+from collections import namedtuple
+
+
+Vector = namedtuple('Vector', ['row', 'col'])
+ROW = 0
+COL = 1
+
 SIZE = 9
 PAWN_POS_MIN = 0
 PAWN_POS_MAX = SIZE - 1
 WALL_POS_MIN = 0
 WALL_POS_MAX = SIZE - 2
 
-VERTICAL = (0, 1)
-HORIZONTAL = (1, 0)
+VERTICAL = Vector(row=1, col=0)
+HORIZONTAL = Vector(row=0, col=1)
 DIRECTIONS = (VERTICAL, HORIZONTAL)
 OPPOSITE_DIRECTION = {VERTICAL: HORIZONTAL, HORIZONTAL: VERTICAL}
 
 # It is possible to jump over single pawn
 JUMP_DISTANCE_MAX = 2
 
-COL = 0
-ROW = 1
-
 YELLOW = 0
 GREEN = 1
+
+STARTING_POSITION_DEFAULT_YELLOW = Vector(row=PAWN_POS_MIN, col=4)
+STARTING_POSITION_DEFAULT_GREEN = Vector(row=PAWN_POS_MAX, col=4)
 
 GOAL_ROW = {
     YELLOW: PAWN_POS_MAX,
@@ -26,17 +36,31 @@ GOAL_ROW = {
 }
 FOLLOWING_PLAYER = {YELLOW: GREEN, GREEN: YELLOW}
 
+PLAYER_LETTER_CONSOLE = {YELLOW: u'Y', GREEN: u'G'}
+FIELD_WIDTH_CONSOLE = 8
+FIELD_HEIGHT_CONSOLE = 4
+COLOR_CONSOLE = {YELLOW: u'\x1b[1m\x1b[33m', GREEN: u'\x1b[1m\x1b[32m'}
+
 
 def add_direction(position, direction):
-    return (position[COL] + direction[COL], position[ROW] + direction[ROW])
+    return Vector(
+        row=position[ROW] + direction[ROW],
+        col=position[COL] + direction[COL],
+    )
 
 
 def substract_direction(position, direction):
-    return (position[COL] - direction[COL], position[ROW] - direction[ROW])
+    return Vector(
+        row=position[ROW] - direction[ROW],
+        col=position[COL] - direction[COL],
+    )
 
 
 def adjacent_move_direction(from_, to):
-    direction = (abs(from_[COL] - to[COL]), abs(from_[ROW] - to[ROW]))
+    direction = Vector(
+        row=abs(from_[ROW] - to[ROW]),
+        col=abs(from_[COL] - to[COL]),
+    )
     if direction not in DIRECTIONS:
         return None
     return direction
@@ -79,7 +103,10 @@ def is_wall_between(from_, to, walls):
     else:
         direction = OPPOSITE_DIRECTION[direction]
 
-    position = (min(from_[COL], to[COL]), min(from_[ROW], to[ROW]))
+    position = Vector(
+        row=min(from_[ROW], to[ROW]),
+        col=min(from_[COL], to[COL]),
+    )
 
     if position in walls[direction]:
         return True
@@ -169,17 +196,17 @@ class Quoridor2(object):
             'on_move': YELLOW,
             'players': {
                 YELLOW: {
-                    'pawn': (4, PAWN_POS_MIN),
+                    'pawn': STARTING_POSITION_DEFAULT_YELLOW,
                     'walls': 10,
                 },
                 GREEN: {
-                    'pawn': (4, PAWN_POS_MAX),
+                    'pawn': STARTING_POSITION_DEFAULT_GREEN,
                     'walls': 10,
                 },
             },
             'pawns': {
-                (4, PAWN_POS_MIN): YELLOW,
-                (4, PAWN_POS_MAX): GREEN,
+                STARTING_POSITION_DEFAULT_YELLOW: YELLOW,
+                STARTING_POSITION_DEFAULT_GREEN: GREEN,
             },
             'walls': {
                 VERTICAL: set(),
@@ -297,12 +324,11 @@ def print_base(base):
     ])
 
 
-def wall_to_base(direction, position, base):
-    cm, rm = 8, 4
-    boc = direction[1] * cm + direction[0]
-    bor = direction[0] * rm + direction[1]
-    col = position[COL] * cm
-    row = position[ROW] * rm
+def wall_to_base(direction, position, base, colors_on=False):
+    boc = direction[1] * FIELD_WIDTH_CONSOLE + direction[0]
+    bor = direction[0] * FIELD_HEIGHT_CONSOLE + direction[1]
+    col = position[COL] * FIELD_WIDTH_CONSOLE
+    row = position.row * FIELD_HEIGHT_CONSOLE
 
     if direction == HORIZONTAL:
         for col_delta in range(15):
@@ -312,47 +338,63 @@ def wall_to_base(direction, position, base):
             base[(boc + col, bor + row + row_delta)] = u'\u2551'
 
 
-from termcolor import colored
+def pawn_to_base(position, pawn_color, base, colors_on=False):
+    color_start = u''
+    color_end = u''
+    if colors_on:
+        color_start = COLOR_CONSOLE[pawn_color]
+        color_end = u'\x1b[0m'
 
-
-def pawn_to_base(position, color, base):
-    LETTER = {YELLOW: u'Y', GREEN: u'G'}
-    cm, rm = 8, 4
-    col = position[COL] * cm + 1
-    row = position[ROW] * rm + 1
+    col = position.col * FIELD_WIDTH_CONSOLE + 1
+    row = position.row * FIELD_HEIGHT_CONSOLE + 1
     base.update({
-        (col + 1, row): u'\u27cb',
+        (col + 1, row): color_start + u'\u27cb',
         (col + 2, row): u'\u203e',
         (col + 3, row): u'\u203e',
         (col + 4, row): u'\u203e',
-        (col + 5, row): u'\u27cd',
+        (col + 5, row): u'\u27cd' + color_end,
 
-        (col + 1, row + 1): u'\u23b8',
-        (col + 2, row + 1): LETTER[color],
-        (col + 3, row + 1): LETTER[color],
-        (col + 4, row + 1): LETTER[color],
-        (col + 5, row + 1): u'\u23b9',
+        (col + 1, row + 1): color_start + u'\u23b8',
+        (col + 2, row + 1): PLAYER_LETTER_CONSOLE[pawn_color],
+        (col + 3, row + 1): PLAYER_LETTER_CONSOLE[pawn_color],
+        (col + 4, row + 1): PLAYER_LETTER_CONSOLE[pawn_color],
+        (col + 5, row + 1): u'\u23b9' + color_end,
 
-        (col + 1, row + 2): u'\u27cd',
+        (col + 1, row + 2): color_start + u'\u27cd',
         (col + 2, row + 2): u'_',
         (col + 3, row + 2): u'_',
         (col + 4, row + 2): u'_',
-        (col + 5, row + 2): u'\u27cb',
+        (col + 5, row + 2): u'\u27cb' + color_end,
     })
 
 
-def main():
+def console_run(options):
+    colors_on = options.colors_on
+    if os.getenv('ANSI_COLORS_DISABLED') is not None:
+        colors_on = False
+
     game = Quoridor2()
     while not game.game_ended():
         base = make_base()
         for direction, walls in game.walls.items():
             for wall in walls:
-                wall_to_base(direction, wall, base)
+                wall_to_base(direction, wall, base, colors_on=colors_on)
         for pawn, color in game.pawns.items():
-            pawn_to_base(pawn, color, base)
+            pawn_to_base(pawn, color, base, colors_on=colors_on)
 
         print_base(base)
         break   # TODO: TO BE REMOVED
+
+
+def main():
+    parser = OptionParser()
+    parser.add_option(
+        '-c', '--colors', dest='colors_on', default=False, action='store_true',
+        help='Enable color output in console mode. Disabled by default.'
+    )
+
+    options, args = parser.parse_args()
+    console_run(options)
 
 
 if __name__ == '__main__':
