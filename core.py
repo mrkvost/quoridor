@@ -7,11 +7,13 @@ Vector = namedtuple('Vector', ['row', 'col'])
 ROW = 0
 COL = 1
 
-SIZE = 9
+BOARD_SIZE = 9
 PAWN_POS_MIN = 0
-PAWN_POS_MAX = SIZE - 1
+PAWN_POS_MAX = BOARD_SIZE - 1
+
+WALL_BOARD_SIZE = BOARD_SIZE - 1
 WALL_POS_MIN = 0
-WALL_POS_MAX = SIZE - 2
+WALL_POS_MAX = WALL_BOARD_SIZE - 1
 
 VERTICAL = Vector(row=1, col=0)
 HORIZONTAL = Vector(row=0, col=1)

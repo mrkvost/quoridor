@@ -7,6 +7,8 @@ from core import (
     Vector,
     ROW,
     COL,
+    BOARD_SIZE,
+    WALL_BOARD_SIZE,
     PAWN_POS_MIN,
     PAWN_POS_MAX,
     WALL_POS_MIN,
@@ -20,50 +22,76 @@ from core import (
     Quoridor2,
 )
 
-INNER_WIDTH = 72
-INNER_HEIGHT = 36
-
 PLAYER_LETTER_CONSOLE = {YELLOW: u'Y', GREEN: u'G'}
 FIELD_WIDTH_CONSOLE = 8
 FIELD_HEIGHT_CONSOLE = 4
 COLOR_START_CONSOLE = {YELLOW: u'\x1b[1m\x1b[33m', GREEN: u'\x1b[1m\x1b[32m'}
 COLOR_END_CONSOLE = u'\x1b[0m'
 
+FIELD_INNER_HEIGHT = 3
+FIELD_INNER_WIDTH = 7
+
+WALL_THICKNESS = 1
+WALL_LENGTH_HORIZONTAL = FIELD_INNER_WIDTH + WALL_THICKNESS
+WALL_LENGTH_VERTICAL = FIELD_INNER_HEIGHT + WALL_THICKNESS
+
+BOARD_INNER_WIDTH = (
+    WALL_BOARD_SIZE * WALL_THICKNESS + BOARD_SIZE * FIELD_INNER_WIDTH
+)
+BOARD_INNER_HEIGHT = (
+    WALL_BOARD_SIZE * WALL_THICKNESS + BOARD_SIZE * FIELD_INNER_HEIGHT
+)
+
+BOARD_BORDER_THICKNESS = 1
+BOARD_WIDTH = BOARD_INNER_WIDTH + 2 * BOARD_BORDER_THICKNESS
+BOARD_HEIGHT = BOARD_INNER_HEIGHT + 2 * BOARD_BORDER_THICKNESS
+
+
+def _base_border(base):
+    # corners:
+    base.update({
+        Vector(row=0, col=0): u'\u2554',
+        Vector(row=0, col=BOARD_WIDTH - 1): u'\u2557',
+        Vector(row=BOARD_HEIGHT - 1, col=0): u'\u255a',
+        Vector(row=BOARD_HEIGHT - 1, col=BOARD_WIDTH - 1): u'\u255d',
+    })
+
+    # top and bottom:
+    for col in range(BOARD_BORDER_THICKNESS, BOARD_WIDTH - 1):
+        base[Vector(row=0, col=col)] = u'\u2550'
+        base[Vector(row=BOARD_HEIGHT - 1, col=col)] = u'\u2550'
+
+    # left and right:
+    for row in range(BOARD_BORDER_THICKNESS, BOARD_HEIGHT - 1):
+        base[Vector(row=row, col=0)] = u'\u2551'
+        base[Vector(row=row, col=BOARD_WIDTH - 1)] = u'\u2551'
+
+    return base
+
 
 def make_base():
-    base = {
-        (0, 0): u'\u2554',                      # TOP LEFT CORNER
-        (INNER_WIDTH, 0): u'\u2557',            # TOP RIGHT CORNER
-        (0, INNER_HEIGHT): u'\u255a',           # BOTTOM LEFT CORNER
-        (INNER_WIDTH, INNER_HEIGHT): u'\u255d', # BOTTOM RIGHT CORNER
-    }
+    base = _base_border({})
 
-    for i in range(1, INNER_WIDTH):
-        base[(i, 0)] = u'\u2550'              # TOP SIDE
-        base[(i, INNER_HEIGHT)] = u'\u2550'   # BOTTOM SIDE
-
-    for row in range(1, INNER_HEIGHT):
-        base[(0, row)] = u'\u2551'            # LEFT SIDE
-        base[(INNER_WIDTH, row)] = u'\u2551'  # RIGHT SIDE
-        for col in range(1, INNER_WIDTH):
-            col_mod_8 = col % 8 == 0
-            if row % 4 == 0:
-                if col % 2 == 0 and not col_mod_8:
-                    base[(col, row)] = '-'
+    for row in range(BOARD_BORDER_THICKNESS, BOARD_HEIGHT - 1):
+        for col in range(BOARD_BORDER_THICKNESS, BOARD_WIDTH - 1):
+            col_mod = col % (FIELD_INNER_WIDTH + WALL_THICKNESS) == 0
+            if row % (FIELD_INNER_HEIGHT + WALL_THICKNESS) == 0:
+                if col % 2 == 0 and not col_mod:
+                    base[Vector(row=row, col=col)] = '-'
                 else:
-                    base[(col, row)] = ' '
+                    base[Vector(row=row, col=col)] = ' '
             else:
-                if row % 2 != 0 and col_mod_8:
-                    base[(col, row)] = '|'
+                if row % 2 != 0 and col_mod:
+                    base[Vector(row=row, col=col)] = '|'
                 else:
-                    base[(col, row)] = ' '
+                    base[Vector(row=row, col=col)] = ' '
     return base
 
 
 def print_base(base):
     print '\n'.join([
-        ''.join([base[(c, r)] for c in range(INNER_WIDTH + 1)])
-        for r in range(INNER_HEIGHT + 1)
+        ''.join([base[Vector(row=row, col=col)] for col in range(BOARD_WIDTH)])
+        for row in range(BOARD_HEIGHT)
     ])
 
 
@@ -76,15 +104,15 @@ def wall_to_base(direction, position, base, colors_on=False):
 
     if direction == HORIZONTAL:
         for col_delta in range(15):
-            base[(
-                basic_col_offset + col + col_delta,
-                basic_row_offset + row,
+            base[Vector(
+                row=basic_row_offset + row,
+                col=basic_col_offset + col + col_delta,
             )] = u'\u2550'
     else:
         for row_delta in range(7):
-            base[(
-                basic_col_offset + col,
-                basic_row_offset + row + row_delta,
+            base[Vector(
+                row=basic_row_offset + row + row_delta,
+                col=basic_col_offset + col,
             )] = u'\u2551'
 
 
@@ -98,23 +126,23 @@ def pawn_to_base(position, pawn_color, base, colors_on=False):
     col = position.col * FIELD_WIDTH_CONSOLE + 1
     row = position.row * FIELD_HEIGHT_CONSOLE + 1
     base.update({
-        (col + 1, row): color_start + u'\u27cb',
-        (col + 2, row): u'\u203e',
-        (col + 3, row): u'\u203e',
-        (col + 4, row): u'\u203e',
-        (col + 5, row): u'\u27cd' + color_end,
+        Vector(row=row, col=col + 1): color_start + u'\u27cb',
+        Vector(row=row, col=col + 2): u'\u203e',
+        Vector(row=row, col=col + 3): u'\u203e',
+        Vector(row=row, col=col + 4): u'\u203e',
+        Vector(row=row, col=col + 5): u'\u27cd' + color_end,
 
-        (col + 1, row + 1): color_start + u'\u23b8',
-        (col + 2, row + 1): PLAYER_LETTER_CONSOLE[pawn_color],
-        (col + 3, row + 1): PLAYER_LETTER_CONSOLE[pawn_color],
-        (col + 4, row + 1): PLAYER_LETTER_CONSOLE[pawn_color],
-        (col + 5, row + 1): u'\u23b9' + color_end,
+        Vector(row=row + 1, col=col + 1): color_start + u'\u23b8',
+        Vector(row=row + 1, col=col + 2): PLAYER_LETTER_CONSOLE[pawn_color],
+        Vector(row=row + 1, col=col + 3): PLAYER_LETTER_CONSOLE[pawn_color],
+        Vector(row=row + 1, col=col + 4): PLAYER_LETTER_CONSOLE[pawn_color],
+        Vector(row=row + 1, col=col + 5): u'\u23b9' + color_end,
 
-        (col + 1, row + 2): color_start + u'\u27cd',
-        (col + 2, row + 2): u'_',
-        (col + 3, row + 2): u'_',
-        (col + 4, row + 2): u'_',
-        (col + 5, row + 2): u'\u27cb' + color_end,
+        Vector(row=row + 2, col=col + 1): color_start + u'\u27cd',
+        Vector(row=row + 2, col=col + 2): u'_',
+        Vector(row=row + 2, col=col + 3): u'_',
+        Vector(row=row + 2, col=col + 4): u'_',
+        Vector(row=row + 2, col=col + 5): u'\u27cb' + color_end,
     })
 
 
