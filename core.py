@@ -1,6 +1,6 @@
 # TODO: documentation
 
-from collections import namedtuple
+from collections import namedtuple, deque
 
 
 Vector = namedtuple('Vector', ['row', 'col'])
@@ -25,6 +25,7 @@ JUMP_DISTANCE_MAX = 2
 
 YELLOW = 0
 GREEN = 1
+PLAYER_COLOR_NAME = {YELLOW: 'Yellow', GREEN: 'Green'}
 
 STARTING_POSITION_DEFAULT_YELLOW = Vector(row=PAWN_POS_MIN, col=4)
 STARTING_POSITION_DEFAULT_GREEN = Vector(row=PAWN_POS_MAX, col=4)
@@ -190,6 +191,7 @@ class Quoridor2(object):
 
     def __init__(self):
         self._state = {
+            'moves_made': 0,
             'winner': None,
             'game_ended': False,
             'on_move': YELLOW,
@@ -213,12 +215,56 @@ class Quoridor2(object):
             },
         }
 
+    @property
+    def moves_made(self):
+        return self._state['moves_made']
+
+    @property
+    def on_move(self):
+        return self._state['on_move']
+
+    def player_wall_count(self, color):
+        return self._state['players'][color]['walls']
+
+    @property
+    def players(self):
+        return [color for color in self._state['players']]
+
     def game_ended(self):
         return self._state['game_ended']
 
     @property
     def current_wall_count(self):
-        return self._state['players'][self._state['on_move']]['walls']
+        return self.player_wall_count(self.on_move)
+
+    def pawn_distance_from_goal(self, color):
+        starting_position = self.pawn_position(color)
+        goal_row = GOAL_ROW[color]
+        walls = self._state['walls']
+
+        to_visit = deque([(starting_position, 0)])
+        visited = set()
+
+        while to_visit:
+            position, distance = to_visit.popleft()
+            if position in visited:
+                continue
+            if position.row == goal_row:
+                return distance
+            visited.add(position)
+
+            right_distance = distance % 2 == int(color == self.on_move)
+            for possible in adjacent_pawn_spaces_not_blocked(position, walls):
+                jumps = right_distance and possible in self._state['pawns']
+                if jumps:
+                    to_visit.append((possible, distance))
+                else:
+                    to_visit.append((possible, distance + 1))
+
+        error_msg_fmt = u'{color_name} player can not reach goal row!'
+        color_name = PLAYER_COLOR_NAME[color].upper()
+        raise Exception(error_msg_fmt.format(color_name=color_name))
+
 
     def place_wall(self, direction, position):
         if self.game_ended():
@@ -238,14 +284,18 @@ class Quoridor2(object):
             # TODO: reason the move is invalid would be nice, e.g. no path...
             raise InvalidMove()
 
-        color = self._state['on_move']
+        color = self.on_move
         self._state['walls'][direction].add(position)
         self._state['players'][color]['walls'] -= 1
         self._state['on_move'] = FOLLOWING_PLAYER[color]
+        self._state['moves_made'] += 1
+
+    def pawn_position(self, color):
+        return self._state['players'][color]['pawn']
 
     @property
     def current_pawn_position(self):
-        return self._state['players'][self._state['on_move']]['pawn']
+        return self.pawn_position(self.on_move)
 
     def move_pawn(self, new_position):
         if self.game_ended():
@@ -262,7 +312,7 @@ class Quoridor2(object):
         if not is_correct:
             raise InvalidMove()
 
-        color = self._state['on_move']
+        color = self.on_move
         self._state['players'][color]['pawn'] = new_position
         del self._state['pawns'][pawn_position]
         self._state['pawns'][new_position] = color
@@ -272,6 +322,7 @@ class Quoridor2(object):
             self._state['winner'] = color
 
         self._state['on_move'] = FOLLOWING_PLAYER[color]
+        self._state['moves_made'] += 1
 
     @property
     def pawns(self):

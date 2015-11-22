@@ -17,12 +17,12 @@ from core import (
     DIRECTIONS,
     YELLOW,
     GREEN,
+    PLAYER_COLOR_NAME,
     GOAL_ROW,
     InvalidMove,
     Quoridor2,
 )
 
-PLAYER_COLOR_NAME_CONSOLE = {YELLOW: 'Yellow', GREEN: 'Green'}
 COLOR_START_CONSOLE = {YELLOW: u'\x1b[1m\x1b[33m', GREEN: u'\x1b[1m\x1b[32m'}
 COLOR_END_CONSOLE = u'\x1b[0m'
 
@@ -92,8 +92,10 @@ def make_base():
 
 def print_base(base):
     print '\n'.join([
-        ''.join([base[Vector(row=row, col=col)] for col in range(BOARD_WIDTH)])
-        for row in range(BOARD_HEIGHT)
+        ''.join([
+            base[Vector(row=row, col=col)] for col in range(BOARD_WIDTH + 100)
+            if base.get(Vector(row=row, col=col)) is not None
+        ]) for row in range(BOARD_HEIGHT)
     ])
 
 
@@ -149,7 +151,7 @@ def pawn_to_base(position, pawn_color, base, colors_on=False):
     })
 
     # text:
-    name = PLAYER_COLOR_NAME_CONSOLE[pawn_color]
+    name = PLAYER_COLOR_NAME[pawn_color]
 
     for offset in range(1, rightmost - leftmost):
         row = int(round(0.25 + float(top + bottom) / 2))
@@ -159,7 +161,7 @@ def pawn_to_base(position, pawn_color, base, colors_on=False):
 
 
 def random_walls(game):
-    for i in range(random.randint(10, 20)):
+    for i in range(random.randint(10, 30)):
         position = Vector(
             row=random.randint(WALL_POS_MIN, WALL_POS_MAX),
             col=random.randint(WALL_POS_MIN, WALL_POS_MAX),
@@ -188,6 +190,39 @@ def random_pawn_positions(game):
         game._state['pawns'][position] = color
 
 
+def status_line_to_base(row, line, base):
+    for offset, char in enumerate(u' ' + line):
+        base[Vector(row=row, col=BOARD_WIDTH + offset)] = char
+
+def player_status_to_base(game, base):
+    # TODO: WINNER info
+    for n, color in enumerate(game.players):
+        row = n * 4 + 2
+        color_name = PLAYER_COLOR_NAME[color].upper()
+
+        line = color_name + u' player'
+        if color == game.on_move:
+            line += ' - now playing'
+        status_line_to_base(row, line, base)
+
+        walls = unicode(game.player_wall_count(color))
+        status_line_to_base(row + 1, u'Walls: ' + walls, base)
+
+        line = u'Dist: ' + unicode(game.pawn_distance_from_goal(color))
+        status_line_to_base(row + 2, line, base)
+
+
+def status_to_base(game, base):
+    line = u'Moves made: ' + unicode(game.moves_made)
+    status_line_to_base(0, line, base)
+
+    player_status_to_base(game, base)
+
+    # info: Invalid move, etc...
+    # menu possibilities
+    # input
+
+
 def display_on_console(game, colors_on):
     base = make_base()
     for direction, walls in game.walls.items():
@@ -195,6 +230,8 @@ def display_on_console(game, colors_on):
             wall_to_base(direction, wall, base, colors_on=colors_on)
     for pawn, color in game.pawns.items():
         pawn_to_base(pawn, color, base, colors_on=colors_on)
+
+    status_to_base(game, base)
 
     print_base(base)
 
