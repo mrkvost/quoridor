@@ -48,6 +48,11 @@ BOARD_BORDER_THICKNESS = 1
 BOARD_WIDTH = BOARD_INNER_WIDTH + 2 * BOARD_BORDER_THICKNESS
 BOARD_HEIGHT = BOARD_INNER_HEIGHT + 2 * BOARD_BORDER_THICKNESS
 
+PLAYER_GOAL_INFO = {
+    YELLOW: u'(goes to the bottom \u21ca)',
+    GREEN: u'(goes to the top \u21c8)',
+}
+
 
 def _base_border(base):
     # corners:
@@ -194,10 +199,11 @@ def status_line_to_base(row, line, base):
     for offset, char in enumerate(u' ' + line):
         base[Vector(row=row, col=BOARD_WIDTH + offset)] = char
 
+
 def player_status_to_base(game, base):
     # TODO: WINNER info
     for n, color in enumerate(game.players):
-        row = n * 4 + 2
+        row = n * 5 + 2
         color_name = PLAYER_COLOR_NAME[color].upper()
 
         line = color_name + u' player'
@@ -205,11 +211,13 @@ def player_status_to_base(game, base):
             line += ' - now playing'
         status_line_to_base(row, line, base)
 
+        status_line_to_base(row + 1, PLAYER_GOAL_INFO[color], base)
+
         walls = unicode(game.player_wall_count(color))
-        status_line_to_base(row + 1, u'Walls: ' + walls, base)
+        status_line_to_base(row + 2, u'Walls: ' + walls, base)
 
         line = u'Dist: ' + unicode(game.pawn_distance_from_goal(color))
-        status_line_to_base(row + 2, line, base)
+        status_line_to_base(row + 3, line, base)
 
 
 def status_to_base(game, base):
