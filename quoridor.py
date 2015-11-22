@@ -22,9 +22,7 @@ from core import (
     Quoridor2,
 )
 
-PLAYER_LETTER_CONSOLE = {YELLOW: u'Y', GREEN: u'G'}
-FIELD_WIDTH_CONSOLE = 8
-FIELD_HEIGHT_CONSOLE = 4
+PLAYER_COLOR_NAME_CONSOLE = {YELLOW: 'Yellow', GREEN: 'Green'}
 COLOR_START_CONSOLE = {YELLOW: u'\x1b[1m\x1b[33m', GREEN: u'\x1b[1m\x1b[32m'}
 COLOR_END_CONSOLE = u'\x1b[0m'
 
@@ -32,8 +30,12 @@ FIELD_INNER_HEIGHT = 3
 FIELD_INNER_WIDTH = 7
 
 WALL_THICKNESS = 1
-WALL_LENGTH_HORIZONTAL = FIELD_INNER_WIDTH + WALL_THICKNESS
-WALL_LENGTH_VERTICAL = FIELD_INNER_HEIGHT + WALL_THICKNESS
+
+FIELD_WIDTH = FIELD_INNER_WIDTH + WALL_THICKNESS
+FIELD_HEIGHT = FIELD_INNER_HEIGHT + WALL_THICKNESS
+
+WALL_LENGTH_HORIZONTAL = 2 * FIELD_INNER_WIDTH + WALL_THICKNESS
+WALL_LENGTH_VERTICAL = 2 * FIELD_INNER_HEIGHT + WALL_THICKNESS
 
 BOARD_INNER_WIDTH = (
     WALL_BOARD_SIZE * WALL_THICKNESS + BOARD_SIZE * FIELD_INNER_WIDTH
@@ -96,20 +98,20 @@ def print_base(base):
 
 
 def wall_to_base(direction, position, base, colors_on=False):
-    basic_col_offset = direction[COL] + direction[ROW] * FIELD_WIDTH_CONSOLE
-    basic_row_offset = direction[ROW] + direction[COL] * FIELD_HEIGHT_CONSOLE
+    basic_col_offset = direction[COL] + direction[ROW] * FIELD_WIDTH
+    basic_row_offset = direction[ROW] + direction[COL] * FIELD_HEIGHT
 
-    col = position[COL] * FIELD_WIDTH_CONSOLE
-    row = position[ROW] * FIELD_HEIGHT_CONSOLE
+    col = position[COL] * FIELD_WIDTH
+    row = position[ROW] * FIELD_HEIGHT
 
     if direction == HORIZONTAL:
-        for col_delta in range(15):
+        for col_delta in range(WALL_LENGTH_HORIZONTAL):
             base[Vector(
                 row=basic_row_offset + row,
                 col=basic_col_offset + col + col_delta,
             )] = u'\u2550'
     else:
-        for row_delta in range(7):
+        for row_delta in range(WALL_LENGTH_VERTICAL):
             base[Vector(
                 row=basic_row_offset + row + row_delta,
                 col=basic_col_offset + col,
@@ -123,27 +125,37 @@ def pawn_to_base(position, pawn_color, base, colors_on=False):
         color_start = COLOR_START_CONSOLE[pawn_color]
         color_end = COLOR_END_CONSOLE
 
-    col = position.col * FIELD_WIDTH_CONSOLE + 1
-    row = position.row * FIELD_HEIGHT_CONSOLE + 1
+    leftmost = position.col * FIELD_WIDTH + BOARD_BORDER_THICKNESS
+    rightmost = leftmost + FIELD_INNER_WIDTH - 2
+    top = position.row * FIELD_HEIGHT + BOARD_BORDER_THICKNESS
+    bottom = top + FIELD_INNER_HEIGHT - 1
+
+    # left and right sides:
+    for column in range(leftmost, rightmost + 1):
+        base[Vector(row=top, col=column)] = u'\u203e'
+        base[Vector(row=bottom, col=column)] = u'_'
+
+    # top and bottom sides:
+    for row in range(top, bottom + 1):
+        base[Vector(row=row, col=leftmost)] = color_start + u'\u23b8'
+        base[Vector(row=row, col=rightmost)] = u'\u23b9' + color_end
+
+    # corners:
     base.update({
-        Vector(row=row, col=col + 1): color_start + u'\u27cb',
-        Vector(row=row, col=col + 2): u'\u203e',
-        Vector(row=row, col=col + 3): u'\u203e',
-        Vector(row=row, col=col + 4): u'\u203e',
-        Vector(row=row, col=col + 5): u'\u27cd' + color_end,
-
-        Vector(row=row + 1, col=col + 1): color_start + u'\u23b8',
-        Vector(row=row + 1, col=col + 2): PLAYER_LETTER_CONSOLE[pawn_color],
-        Vector(row=row + 1, col=col + 3): PLAYER_LETTER_CONSOLE[pawn_color],
-        Vector(row=row + 1, col=col + 4): PLAYER_LETTER_CONSOLE[pawn_color],
-        Vector(row=row + 1, col=col + 5): u'\u23b9' + color_end,
-
-        Vector(row=row + 2, col=col + 1): color_start + u'\u27cd',
-        Vector(row=row + 2, col=col + 2): u'_',
-        Vector(row=row + 2, col=col + 3): u'_',
-        Vector(row=row + 2, col=col + 4): u'_',
-        Vector(row=row + 2, col=col + 5): u'\u27cb' + color_end,
+        Vector(row=top, col=leftmost): color_start + u'\u27cb',
+        Vector(row=top, col=rightmost): u'\u27cd' + color_end,
+        Vector(row=bottom, col=leftmost): color_start + u'\u27cd',
+        Vector(row=bottom, col=rightmost): u'\u27cb' + color_end,
     })
+
+    # text:
+    name = PLAYER_COLOR_NAME_CONSOLE[pawn_color]
+
+    for offset in range(1, rightmost - leftmost):
+        row = int(round(0.25 + float(top + bottom) / 2))
+        position = Vector(row=row, col=leftmost + offset)
+        if offset <= len(name):
+            base[position] = name[offset - 1]
 
 
 def random_walls(game):
