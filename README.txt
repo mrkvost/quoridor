@@ -15,3 +15,9 @@ TODOS:
  2. better/clearer/apposite test names
  3. different board sizes
  4. 4 players version
+ 5. use curses for better user experience
+
+NOTES:
+ - curses - buildin library
+ - urwid - console application framework
+ - termcolor, colorama - colors

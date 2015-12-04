@@ -230,8 +230,13 @@ class Quoridor2(object):
     def players(self):
         return [color for color in self._state['players']]
 
+    @property
     def game_ended(self):
         return self._state['game_ended']
+
+    @property
+    def winner(self):
+        return self._state['winner']
 
     @property
     def current_wall_count(self):
@@ -267,7 +272,7 @@ class Quoridor2(object):
 
 
     def place_wall(self, direction, position):
-        if self.game_ended():
+        if self.game_ended:
             raise InvalidMove('Game already ended.')
 
         if not self.current_wall_count > 0:
@@ -298,10 +303,10 @@ class Quoridor2(object):
         return self.pawn_position(self.on_move)
 
     def move_pawn(self, new_position):
-        if self.game_ended():
+        if self.game_ended:
             raise InvalidMove('Game already ended.')
 
-        pawn_position = self.current_pawn_position,
+        pawn_position = self.current_pawn_position
         is_correct = is_correct_pawn_move(
             pawn_position,
             new_position,
@@ -317,7 +322,7 @@ class Quoridor2(object):
         del self._state['pawns'][pawn_position]
         self._state['pawns'][new_position] = color
         # Check end of the game...
-        if new_positions[ROW] == GOAL_ROW[color]:
+        if new_position[ROW] == GOAL_ROW[color]:
             self._state['game_ended'] = True
             self._state['winner'] = color
 

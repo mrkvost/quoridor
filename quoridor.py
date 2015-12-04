@@ -1,4 +1,5 @@
 import os
+import re
 import random
 
 from optparse import OptionParser
@@ -21,6 +22,8 @@ from core import (
     GOAL_ROW,
     InvalidMove,
     Quoridor2,
+    VERTICAL,
+    HORIZONTAL,
 )
 
 COLOR_START_CONSOLE = {YELLOW: u'\x1b[1m\x1b[33m', GREEN: u'\x1b[1m\x1b[32m'}
@@ -53,6 +56,8 @@ PLAYER_GOAL_INFO = {
     GREEN: u'(goes to the top \u21c8)',
 }
 
+CONSOLE_CLEAR = {'nt': 'cls', 'posix': 'clear'}
+
 
 def _base_border(base):
     # corners:
@@ -72,6 +77,18 @@ def _base_border(base):
     for row in range(BOARD_BORDER_THICKNESS, BOARD_HEIGHT - 1):
         base[Vector(row=row, col=0)] = u'\u2551'
         base[Vector(row=row, col=BOARD_WIDTH - 1)] = u'\u2551'
+
+    fw2 = (FIELD_WIDTH // 2)
+    for col in range(BOARD_SIZE):
+        base[Vector(row=0, col=col * FIELD_WIDTH + fw2)] = (
+            (u'\x1b[47m\x1b[1m\x1b[30m') + u'ABCDEFGHI'[col] + COLOR_END_CONSOLE
+        )
+
+    fh2 = (FIELD_HEIGHT // 2)
+    for row in range(BOARD_SIZE):
+        base[Vector(row=row * FIELD_HEIGHT + fh2, col=0)] = (
+            (u'\x1b[47m\x1b[1m\x1b[30m') + u'0123456789'[row] + COLOR_END_CONSOLE
+        )
 
     return base
 
@@ -93,6 +110,10 @@ def make_base():
                 else:
                     base[Vector(row=row, col=col)] = ' '
     return base
+
+
+def clear_console():
+    os.system(CONSOLE_CLEAR[os.name])
 
 
 def print_base(base):
@@ -231,7 +252,8 @@ def status_to_base(game, base):
     # input
 
 
-def display_on_console(game, colors_on):
+def display_on_console(game, colors_on, message=None):
+    clear_console()
     base = make_base()
     for direction, walls in game.walls.items():
         for wall in walls:
@@ -242,6 +264,73 @@ def display_on_console(game, colors_on):
     status_to_base(game, base)
 
     print_base(base)
+
+    if message is not None:
+        print message
+
+
+class InputError(Exception):
+    pass
+
+COLUMN_LETTERS = u'abcdefghi'
+WALL_INPUT_PATTERN = (
+    ur'(?:wall|w|)\s*'
+    ur'(?P<direction>h|v)\s*'
+    ur'(?P<row>\d+)\s*'
+    ur'(?P<col>[{column_letters}])'
+).format(column_letters=COLUMN_LETTERS)
+WALL_INPUT_RE = re.compile(WALL_INPUT_PATTERN, re.I)
+INPUT_DIRECTIONS = {'h': HORIZONTAL, 'v': VERTICAL}
+
+MOVE_INPUT_PATTERN = (
+    ur'(?:pawn|p|)\s*'
+    ur'(?P<row>\d+)\s*'
+    ur'(?P<col>[{column_letters}])'
+).format(column_letters=COLUMN_LETTERS)
+MOVE_INPUT_RE = re.compile(MOVE_INPUT_PATTERN, re.I)
+
+QUIT_INPUT_PATTERN = u'quit|q|exit|end'
+QUIT_INPUT_RE = re.compile(QUIT_INPUT_PATTERN, re.I)
+
+ACTION_UNKNOWN = 'unknown'
+ACTION_END = 'end'
+ACTION_MOVE = 'move'
+
+
+def parse_input():
+    try:
+        user_input = raw_input('Enter choice:')
+    except (EOFError, KeyboardInterrupt, SystemExit):
+        return ACTION_END, None
+
+    match = WALL_INPUT_RE.match(user_input)
+    if match is not None:
+        direction, row, col = match.groups(0)
+        return ACTION_MOVE, {
+            'type': 'wall',
+            'direction': INPUT_DIRECTIONS[direction],
+            'position': Vector(
+                row=int(row),
+                col=COLUMN_LETTERS.find(col.lower())
+            ),
+        }
+
+    match = MOVE_INPUT_RE.match(user_input)
+    if match is not None:
+        row, col = match.groups(0)
+        return ACTION_MOVE, {
+            'type': 'pawn',
+            'position': Vector(
+                row=int(row),
+                col=COLUMN_LETTERS.find(col.lower())
+            ),
+        }
+
+    match = QUIT_INPUT_RE.match(user_input)
+    if match is not None:
+        return ACTION_END, None
+
+    return ACTION_UNKNOWN, None
 
 
 def console_run(options):
@@ -256,12 +345,30 @@ def console_run(options):
         display_on_console(game, colors_on)
         return
 
-    # TODO: ...
-    while not game.game_ended():
-        display_on_console(game, colors_on)
-        if options.example:
-            return
-        break   # TODO: TO BE REMOVED
+    message = None
+    while not game.game_ended:
+        display_on_console(game, colors_on, message)
+        message = None
+        action_type, action_info = parse_input()
+        if action_type == ACTION_END:
+            break
+        elif action_type == ACTION_MOVE:
+            try:
+                if action_info['type'] == 'wall':
+                    game.place_wall(
+                        action_info['direction'],
+                        action_info['position']
+                    )
+                else:
+                    game.move_pawn(action_info['position'])
+            except InvalidMove:
+                message = 'Invalid move.'
+        else:
+            # assert action_info['action'] == ACTION_UNKNOWN
+            message = 'Wrong input. (Examples: wh1e, wv1e, p1e, 1e, quit, q)'
+
+    if game.game_ended:
+        print PLAYER_COLOR_NAME[game.winner] + ' wins!'
 
 
 def main():
