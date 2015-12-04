@@ -368,6 +368,7 @@ def console_run(options):
             message = 'Wrong input. (Examples: wh1e, wv1e, p1e, 1e, quit, q)'
 
     if game.game_ended:
+        display_on_console(game, colors_on)
         print PLAYER_COLOR_NAME[game.winner] + ' wins!'
 
 
