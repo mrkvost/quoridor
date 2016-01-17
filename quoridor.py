@@ -3,6 +3,7 @@ import re
 import random
 
 from optparse import OptionParser
+from collections import deque
 
 from core import (
     Vector,
@@ -24,6 +25,9 @@ from core import (
     Quoridor2,
     VERTICAL,
     HORIZONTAL,
+    current_pawn_position,
+    adjacent_spaces_not_blocked,
+    FOLLOWING_PLAYER,
 )
 
 COLOR_START_CONSOLE = {YELLOW: u'\x1b[1m\x1b[33m', GREEN: u'\x1b[1m\x1b[32m'}
@@ -186,7 +190,7 @@ def pawn_to_base(position, pawn_color, base, colors_on=False):
             base[position] = name[offset - 1]
 
 
-def random_walls(game):
+def random_walls(game, state):
     for i in range(random.randint(10, 30)):
         position = Vector(
             row=random.randint(WALL_POS_MIN, WALL_POS_MAX),
@@ -194,26 +198,25 @@ def random_walls(game):
         )
         direction = random.choice(DIRECTIONS)
         try:
-            game.place_wall(direction, position)
+            game.execute_action(state, (direction, position))
         except InvalidMove:
             pass
 
 
-def random_pawn_positions(game):
-    game._state['pawns'] = {}
+def random_pawn_positions(game, state):
+    state['pawns'] = {}
     for color, goal_row in GOAL_ROW.items():
         position = Vector(
             row=random.randint(PAWN_POS_MIN, PAWN_POS_MAX),
             col=random.randint(PAWN_POS_MIN, PAWN_POS_MAX),
         )
-        while position in game._state['pawns'] or position.row == goal_row:
+        while position in state['pawns'] or position.row == goal_row:
             position = Vector(
                 row=random.randint(PAWN_POS_MIN, PAWN_POS_MAX),
                 col=random.randint(PAWN_POS_MIN, PAWN_POS_MAX),
             )
 
-        game._state['players'][color]['pawn'] = position
-        game._state['pawns'][position] = color
+        state['pawns'][color] = position
 
 
 def status_line_to_base(row, line, base):
@@ -221,47 +224,79 @@ def status_line_to_base(row, line, base):
         base[Vector(row=row, col=BOARD_WIDTH + offset)] = char
 
 
-def player_status_to_base(game, base):
+def pawn_distance_from_goal(state, color):
+    starting_position = state['pawns'][color]
+    goal_row = GOAL_ROW[color]
+    walls = state['placed_walls']
+
+    to_visit = deque([(starting_position, 0)])
+    visited = set()
+
+    while to_visit:
+        position, distance = to_visit.popleft()
+        if position in visited:
+            continue
+        if position.row == goal_row:
+            return distance
+        visited.add(position)
+
+        right_distance = distance % 2 == int(color == state['on_move'])
+        for possible in adjacent_spaces_not_blocked(state, position):
+            jumps = right_distance and possible in state['pawns'].values()
+            if jumps:
+                to_visit.append((possible, distance))
+            else:
+                to_visit.append((possible, distance + 1))
+
+    error_msg_fmt = u'{color_name} player can not reach goal row!'
+    color_name = PLAYER_COLOR_NAME[color].upper()
+    raise Exception(error_msg_fmt.format(color_name=color_name))
+
+
+def player_status_to_base(state, base):
     # TODO: WINNER info
-    for n, color in enumerate(game.players):
+    for n, color in enumerate(state['pawns']):
         row = n * 5 + 2
         color_name = PLAYER_COLOR_NAME[color].upper()
 
         line = color_name + u' player'
-        if color == game.on_move:
+        if color == state['on_move']:
             line += ' - now playing'
         status_line_to_base(row, line, base)
 
         status_line_to_base(row + 1, PLAYER_GOAL_INFO[color], base)
 
-        walls = unicode(game.player_wall_count(color))
+        walls = unicode(state['walls'][color])
         status_line_to_base(row + 2, u'Walls: ' + walls, base)
 
-        line = u'Dist: ' + unicode(game.pawn_distance_from_goal(color))
+        line = u'Dist: ' + unicode(pawn_distance_from_goal(state, color))
         status_line_to_base(row + 3, line, base)
 
 
-def status_to_base(game, base):
-    line = u'Moves made: ' + unicode(game.moves_made)
+
+def status_to_base(state, moves_made, base):
+    line = u'Moves made: ' + unicode(moves_made)
     status_line_to_base(0, line, base)
 
-    player_status_to_base(game, base)
+    player_status_to_base(state, base)
 
     # info: Invalid move, etc...
     # menu possibilities
     # input
 
 
-def display_on_console(game, colors_on, message=None):
+def display_on_console(state, colors_on, history=None, message=None):
+    if history is None:
+        history = []
     clear_console()
     base = make_base()
-    for direction, walls in game.walls.items():
+    for direction, walls in state['placed_walls'].items():
         for wall in walls:
             wall_to_base(direction, wall, base, colors_on=colors_on)
-    for pawn, color in game.pawns.items():
+    for color, pawn in state['pawns'].items():
         pawn_to_base(pawn, color, base, colors_on=colors_on)
 
-    status_to_base(game, base)
+    status_to_base(state, len(history), base)
 
     print_base(base)
 
@@ -271,6 +306,7 @@ def display_on_console(game, colors_on, message=None):
 
 class InputError(Exception):
     pass
+
 
 COLUMN_LETTERS = u'abcdefghi'
 WALL_INPUT_PATTERN = (
@@ -292,9 +328,13 @@ MOVE_INPUT_RE = re.compile(MOVE_INPUT_PATTERN, re.I)
 QUIT_INPUT_PATTERN = u'quit|q|exit|end'
 QUIT_INPUT_RE = re.compile(QUIT_INPUT_PATTERN, re.I)
 
+UNDO_INPUT_PATTERN = u'u|undo|back'
+UNDO_INPUT_RE = re.compile(UNDO_INPUT_PATTERN, re.I)
+
 ACTION_UNKNOWN = 'unknown'
 ACTION_END = 'end'
 ACTION_MOVE = 'move'
+ACTION_UNDO = 'undo'
 
 
 def parse_input():
@@ -302,6 +342,10 @@ def parse_input():
         user_input = raw_input('Enter choice:')
     except (EOFError, KeyboardInterrupt, SystemExit):
         return ACTION_END, None
+
+    match = UNDO_INPUT_RE.match(user_input)
+    if match is not None:
+        return ACTION_UNDO, None
 
     match = WALL_INPUT_RE.match(user_input)
     if match is not None:
@@ -339,37 +383,50 @@ def console_run(options):
         colors_on = False
 
     game = Quoridor2()
+    state = game.initial_state()
+
     if options.example:
-        random_pawn_positions(game)
-        random_walls(game)
-        display_on_console(game, colors_on)
+        random_pawn_positions(game, state)
+        random_walls(game, state)
+        display_on_console(state, colors_on)
         return
 
     message = None
-    while not game.game_ended:
-        display_on_console(game, colors_on, message)
+    history = []
+    while not game.is_terminal(state):
+        display_on_console(state, colors_on, history=history, message=message)
         message = None
         action_type, action_info = parse_input()
         if action_type == ACTION_END:
             break
+        elif action_type == ACTION_UNDO:
+            # print history
+            if history:
+                game.undo(state, history.pop())
+            else:
+                message = 'No history to undo.'
         elif action_type == ACTION_MOVE:
             try:
+                action = (
+                    action_info.get('direction'),
+                    action_info['position']
+                )
                 if action_info['type'] == 'wall':
-                    game.place_wall(
-                        action_info['direction'],
-                        action_info['position']
-                    )
+                    game.execute_action(state, action)
+                    history.append(action)
                 else:
-                    game.move_pawn(action_info['position'])
-            except InvalidMove:
-                message = 'Invalid move.'
+                    history_position = current_pawn_position(state)
+                    game.execute_action(state, action)
+                    history.append((None, history_position))
+            except InvalidMove as e:
+                message = e.message
         else:
             # assert action_info['action'] == ACTION_UNKNOWN
             message = 'Wrong input. (Examples: wh1e, wv1e, p1e, 1e, quit, q)'
 
-    if game.game_ended:
-        display_on_console(game, colors_on)
-        print PLAYER_COLOR_NAME[game.winner] + ' wins!'
+    if game.is_terminal(state):
+        display_on_console(state, colors_on)
+        print PLAYER_COLOR_NAME[FOLLOWING_PLAYER[state['on_move']]] + ' wins!'
 
 
 def main():

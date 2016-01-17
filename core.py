@@ -1,9 +1,9 @@
 # TODO: documentation
 
-from collections import namedtuple, deque
+import collections
 
 
-Vector = namedtuple('Vector', ['row', 'col'])
+Vector = collections.namedtuple('Vector', ['row', 'col'])
 ROW = 0
 COL = 1
 
@@ -18,17 +18,18 @@ WALL_POS_MAX = WALL_BOARD_SIZE - 1
 VERTICAL = Vector(row=1, col=0)
 HORIZONTAL = Vector(row=0, col=1)
 DIRECTIONS = (VERTICAL, HORIZONTAL)
-OPPOSITE_DIRECTION = {VERTICAL: HORIZONTAL, HORIZONTAL: VERTICAL}
+ORTOGONAL_DIRECTION = {VERTICAL: HORIZONTAL, HORIZONTAL: VERTICAL}
 
 # It is possible to jump over single pawn
 JUMP_DISTANCE_MAX = 2
 
+STARTING_POSITION_DEFAULT_YELLOW = Vector(row=PAWN_POS_MIN, col=4)
+STARTING_POSITION_DEFAULT_GREEN = Vector(row=PAWN_POS_MAX, col=4)
+STARTING_WALL_COUNT_2_PLAYERS = 10
+
 YELLOW = 0
 GREEN = 1
 PLAYER_COLOR_NAME = {YELLOW: 'Yellow', GREEN: 'Green'}
-
-STARTING_POSITION_DEFAULT_YELLOW = Vector(row=PAWN_POS_MIN, col=4)
-STARTING_POSITION_DEFAULT_GREEN = Vector(row=PAWN_POS_MAX, col=4)
 
 GOAL_ROW = {
     YELLOW: PAWN_POS_MAX,
@@ -36,25 +37,36 @@ GOAL_ROW = {
 }
 FOLLOWING_PLAYER = {YELLOW: GREEN, GREEN: YELLOW}
 
+PAWN_POSITIONS_COUNT = BOARD_SIZE ** 2
+WALL_POSITIONS_COUNT = WALL_BOARD_SIZE ** 2
+ALL_PAWN_POSITIONS = frozenset([
+    Vector(row=i // BOARD_SIZE, col=i % BOARD_SIZE)
+    for i in range(PAWN_POSITIONS_COUNT)
+])
+ALL_WALL_POSITIONS = frozenset([
+    Vector(row=i // WALL_BOARD_SIZE, col=i % WALL_BOARD_SIZE)
+    for i in range(WALL_POSITIONS_COUNT)
+])
+
 
 def add_direction(position, direction):
     return Vector(
-        row=position[ROW] + direction[ROW],
-        col=position[COL] + direction[COL],
+        row=position.row + direction.row,
+        col=position.col + direction.col,
     )
 
 
 def substract_direction(position, direction):
     return Vector(
-        row=position[ROW] - direction[ROW],
-        col=position[COL] - direction[COL],
+        row=position.row - direction.row,
+        col=position.col - direction.col,
     )
 
 
 def adjacent_move_direction(from_, to):
     direction = Vector(
-        row=abs(from_[ROW] - to[ROW]),
-        col=abs(from_[COL] - to[COL]),
+        row=abs(from_.row - to.row),
+        col=abs(from_.col - to.col),
     )
     if direction not in DIRECTIONS:
         return None
@@ -62,277 +74,227 @@ def adjacent_move_direction(from_, to):
 
 
 def pawn_move_distance_no_walls(from_, to):
-    return abs(from_[COL] - to[COL]) + abs(from_[ROW] - to[ROW])
+    return abs(from_.col - to.col) + abs(from_.row - to.row)
 
 
 def pawn_within_board(position):
-    return PAWN_POS_MIN <= position[COL] <= PAWN_POS_MAX and (
-        PAWN_POS_MIN <= position[ROW] <= PAWN_POS_MAX
+    return PAWN_POS_MIN <= position.col <= PAWN_POS_MAX and (
+        PAWN_POS_MIN <= position.row <= PAWN_POS_MAX
     )
 
 
-def is_occupied(position, pawns):
-    return position in pawns
+def is_occupied(state, position):
+    return position in state['pawns'].values()
 
 
-def adjacent_pawn_spaces(position):
+def adjacent_spaces(position):
     if not pawn_within_board(position):
-        return []
-    spaces = []
-    if position[ROW] > PAWN_POS_MIN:
-        spaces.append(substract_direction(position, VERTICAL))
-    if position[ROW] < PAWN_POS_MAX:
-        spaces.append(add_direction(position, VERTICAL))
+        return
+    if position.row > PAWN_POS_MIN:
+        yield substract_direction(position, VERTICAL)
+    if position.row < PAWN_POS_MAX:
+        yield add_direction(position, VERTICAL)
 
-    if position[COL] > PAWN_POS_MIN:
-        spaces.append(substract_direction(position, HORIZONTAL))
-    if position[COL] < PAWN_POS_MAX:
-        spaces.append(add_direction(position, HORIZONTAL))
-    return spaces
+    if position.col > PAWN_POS_MIN:
+        yield substract_direction(position, HORIZONTAL)
+    if position.col < PAWN_POS_MAX:
+        yield add_direction(position, HORIZONTAL)
 
 
-def is_wall_between(from_, to, walls):
+def is_wall_between(state, from_, to):
     direction = adjacent_move_direction(from_, to)
     if direction is None:
         return None     # TODO: think, whether exception here would be better
     else:
-        direction = OPPOSITE_DIRECTION[direction]
+        direction = ORTOGONAL_DIRECTION[direction]
 
     position = Vector(
-        row=min(from_[ROW], to[ROW]),
-        col=min(from_[COL], to[COL]),
+        row=min(from_.row, to.row),
+        col=min(from_.col, to.col),
     )
 
-    if position in walls[direction]:
+    if position in state['placed_walls'][direction]:
         return True
-    elif substract_direction(position, direction) in walls[direction]:
+    elif substract_direction(position, direction) in state['placed_walls'][direction]:
         return True
 
     return False
 
 
-def adjacent_pawn_spaces_not_blocked(position, walls):
-    adjacent_positions = adjacent_pawn_spaces(position)
-    for adjacent_position in adjacent_positions:
-        if not is_wall_between(position, adjacent_position, walls):
-            yield adjacent_position
+def adjacent_spaces_not_blocked(state, pawn_position):
+    for adjacent_space in adjacent_spaces(pawn_position):
+        if not is_wall_between(state, pawn_position, adjacent_space):
+            yield adjacent_space
 
 
-def pawn_legal_moves(position, pawns, walls):
-    for adjacent_position in adjacent_pawn_spaces_not_blocked(position, walls):
-        if is_occupied(adjacent_position, pawns):
-            jumps = adjacent_pawn_spaces_not_blocked(adjacent_position, walls)
+def pawn_legal_moves(state, pawn_position):
+    for adjacent_position in adjacent_spaces_not_blocked(state, pawn_position):
+        if is_occupied(state, adjacent_position):
+            jumps = adjacent_spaces_not_blocked(state, adjacent_position)
             for jump in jumps:
-                if jump != position:
+                if jump != pawn_position:
                     yield jump
         else:
             yield adjacent_position
 
 
-def is_correct_pawn_move(from_, to, pawns, walls):
-    return to in pawn_legal_moves(from_, pawns, walls)
+def is_correct_pawn_move(state, from_, to):
+    return to in pawn_legal_moves(state, from_)
 
 
 def wall_within_board(position):
-    return WALL_POS_MIN <= position[COL] <= WALL_POS_MAX and (
-        WALL_POS_MIN <= position[ROW] <= WALL_POS_MAX
+    return WALL_POS_MIN <= position.col <= WALL_POS_MAX and (
+        WALL_POS_MIN <= position.row <= WALL_POS_MAX
     )
 
 
-def wall_intersects(direction, position, walls):
-    if position in walls[direction]:
-        return True
-    elif position in walls[OPPOSITE_DIRECTION[direction]]:
-        return True
-    elif add_direction(position, direction) in walls[direction]:
-        return True
-    elif substract_direction(position, direction) in walls[direction]:
-        return True
-    return False
+def wall_intersects(state, direction, position):
+    return (
+        (position in state['placed_walls'][direction]) or
+        (position in state['placed_walls'][ORTOGONAL_DIRECTION[direction]]) or
+        (add_direction(position, direction) in state['placed_walls'][direction]) or
+        (substract_direction(position, direction) in state['placed_walls'][direction])
+    )
 
 
-def pawn_can_reach_goal(color, current_position, walls):
-    # TODO: optimize!, what if pawn already reached goal?
-    to_visit = set([current_position])
+def player_can_reach_goal(state, player):
+    to_visit = set([state['pawns'][player]])
     visited = set()
     while to_visit:
         position = to_visit.pop()
-        if position[ROW] == GOAL_ROW[color]:
+        if position.row == GOAL_ROW[player]:
             return True
         visited.add(position)
-        new_positions = adjacent_pawn_spaces_not_blocked(position, walls)
-        for new_position in new_positions:
+        for new_position in adjacent_spaces_not_blocked(state, position):
             if new_position not in visited:
                 to_visit.add(new_position)
     return False
 
 
-def is_correct_wall_move(direction, position, pawns, walls):
-    if not wall_within_board(position):
+def is_correct_wall_move(state, direction, wall_position, raise_errors=False):
+    if not wall_within_board(wall_position):
+        if raise_errors:
+            raise InvalidMove('Position is not within board.')
         return False
-    elif wall_intersects(direction, position, walls):
+    elif wall_intersects(state, direction, wall_position):
+        if raise_errors:
+            raise InvalidMove('Wall would intersect already placed walls.')
         return False
 
-    walls[direction].add(position)
-    for pawn_position, color in pawns.items():
-        if not pawn_can_reach_goal(color, pawn_position, walls):
-            walls[direction].remove(position)
+    # wall intersects ensures that the position is not used
+    state['placed_walls'][direction].add(wall_position)
+
+    for player, pawn_position in state['pawns'].items():
+        if not player_can_reach_goal(state, player):
+            state['placed_walls'][direction].remove(wall_position)
+            if raise_errors:
+                raise InvalidMove(
+                    'Player {player} would not be able to reach goal.'.format(
+                        player=PLAYER_COLOR_NAME[player],
+                    )
+                )
             return False
 
-    walls[direction].remove(position)
+    state['placed_walls'][direction].remove(wall_position)
     return True
 
 
-class InvalidMove(Exception):
-    pass
+def current_pawn_position(state):
+    return state['pawns'][state['on_move']]
+
+
+def following_pawn_position(state):
+    return state['pawns'][FOLLOWING_PLAYER[state['on_move']]]
+
+
+def wall_affects(state, direction, wall_position):
+    yield direction, wall_position
+    yield direction, add_direction(wall_position, direction)
+    yield direction, substract_direction(wall_position, direction)
+    yield ORTOGONAL_DIRECTION[direction], wall_position
 
 
 class Quoridor2(object):
 
-    def __init__(self):
-        self._state = {
-            'moves_made': 0,
-            'winner': None,
-            'game_ended': False,
+    def initial_state(self):
+        return {
             'on_move': YELLOW,
-            'players': {
-                YELLOW: {
-                    'pawn': STARTING_POSITION_DEFAULT_YELLOW,
-                    'walls': 10,
-                },
-                GREEN: {
-                    'pawn': STARTING_POSITION_DEFAULT_GREEN,
-                    'walls': 10,
-                },
-            },
             'pawns': {
-                STARTING_POSITION_DEFAULT_YELLOW: YELLOW,
-                STARTING_POSITION_DEFAULT_GREEN: GREEN,
+                YELLOW: STARTING_POSITION_DEFAULT_YELLOW,
+                GREEN: STARTING_POSITION_DEFAULT_GREEN,
             },
             'walls': {
-                VERTICAL: set(),
-                HORIZONTAL: set(),
+                YELLOW: STARTING_WALL_COUNT_2_PLAYERS,
+                GREEN: STARTING_WALL_COUNT_2_PLAYERS,
             },
+            'placed_walls': {
+                HORIZONTAL: set(),
+                VERTICAL: set(),
+            },
+            # TODO: 'utility': WTF?
         }
 
-    @property
-    def moves_made(self):
-        return self._state['moves_made']
+    def players(self, state):
+        pass  # TODO: what here? is this necessary?
 
-    @property
-    def on_move(self):
-        return self._state['on_move']
+    def actions(self, state):
+        # TODO: what to do with leaving the paths to goals?
+        result_walls = {
+            HORIZONTAL: set(ALL_WALL_POSITIONS),
+            VERTICAL: set(ALL_WALL_POSITIONS),
+        }
+        for dimension, walls in state['placed_walls'].items():
+            for position in walls:
+                affected = wall_affects(state, dimension, position)
+                for direction, position in affected:
+                    result_walls[direction].discard(position)
 
-    def player_wall_count(self, color):
-        return self._state['players'][color]['walls']
+        for position in pawn_legal_moves(state, current_pawn_position(state)):
+            yield position
 
-    @property
-    def players(self):
-        return [color for color in self._state['players']]
+        for direction, walls in result_walls:
+            for wall in walls:
+                yield (direction, wall)
 
-    @property
-    def game_ended(self):
-        return self._state['game_ended']
+    def is_terminal(self, state):
+        for player, pawn_position in state['pawns'].items():
+            if pawn_position.row == GOAL_ROW[player]:
+                return True
+        return False
 
-    @property
-    def winner(self):
-        return self._state['winner']
+    def utility(self, state, player):
+        pass  # TODO: what here? is this necessary?
 
-    @property
-    def current_wall_count(self):
-        return self.player_wall_count(self.on_move)
+    def execute_action(self, state, action):
+        direction, new_position = action
+        if direction is None:
+            current_position = current_pawn_position(state)
+            if not is_correct_pawn_move(state, current_position, new_position):
+                raise InvalidMove('Pawn cannot move here.')
+            state['pawns'][state['on_move']] = new_position
+        else:
+            if state['walls'][state['on_move']] < 1:
+                raise InvalidMove('Not enough walls to play.')
+            is_correct_wall_move(state, direction, new_position, True)
+            state['placed_walls'][direction].add(new_position)
+            state['walls'][state['on_move']] -= 1
+        state['on_move'] = FOLLOWING_PLAYER[state['on_move']]
 
-    def pawn_distance_from_goal(self, color):
-        starting_position = self.pawn_position(color)
-        goal_row = GOAL_ROW[color]
-        walls = self._state['walls']
-
-        to_visit = deque([(starting_position, 0)])
-        visited = set()
-
-        while to_visit:
-            position, distance = to_visit.popleft()
-            if position in visited:
-                continue
-            if position.row == goal_row:
-                return distance
-            visited.add(position)
-
-            right_distance = distance % 2 == int(color == self.on_move)
-            for possible in adjacent_pawn_spaces_not_blocked(position, walls):
-                jumps = right_distance and possible in self._state['pawns']
-                if jumps:
-                    to_visit.append((possible, distance))
-                else:
-                    to_visit.append((possible, distance + 1))
-
-        error_msg_fmt = u'{color_name} player can not reach goal row!'
-        color_name = PLAYER_COLOR_NAME[color].upper()
-        raise Exception(error_msg_fmt.format(color_name=color_name))
+    def undo(self, state, action):
+        direction, position = action
+        last_player = FOLLOWING_PLAYER[state['on_move']]
+        if direction is None:
+            pawn_position = state['pawns'][last_player]
+            if not is_correct_pawn_move(state, pawn_position, position):
+                raise InvalidMove('Incorrect undo move.')
+            state['pawns'][last_player] = position
+        else:
+            if position not in state['placed_walls'][direction]:
+                raise InvalidMove('Incorrect undo move.')
+            state['placed_walls'][direction].remove(position)
+            state['walls'][last_player] += 1
+        state['on_move'] = last_player
 
 
-    def place_wall(self, direction, position):
-        if self.game_ended:
-            raise InvalidMove('Game already ended.')
-
-        if not self.current_wall_count > 0:
-            raise InvalidMove('No walls to play with.')
-
-        is_correct = is_correct_wall_move(
-            direction,
-            position,
-            self._state['pawns'],
-            self._state['walls']
-        )
-
-        if not is_correct:
-            # TODO: reason the move is invalid would be nice, e.g. no path...
-            raise InvalidMove()
-
-        color = self.on_move
-        self._state['walls'][direction].add(position)
-        self._state['players'][color]['walls'] -= 1
-        self._state['on_move'] = FOLLOWING_PLAYER[color]
-        self._state['moves_made'] += 1
-
-    def pawn_position(self, color):
-        return self._state['players'][color]['pawn']
-
-    @property
-    def current_pawn_position(self):
-        return self.pawn_position(self.on_move)
-
-    def move_pawn(self, new_position):
-        if self.game_ended:
-            raise InvalidMove('Game already ended.')
-
-        pawn_position = self.current_pawn_position
-        is_correct = is_correct_pawn_move(
-            pawn_position,
-            new_position,
-            self._state['pawns'],
-            self._state['walls']
-        )
-
-        if not is_correct:
-            raise InvalidMove()
-
-        color = self.on_move
-        self._state['players'][color]['pawn'] = new_position
-        del self._state['pawns'][pawn_position]
-        self._state['pawns'][new_position] = color
-        # Check end of the game...
-        if new_position[ROW] == GOAL_ROW[color]:
-            self._state['game_ended'] = True
-            self._state['winner'] = color
-
-        self._state['on_move'] = FOLLOWING_PLAYER[color]
-        self._state['moves_made'] += 1
-
-    @property
-    def pawns(self):
-        return self._state['pawns']
-
-    @property
-    def walls(self):
-        return self._state['walls']
+class InvalidMove(Exception):
+    pass
