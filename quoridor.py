@@ -1,9 +1,10 @@
 import os
 import re
 import random
+import time
+import collections
 
 from optparse import OptionParser
-from collections import deque
 
 from core import (
     Vector,
@@ -28,6 +29,7 @@ from core import (
     current_pawn_position,
     adjacent_spaces_not_blocked,
     FOLLOWING_PLAYER,
+    RandomPlayer,
 )
 
 COLOR_START_CONSOLE = {YELLOW: u'\x1b[1m\x1b[33m', GREEN: u'\x1b[1m\x1b[32m'}
@@ -61,6 +63,15 @@ PLAYER_GOAL_INFO = {
 }
 
 CONSOLE_CLEAR = {'nt': 'cls', 'posix': 'clear'}
+
+Pawn = collections.namedtuple('Pawn', ['row', 'col'])
+HorizontalWall = collections.namedtuple('HorizontalWall', ['row', 'col'])
+VerticalWall = collections.namedtuple('VerticalWall', ['row', 'col'])
+ACTION_TYPE = {
+    None: Pawn,
+    HORIZONTAL: HorizontalWall,
+    VERTICAL: VerticalWall,
+}
 
 
 def _base_border(base):
@@ -229,7 +240,7 @@ def pawn_distance_from_goal(state, color):
     goal_row = GOAL_ROW[color]
     walls = state['placed_walls']
 
-    to_visit = deque([(starting_position, 0)])
+    to_visit = collections.deque([(starting_position, 0)])
     visited = set()
 
     while to_visit:
@@ -285,10 +296,12 @@ def status_to_base(state, moves_made, base):
     # input
 
 
-def display_on_console(state, colors_on, history=None, message=None):
+def display_on_console(state, colors_on, history=None, message=None,
+                       with_clear=True):
     if history is None:
         history = []
-    clear_console()
+    if with_clear:
+        clear_console()
     base = make_base()
     for direction, walls in state['placed_walls'].items():
         for wall in walls:
@@ -377,6 +390,26 @@ def parse_input():
     return ACTION_UNKNOWN, None
 
 
+def random_players(moves=None, with_clear=True):
+    game = Quoridor2()
+    state = game.initial_state()
+    rp = RandomPlayer(game)
+    if moves is None:
+        moves = 1000
+    history = []
+    while moves > 0:
+        action = rp.play(state)
+        action_type, position = action
+        game.execute_action(state, action)
+        history.append(action)
+        display_on_console(state, True, history=history, with_clear=with_clear)
+        print ACTION_TYPE[action_type](row=position.row, col=position.col)
+        if game.is_terminal(state):
+            break
+        time.sleep(0.1)
+        moves -= 1
+
+
 def console_run(options):
     colors_on = options.colors_on
     if os.getenv('ANSI_COLORS_DISABLED') is not None:
@@ -385,16 +418,30 @@ def console_run(options):
     game = Quoridor2()
     state = game.initial_state()
 
+    if options.random:
+        try:
+            random_players(with_clear=options.with_clear)
+        except (EOFError, KeyboardInterrupt, SystemExit):
+            pass
+        finally:
+            return
+
     if options.example:
         random_pawn_positions(game, state)
         random_walls(game, state)
-        display_on_console(state, colors_on)
+        display_on_console(state, colors_on, with_clear=options.with_clear)
         return
 
     message = None
     history = []
     while not game.is_terminal(state):
-        display_on_console(state, colors_on, history=history, message=message)
+        display_on_console(
+            state,
+            colors_on,
+            history=history,
+            message=message,
+            with_clear=options.with_clear,
+        )
         message = None
         action_type, action_info = parse_input()
         if action_type == ACTION_END:
@@ -425,7 +472,7 @@ def console_run(options):
             message = 'Wrong input. (Examples: wh1e, wv1e, p1e, 1e, quit, q)'
 
     if game.is_terminal(state):
-        display_on_console(state, colors_on)
+        display_on_console(state, colors_on, with_clear=options.with_clear)
         print PLAYER_COLOR_NAME[FOLLOWING_PLAYER[state['on_move']]] + ' wins!'
 
 
@@ -441,6 +488,20 @@ def main():
         help=(
             'In console mode, create random board position display it and end.'
             ' Serves for debugging.'
+        )
+    )
+
+    parser.add_option(
+        '-r', '--random', dest='random', default=False, action='store_true',
+        help=(
+            'In console mode, play with random playes.'
+        )
+    )
+
+    parser.add_option(
+        '-w', '--withot-clear-console', dest='with_clear', default=True, action='store_false',
+        help=(
+            'Do not clear console on each move.'
         )
     )
 
