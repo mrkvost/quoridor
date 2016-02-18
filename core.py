@@ -1,8 +1,6 @@
 # TODO: documentation
 
 import collections
-import abc
-import random
 
 
 Vector = collections.namedtuple('Vector', ['row', 'col'])
@@ -49,12 +47,6 @@ ALL_WALL_POSITIONS = frozenset([
     Vector(row=i // WALL_BOARD_SIZE, col=i % WALL_BOARD_SIZE)
     for i in range(WALL_POSITIONS_COUNT)
 ])
-
-PLAYER_UTILITIES = {YELLOW: 1, GREEN: -1}
-
-MAX_NUMBER_OF_CHOICES = 6 + 2 * (WALL_BOARD_SIZE ** 2)
-MAX_MISSING_CHOICES = 4 + 2 * 3 * STARTING_WALL_COUNT_2_PLAYERS
-MIN_NUMBER_OF_CHOICES_WITH_WALLS = MAX_NUMBER_OF_CHOICES - MAX_MISSING_CHOICES
 
 
 def add_direction(position, direction):
@@ -222,6 +214,25 @@ def wall_affects(state, direction, wall_position):
     yield ORTOGONAL_DIRECTION[direction], wall_position
 
 
+def wall_legal_moves(state):
+    if not state['walls'][state['on_move']]:
+        return
+    # TODO: what to do with leaving the paths to goals?
+    result_walls = {
+        HORIZONTAL: set(ALL_WALL_POSITIONS),
+        VERTICAL: set(ALL_WALL_POSITIONS),
+    }
+    for dimension, walls in state['placed_walls'].items():
+        for position in walls:
+            affected = wall_affects(state, dimension, position)
+            for direction, position in affected:
+                result_walls[direction].discard(position)
+
+    for direction, walls in result_walls.items():
+        for wall in walls:
+            yield (direction, wall)
+
+
 class Quoridor2(object):
 
     def initial_state(self):
@@ -249,22 +260,8 @@ class Quoridor2(object):
         for position in pawn_legal_moves(state, current_pawn_position(state)):
             yield (None, position)
 
-        if not state['walls'][state['on_move']]:
-            return
-        # TODO: what to do with leaving the paths to goals?
-        result_walls = {
-            HORIZONTAL: set(ALL_WALL_POSITIONS),
-            VERTICAL: set(ALL_WALL_POSITIONS),
-        }
-        for dimension, walls in state['placed_walls'].items():
-            for position in walls:
-                affected = wall_affects(state, dimension, position)
-                for direction, position in affected:
-                    result_walls[direction].discard(position)
-
-        for direction, walls in result_walls.items():
-            for wall in walls:
-                yield (direction, wall)
+        for action in wall_legal_moves(state):
+            yield action
 
     def is_terminal(self, state):
         for player, pawn_position in state['pawns'].items():
@@ -280,7 +277,14 @@ class Quoridor2(object):
         if direction is None:
             current_position = current_pawn_position(state)
             if not is_correct_pawn_move(state, current_position, new_position):
-                raise InvalidMove('Pawn cannot move here.')
+                msg_fmt = (
+                    '{color} pawn cannot move here. (row={row}, col={col})'
+                )
+                raise InvalidMove(msg_fmt.format(
+                    color=PLAYER_COLOR_NAME[state['on_move']],
+                    row=new_position.row,
+                    col=new_position.col,
+                ))
             state['pawns'][state['on_move']] = new_position
             if self.is_terminal(state):
                 state['utility'] = 1
@@ -310,43 +314,3 @@ class Quoridor2(object):
 
 class InvalidMove(Exception):
     pass
-
-
-class Player(object):
-    __metaclass__ = abc.ABCMeta
-
-    @abc.abstractmethod
-    def play(self, state):
-        pass
-
-    def __init__(self, game):
-        self.game = game
-
-
-class RandomPlayer(Player):
-    def play(self, state):
-        if not state['walls'][state['on_move']]:
-            positions = list(
-                pawn_legal_moves(state, current_pawn_position(state))
-            )
-            return (None, random.choice(positions))
-
-        while True:
-            random_number = random.randint(1, MAX_NUMBER_OF_CHOICES)
-            if random_number <= MIN_NUMBER_OF_CHOICES_WITH_WALLS:
-                for number, action in enumerate(self.game.actions(state), 1):
-                    if number == random_number:
-                        result_action = action
-            else:
-                actions = []
-                for number, action in enumerate(self.game.actions(state), 1):
-                    if number == random_number:
-                        return action
-                    elif number <= MAX_MISSING_CHOICES:
-                        actions.append(action)
-                result_action = actions[random_number - MIN_NUMBER_OF_CHOICES_WITH_WALLS - 1]
-            action_type, position = result_action
-            if action_type is not None:
-                if not is_correct_wall_move(state, action_type, position):
-                    continue
-            return result_action

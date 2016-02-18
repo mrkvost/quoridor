@@ -29,8 +29,10 @@ from core import (
     current_pawn_position,
     adjacent_spaces_not_blocked,
     FOLLOWING_PLAYER,
-    RandomPlayer,
 )
+
+from players import RandomPlayer, RandomPlayerWithPath
+
 
 COLOR_START_CONSOLE = {YELLOW: u'\x1b[1m\x1b[33m', GREEN: u'\x1b[1m\x1b[32m'}
 COLOR_END_CONSOLE = u'\x1b[0m'
@@ -58,8 +60,8 @@ BOARD_WIDTH = BOARD_INNER_WIDTH + 2 * BOARD_BORDER_THICKNESS
 BOARD_HEIGHT = BOARD_INNER_HEIGHT + 2 * BOARD_BORDER_THICKNESS
 
 PLAYER_GOAL_INFO = {
-    YELLOW: u'(goes to the bottom \u21ca)',
-    GREEN: u'(goes to the top \u21c8)',
+    YELLOW: u' (goes to the bottom \u21ca)',
+    GREEN: u' (goes to the top \u21c8)',
 }
 
 CONSOLE_CLEAR = {'nt': 'cls', 'posix': 'clear'}
@@ -278,18 +280,28 @@ def player_status_to_base(state, base):
         status_line_to_base(row + 1, PLAYER_GOAL_INFO[color], base)
 
         walls = unicode(state['walls'][color])
-        status_line_to_base(row + 2, u'Walls: ' + walls, base)
+        status_line_to_base(row + 2, u' Walls: ' + walls, base)
 
-        line = u'Dist: ' + unicode(pawn_distance_from_goal(state, color))
+        line = u' Dist: ' + unicode(pawn_distance_from_goal(state, color))
         status_line_to_base(row + 3, line, base)
 
 
+def history_to_base(base, history):
+    status_line_to_base(12, 'HISTORY:', base)
+    for n, action in enumerate(history[-10:]):
+        row = 13 + n
+        action_type, position = action
+        move = ACTION_TYPE[action_type](row=position.row, col=position.col)
+        status_line_to_base(row, ' ' + repr(move), base)
 
-def status_to_base(state, moves_made, base):
+def status_to_base(state, history, base):
+    moves_made = len(history)
     line = u'Moves made: ' + unicode(moves_made)
     status_line_to_base(0, line, base)
 
     player_status_to_base(state, base)
+
+    history_to_base(base, history)
 
     # info: Invalid move, etc...
     # menu possibilities
@@ -309,7 +321,7 @@ def display_on_console(state, colors_on, history=None, message=None,
     for color, pawn in state['pawns'].items():
         pawn_to_base(pawn, color, base, colors_on=colors_on)
 
-    status_to_base(state, len(history), base)
+    status_to_base(state, history, base)
 
     print_base(base)
 
@@ -393,17 +405,18 @@ def parse_input():
 def random_players(moves=None, with_clear=True):
     game = Quoridor2()
     state = game.initial_state()
-    rp = RandomPlayer(game)
+    # rp = RandomPlayer(game)
+    rpwp = RandomPlayerWithPath(game)
     if moves is None:
         moves = 1000
     history = []
     while moves > 0:
-        action = rp.play(state)
+        action = rpwp.play(state)
         action_type, position = action
         game.execute_action(state, action)
         history.append(action)
         display_on_console(state, True, history=history, with_clear=with_clear)
-        print ACTION_TYPE[action_type](row=position.row, col=position.col)
+        # print ACTION_TYPE[action_type](row=position.row, col=position.col)
         if game.is_terminal(state):
             break
         time.sleep(0.1)
