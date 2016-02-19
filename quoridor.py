@@ -409,7 +409,7 @@ def qlearn(with_clear=True):
     rpwp = RandomPlayerWithPath(game)
     ql_player = QLPlayer(game)
 
-    games_to_play = 20
+    games_to_play = 5
     games_played = 0
 
     max_moves = 1000

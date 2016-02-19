@@ -127,7 +127,7 @@ class QLPlayer(RandomPlayerWithPath):
 
     def reward(self, state):
         if self.game.is_terminal(state):
-            return self.game.utility(state, state['on_move']) * 100
+            return self.game.utility(state, state['on_move']) * 10000
         return 0
 
     def set_Q(self, state, action, value):
@@ -155,7 +155,7 @@ class QLPlayer(RandomPlayerWithPath):
     def learn(self, previous_state, last_action, current_state, alpha=0.1,
               gamma=0.9):
         mq = 0
-        if self.game.is_terminal(current_state):
+        if not self.game.is_terminal(current_state):
             mq, best_action = self.find_mq_and_action(
                 current_state,
                 PLAYER_UTILITIES[current_state['on_move']]
