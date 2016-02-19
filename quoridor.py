@@ -1,8 +1,10 @@
 import os
 import re
-import random
+import copy
 import time
+import random
 import collections
+import traceback
 
 from optparse import OptionParser
 
@@ -31,7 +33,7 @@ from core import (
     FOLLOWING_PLAYER,
 )
 
-from players import RandomPlayer, RandomPlayerWithPath
+from players import RandomPlayer, RandomPlayerWithPath, QLPlayer
 
 
 COLOR_START_CONSOLE = {YELLOW: u'\x1b[1m\x1b[33m', GREEN: u'\x1b[1m\x1b[32m'}
@@ -402,6 +404,48 @@ def parse_input():
     return ACTION_UNKNOWN, None
 
 
+def qlearn(with_clear=True):
+    game = Quoridor2()
+    rpwp = RandomPlayerWithPath(game)
+    ql_player = QLPlayer(game)
+
+    games_to_play = 20
+    games_played = 0
+
+    max_moves = 1000
+    while games_to_play > games_played:
+        current_state = game.initial_state()
+        history = []
+        action = None
+        moves = 0
+
+        while max_moves > moves:
+            if moves % 2 == 0:
+                action = ql_player.play(current_state)
+            else:
+                action = rpwp.play(current_state)
+            action_type, position = action
+            previous_state = copy.deepcopy(current_state)
+            game.execute_action(current_state, action)
+            history.append(action)
+            if (games_to_play - 1) == games_played:
+                display_on_console(
+                    current_state,
+                    True,
+                    history=history,
+                    with_clear=with_clear,
+                )
+                time.sleep(0.1)
+            ql_player.learn(previous_state, action, current_state)
+            if game.is_terminal(current_state):
+                break
+            moves += 1
+
+        games_played += 1
+        print 'games_played:', games_played
+    ql_player.save_Q()
+
+
 def random_players(moves=None, with_clear=True):
     game = Quoridor2()
     state = game.initial_state()
@@ -431,13 +475,17 @@ def console_run(options):
     game = Quoridor2()
     state = game.initial_state()
 
-    if options.random:
-        try:
+    try:
+        if options.random:
             random_players(with_clear=options.with_clear)
-        except (EOFError, KeyboardInterrupt, SystemExit):
-            pass
-        finally:
-            return
+        elif options.qlearn:
+            qlearn(with_clear=options.with_clear)
+    except (EOFError, KeyboardInterrupt, SystemExit):
+        pass
+    finally:
+        if traceback.format_exc() != 'None\n':
+            traceback.print_exc()
+        return
 
     if options.example:
         random_pawn_positions(game, state)
@@ -515,6 +563,13 @@ def main():
         '-w', '--withot-clear-console', dest='with_clear', default=True, action='store_false',
         help=(
             'Do not clear console on each move.'
+        )
+    )
+
+    parser.add_option(
+        '-q', '--qlearn', dest='qlearn', default=False, action='store_true',
+        help=(
+            'Train QPlayer.'
         )
     )
 

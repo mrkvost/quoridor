@@ -1,6 +1,7 @@
 import abc
-import random
+import sys
 import copy
+import random
 import collections
 
 from core import (
@@ -16,6 +17,8 @@ MAX_NUMBER_OF_CHOICES = 2 * (WALL_BOARD_SIZE ** 2)
 # MAX_MISSING_CHOICES = 4 + 2 * 3 * STARTING_WALL_COUNT_2_PLAYERS
 # MIN_NUMBER_OF_CHOICES_WITH_WALLS = MAX_NUMBER_OF_CHOICES - MAX_MISSING_CHOICES
 # MIN_NUMBER_OF_WALL_CHOICES = MIN_NUMBER_OF_CHOICES_WITH_WALLS - 2
+
+MAX_INTEGER = sys.maxint - 1
 
 
 class Player(object):
@@ -105,3 +108,64 @@ class RandomPlayerWithPath(RandomPlayer):
                     paths[new_position].append(new_position)
 
         raise InvalidMove('Player cannot reach the goal row.')
+
+
+class QLPlayer(RandomPlayerWithPath):
+    def __init__(self, *args, **kwargs):
+        self.Q = kwargs.pop('Q', {})
+        super(QLPlayer, self).__init__(*args, **kwargs)
+
+    def play(self, state, path_probability=0.7):
+        if random.random() < path_probability:
+            return self._play_pawn(state)
+
+        mq, best_action = self.find_mq_and_action(
+            state,
+            PLAYER_UTILITIES[state['on_move']]
+        )
+        return best_action
+
+    def reward(self, state):
+        if self.game.is_terminal(state):
+            return self.game.utility(state, state['on_move']) * 100
+        return 0
+
+    def set_Q(self, state, action, value):
+        key = self.game.make_key(state)
+        if key not in self.Q:
+            self.Q[key] = {}
+        self.Q[key][action] = value
+
+    def get_Q(self, state, action):
+        key = self.game.make_key(state)
+        if key not in self.Q:
+            return 0
+        return self.Q[key].get(action, 0)
+
+    def find_mq_and_action(self, state, multiplier):
+        mq = multiplier * -MAX_INTEGER
+        best_action = None
+        for action in self.game.actions(state):
+            Q = self.get_Q(state, action)
+            if (multiplier * mq) < (multiplier * Q):
+                mq = Q
+                best_action = action
+        return mq, best_action
+
+    def learn(self, previous_state, last_action, current_state, alpha=0.1,
+              gamma=0.9):
+        mq = 0
+        if self.game.is_terminal(current_state):
+            mq, best_action = self.find_mq_and_action(
+                current_state,
+                PLAYER_UTILITIES[current_state['on_move']]
+            )
+
+        reward = self.reward(current_state)
+        q_value = self.get_Q(previous_state, last_action)
+        q_value += alpha * (reward + gamma * mq - q_value)
+        self.set_Q(previous_state, last_action, q_value)
+
+    def save_Q(self, filename='q_values.txt'):
+        with open(filename, 'w') as f:
+            f.write(repr(self.Q))

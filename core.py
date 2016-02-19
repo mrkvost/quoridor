@@ -48,6 +48,8 @@ ALL_WALL_POSITIONS = frozenset([
     for i in range(WALL_POSITIONS_COUNT)
 ])
 
+PLAYER_UTILITIES = {YELLOW: 1, GREEN: -1}
+
 
 def add_direction(position, direction):
     return Vector(
@@ -310,6 +312,17 @@ class Quoridor2(object):
             state['placed_walls'][direction].remove(position)
             state['walls'][last_player] += 1
         state['on_move'] = last_player
+
+    def make_key(self, state):
+        key = (
+            state['on_move'],
+            state['pawns'][YELLOW],
+            state['pawns'][GREEN],
+            state['walls'][YELLOW],
+            state['walls'][GREEN],
+            frozenset(state['placed_walls']),
+        )
+        return key
 
 
 class InvalidMove(Exception):
