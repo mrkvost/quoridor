@@ -19,6 +19,7 @@
 |             | /blob/master/thesis/sources.rst                          |
 |             | [tu som](/blob/master/thesis/sources.rst)                |
 |             | ![tu som](/blob/master/thesis/sources.rst)               |
+|             | `thesis/sources.rst </blob/master/thesis/sources.rst>`_  |
 +-------------+----------------------------------------------------------+
 | Diary       | `/thesis/diary.rst`                                      |
 |             | .. _relative_link: thesis/sources.rst                    |
