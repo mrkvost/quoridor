@@ -2,7 +2,7 @@
 +-------------+----------------------------------------------------------+
 | Bachelor Thesis information                                            |
 +=============+==========================================================+
-| Thesis name | Artifictial neural network as opponent in Quoridor       |
+| Thesis name | Artifictial neural network as an opponent in Quoridor    |
 +-------------+----------------------------------------------------------+
 | Author      | Michal Hoľa                                              |
 +-------------+----------------------------------------------------------+
