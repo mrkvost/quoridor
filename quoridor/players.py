@@ -4,7 +4,7 @@ import copy
 import random
 import collections
 
-from quoridor.core import (
+from core import (
     YELLOW, GREEN, GOAL_ROW, WALL_BOARD_SIZE, STARTING_WALL_COUNT_2_PLAYERS,
     pawn_legal_moves, current_pawn_position, wall_legal_moves,
     is_correct_wall_move, adjacent_spaces_not_blocked, is_occupied,

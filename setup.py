@@ -15,7 +15,7 @@ setup(
     setup_requires=['nose'],
     entry_points={
         'console_scripts': [
-            'console = quoridor.quoridor:main',
+            'qc = quoridor.quoridor:main',
         ],
     },
 )

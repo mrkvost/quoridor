@@ -1,20 +1,54 @@
-To run the game in console mode with linux terminal colors on:
+INSTALLATION
+============
 
-    $ python quoridor.py -ce
+clone the quoridor repository:
 
-To run tests, create virtual envirnonment and run nosetests with setup.py:
+    $ git clone https://github.com/mrkvost/quoridor
 
-    $ cd /path/to/quoridor/
+create virtualenvironment and activate it:
+
+    $ cd quoridor/
     $ virtualenv e
     $ . e/bin/activate
+
+run install:
+
+    (e) $ python setup.py install
+
+or for developers:
+
+    (e) $ python setup.py develop
+
+RUN
+===
+
+To run the game in console mode with linux terminal colors on:
+
+    (e) $ qc
+
+TESTS
+=====
+
+To run tests, run nosetests with setup.py:
+
     (e) $ python setup.py nosetests
 
+
 TODOS:
- 1. documentation strings for core module, core functions
- 2. better/clearer/apposite test names
- 3. different board sizes
- 4. 4 players version
- 5. use curses for better user experience
+ - save / load game
+ - documentation strings for core module, core functions
+
+ - Neural Network player
+ - save / load NN player weights
+
+ - save / load QLPlayer data
+
+ - better/clearer/apposite test names
+ - different board sizes
+ - 4 players version
+
+ - use curses for better user experience
+ - create GUI or WEB interface
 
 NOTES:
  - curses - buildin library

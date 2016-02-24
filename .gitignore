@@ -1,3 +1,5 @@
 e/*
 *.sw?
 *.pyc
+.eggs/*
+quoridor.egg-info/*
