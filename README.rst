@@ -14,9 +14,13 @@
 |             |    networks, which will learn to play Quoridor           |
 |             | 3. Test end evaluate the behaviour of the agent          |
 +-------------+----------------------------------------------------------+
-| Sources     | (./thesis/sources.rst)                                   |
+| Sources     | <./blob/master/thesis/sources.rst>                       |
+|             | </blob/master/thesis/sources.rst>                        |
+|             | /blob/master/thesis/sources.rst                          |
+|             | [tu som](/blob/master/thesis/sources.rst)                |
+|             | ![tu som](/blob/master/thesis/sources.rst)               |
 +-------------+----------------------------------------------------------+
-| Diary       | /thesis/diary.rst                                        |
+| Diary       | `/thesis/diary.rst`                                      |
 |             | .. _relative_link: thesis/sources.rst                    |
 +-------------+----------------------------------------------------------+
 
