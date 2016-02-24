@@ -1,3 +1,4 @@
+
 +=================+====================================================+
 | **Thesis name** | Artifictial neural network as opponent in Quoridor |
 +-----------------+----------------------------------------------------+
@@ -12,35 +13,35 @@
 INSTALLATION
 ============
 
-clone the quoridor repository:
+clone the quoridor repository::
 
     $ git clone https://github.com/mrkvost/quoridor
 
-create virtualenvironment and activate it:
+create virtualenvironment and activate it::
 
     $ cd quoridor/
     $ virtualenv e
     $ . e/bin/activate
 
-run install:
+run install::
 
     (e) $ python setup.py install
 
-or for developers:
+or for developers::
 
     (e) $ python setup.py develop
 
 RUN
 ===
 
-To run the game in console mode with linux terminal colors on:
+To run the game in console mode with linux terminal colors on::
 
     (e) $ qc
 
 TESTS
 =====
 
-To run tests, run nosetests with setup.py:
+To run tests, run nosetests with setup.py::
 
     (e) $ python setup.py nosetests
 
