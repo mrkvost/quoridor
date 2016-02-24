@@ -8,10 +8,9 @@ from core import (
     YELLOW, GREEN, GOAL_ROW, WALL_BOARD_SIZE, STARTING_WALL_COUNT_2_PLAYERS,
     pawn_legal_moves, current_pawn_position, wall_legal_moves,
     is_correct_wall_move, adjacent_spaces_not_blocked, is_occupied,
+    PLAYER_UTILITIES,
 )
 
-
-PLAYER_UTILITIES = {YELLOW: 1, GREEN: -1}
 
 MAX_NUMBER_OF_CHOICES = 2 * (WALL_BOARD_SIZE ** 2)
 # MAX_MISSING_CHOICES = 4 + 2 * 3 * STARTING_WALL_COUNT_2_PLAYERS
@@ -139,8 +138,8 @@ class QLPlayer(RandomPlayerWithPath):
     def get_Q(self, state, action):
         key = self.game.make_key(state)
         if key not in self.Q:
-            return 0
-        return self.Q[key].get(action, 0)
+            return 0.0
+        return self.Q[key].get(action, 0.0)
 
     def find_mq_and_action(self, state, multiplier):
         mq = multiplier * -MAX_INTEGER
@@ -154,7 +153,7 @@ class QLPlayer(RandomPlayerWithPath):
 
     def learn(self, previous_state, last_action, current_state, alpha=0.1,
               gamma=0.9):
-        mq = 0
+        mq = 0.0
         if not self.game.is_terminal(current_state):
             mq, best_action = self.find_mq_and_action(
                 current_state,

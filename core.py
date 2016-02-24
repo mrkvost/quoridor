@@ -235,6 +235,58 @@ def wall_legal_moves(state):
             yield (direction, wall)
 
 
+def position_to_int(position, size):
+    return position.row * size + position.col
+
+
+def int_to_position(number, size):
+    return Vector(row=(number // size), col=(number % size))
+
+
+def key_from_state(state):
+    key = (
+        state['on_move'],
+        position_to_int(state['pawns'][YELLOW], BOARD_SIZE),
+        position_to_int(state['pawns'][GREEN], BOARD_SIZE),
+        state['walls'][YELLOW],
+        state['walls'][GREEN],
+        frozenset([
+            position_to_int(wall, WALL_BOARD_SIZE)
+            for wall in state['placed_walls'][HORIZONTAL]
+        ]),
+        frozenset([
+            position_to_int(wall, WALL_BOARD_SIZE)
+            for wall in state['placed_walls'][VERTICAL]
+        ]),
+    )
+    return key
+
+
+def state_from_key(key):
+    state = {
+        'on_move': key[0],
+        'pawns': {
+            YELLOW: int_to_position(key[1], BOARD_SIZE),
+            GREEN: int_to_position(key[2], BOARD_SIZE),
+        },
+        'walls': {
+            YELLOW: key[3],
+            GREEN: key[4],
+        },
+        'placed_walls': {
+            HORIZONTAL: set([
+                int_to_position(number, WALL_BOARD_SIZE)
+                for number in key[5]
+            ]),
+            VERTICAL: set([
+                int_to_position(number, WALL_BOARD_SIZE)
+                for number in key[6]
+            ]),
+        },
+    }
+    return state
+
+
 class Quoridor2(object):
 
     def initial_state(self):
@@ -252,7 +304,6 @@ class Quoridor2(object):
                 HORIZONTAL: set(),
                 VERTICAL: set(),
             },
-            'utility': 0,
         }
 
     def players(self, state):
@@ -272,7 +323,9 @@ class Quoridor2(object):
         return False
 
     def utility(self, state, player):
-        return PLAYER_UTILITIES[player] * state['utility']
+        if self.is_terminal(state):
+            return PLAYER_UTILITIES[player]
+        return 0
 
     def execute_action(self, state, action):
         direction, new_position = action
@@ -288,8 +341,6 @@ class Quoridor2(object):
                     col=new_position.col,
                 ))
             state['pawns'][state['on_move']] = new_position
-            if self.is_terminal(state):
-                state['utility'] = 1
         else:
             if state['walls'][state['on_move']] < 1:
                 raise InvalidMove('Not enough walls to play.')
@@ -314,15 +365,7 @@ class Quoridor2(object):
         state['on_move'] = last_player
 
     def make_key(self, state):
-        key = (
-            state['on_move'],
-            state['pawns'][YELLOW],
-            state['pawns'][GREEN],
-            state['walls'][YELLOW],
-            state['walls'][GREEN],
-            frozenset(state['placed_walls']),
-        )
-        return key
+        return key_from_state(state)
 
 
 class InvalidMove(Exception):

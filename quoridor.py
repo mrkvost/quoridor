@@ -416,7 +416,6 @@ def qlearn(with_clear=True):
     while games_to_play > games_played:
         current_state = game.initial_state()
         history = []
-        action = None
         moves = 0
 
         while max_moves > moves:
@@ -478,14 +477,15 @@ def console_run(options):
     try:
         if options.random:
             random_players(with_clear=options.with_clear)
+            return
         elif options.qlearn:
             qlearn(with_clear=options.with_clear)
+            return
     except (EOFError, KeyboardInterrupt, SystemExit):
         pass
     finally:
         if traceback.format_exc() != 'None\n':
             traceback.print_exc()
-        return
 
     if options.example:
         random_pawn_positions(game, state)
