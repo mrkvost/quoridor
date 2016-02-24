@@ -48,7 +48,16 @@ RUN
 
 To run the game in console mode with linux terminal colors on::
 
-    (e) $ qc
+    (e) $ qc -c
+
+To run without clearing the console output::
+
+    (e) $ qc -w
+
+To display help::
+
+    (e) $ qc -h
+
 
 TESTS
 =====
