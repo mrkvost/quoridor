@@ -14,7 +14,7 @@
 |             |    networks, which will learn to play Quoridor           |
 |             | 3. Test end evaluate the behaviour of the agent          |
 +-------------+----------------------------------------------------------+
-| Sources     | `thesis/sources.rst </thesis/sources.rst>`_  |
+| Sources     | `thesis/sources.rst </thesis/sources.rst>`_              |
 +-------------+----------------------------------------------------------+
 | Diary       | `thesis/diary.rst </thesis/diary.rst>`_                  |
 +-------------+----------------------------------------------------------+
