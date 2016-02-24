@@ -2,13 +2,12 @@ To run the game in console mode with linux terminal colors on:
 
     $ python quoridor.py -ce
 
-To run tests, create virtual envirnonment and install test dependencies:
+To run tests, create virtual envirnonment and run nosetests with setup.py:
 
     $ cd /path/to/quoridor/
     $ virtualenv e
     $ . e/bin/activate
-    (e) $ pip install -r test-requirements.txt
-    (e) $ PYTHONPATH=. nosetests
+    (e) $ python setup.py nosetests
 
 TODOS:
  1. documentation strings for core module, core functions
