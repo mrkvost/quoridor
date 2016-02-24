@@ -8,7 +8,7 @@ import traceback
 
 from optparse import OptionParser
 
-from core import (
+from quoridor.core import (
     Vector,
     ROW,
     COL,
@@ -33,7 +33,7 @@ from core import (
     FOLLOWING_PLAYER,
 )
 
-from players import RandomPlayer, RandomPlayerWithPath, QLPlayer
+from quoridor.players import RandomPlayer, RandomPlayerWithPath, QLPlayer
 
 
 COLOR_START_CONSOLE = {YELLOW: u'\x1b[1m\x1b[33m', GREEN: u'\x1b[1m\x1b[32m'}

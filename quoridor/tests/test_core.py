@@ -4,7 +4,7 @@ from nose.tools import (
     assert_true, assert_false, assert_equal,
 )
 
-from core import (
+from quoridor.core import (
     Vector,
     YELLOW,
     GREEN,
