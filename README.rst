@@ -24,7 +24,6 @@
 
 INSTALLATION
 ============
-
 clone the quoridor repository::
 
     $ git clone https://github.com/mrkvost/quoridor
@@ -45,7 +44,6 @@ or for developers::
 
 RUN
 ===
-
 To run the game in console mode with linux terminal colors on::
 
     (e) $ qc -c
@@ -61,10 +59,18 @@ To display help::
 
 TESTS
 =====
-
 To run tests, run nosetests with setup.py::
 
     (e) $ python setup.py nosetests
+
+THESIS
+======
+To create thesis document from source::
+
+    (e) $ docmake
+
+Note: It will also open default program for viewing pdf documents if run under
+linux.
 
 
 TODOS:
@@ -73,15 +79,15 @@ TODOS:
 
  - Neural Network player
  - save / load NN player weights
-
  - save / load QLPlayer data
 
+ - verify installation on clean system
  - better/clearer/apposite test names
+
+ - create GUI or WEB interface
+ - use curses for better user experience
  - different board sizes
  - 4 players version
-
- - use curses for better user experience
- - create GUI or WEB interface
 
 NOTES:
  - curses - buildin library

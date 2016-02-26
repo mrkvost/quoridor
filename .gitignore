@@ -3,3 +3,5 @@ e/*
 *.pyc
 .eggs/*
 quoridor.egg-info/*
+thesis/document_src/*.log
+thesis/document_src/*.aux

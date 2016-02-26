@@ -1,0 +1,24 @@
+#!/usr/bin/env python2
+"""
+This script builds thesis.pdf from source files. If script is run under linux,
+standard program for viewing .pdf files opens the generated file.
+"""
+
+import os
+import sys
+import time
+import subprocess
+
+from latex import build_pdf
+
+
+DOCUMENT_DESTINATION = 'thesis/thesis.pdf'
+
+with open('thesis/document_src/main.tex', 'r') as document:
+    pdf = build_pdf(document)
+
+pdf.save_to(DOCUMENT_DESTINATION)
+
+if sys.platform == 'linux2':
+    proc = subprocess.Popen(['xdg-open ' + DOCUMENT_DESTINATION], shell=True)
+    time.sleep(5)
