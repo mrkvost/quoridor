@@ -9,16 +9,44 @@ import sys
 import time
 import subprocess
 
+from optparse import OptionParser
+
 from latex import build_pdf
 
 
+DOCUMENT_SOURCE = 'thesis/document_src/main.tex'
 DOCUMENT_DESTINATION = 'thesis/thesis.pdf'
 
-with open('thesis/document_src/main.tex', 'r') as document:
-    pdf = build_pdf(document)
 
-pdf.save_to(DOCUMENT_DESTINATION)
+def parse_args():
+    parser = OptionParser()
+    parser.add_option(
+        '-n', '--no-view', dest='view', default=True, action='store_false',
+        help='Do not open pdfviewer program after document creation.',
+    )
+    options, args = parser.parse_args()
+    return options, args
 
-if sys.platform == 'linux2':
-    proc = subprocess.Popen(['xdg-open ' + DOCUMENT_DESTINATION], shell=True)
-    time.sleep(5)
+
+def make_document():
+    with open(DOCUMENT_SOURCE, 'r') as document:
+        pdf = build_pdf(document)
+    pdf.save_to(DOCUMENT_DESTINATION)
+
+
+def open_viewer():
+    if sys.platform == 'linux2':
+        args = ['xdg-open ' + DOCUMENT_DESTINATION]
+        proc = subprocess.Popen(args, shell=True)
+        time.sleep(5)
+
+
+def main():
+    options, args = parse_args()
+    make_document()
+    if options.view:
+        open_viewer()
+
+
+if __name__ == '__main__':
+    main()
