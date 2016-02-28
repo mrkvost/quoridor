@@ -14,7 +14,10 @@ from optparse import OptionParser
 from latex import build_pdf
 
 
-DOCUMENT_SOURCE = 'thesis/document_src/main.tex'
+DOCUMENT_SOURCE_DIR = 'thesis/document_src'
+DOCUMENT_SOURCE_NAME = 'main.tex'
+DOCUMENT_SOURCE_PATH = os.path.join(DOCUMENT_SOURCE_DIR, DOCUMENT_SOURCE_NAME)
+
 DOCUMENT_DESTINATION = 'thesis/thesis.pdf'
 
 
@@ -29,8 +32,12 @@ def parse_args():
 
 
 def make_document():
-    with open(DOCUMENT_SOURCE, 'r') as document:
-        pdf = build_pdf(document)
+    # texinputs needs absolute path (http://pythonhosted.org/latex/#id2)
+    current_dir = os.path.abspath(os.path.dirname(__file__))
+    source_dir = os.path.join(current_dir, '..', DOCUMENT_SOURCE_DIR)
+
+    with open(DOCUMENT_SOURCE_PATH, 'r') as document:
+        pdf = build_pdf(document, texinputs=[source_dir])
     pdf.save_to(DOCUMENT_DESTINATION)
 
 

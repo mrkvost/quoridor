@@ -7,25 +7,32 @@
 \usepackage[utf8]{inputenc}
 \usepackage[slovak]{babel}
 \usepackage{amsmath}
+
+% enable including .pdf files, e.g. comenius logo (komlogo-new) and images
 \usepackage{graphicx}
-\usepackage{pdfpages}
 
 % value 1.25 should correspond to 1.5 line spacing
 \linespread{1.25}
 
+% TODO:
+% what are these used for?
+% - \usepackage[hang, flushmargin]{footmisc}
+% - \usepackage{pdfpages}
+% - \usepackage{lmodern} % should be nicer font, but nothing changed...
+
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 %                             VARIABLE DEFINITIONS
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-\def\mfthesistype{Bachelors Thesis}
+\def\mfthesistype{Bachelor Thesis}
 \def\mfauthor{Michal Hoľa}
-\def\mfadvisor{Mgr Peter Gergeľ}
+\def\mfadvisor{Mgr. Peter Gergeľ}
 \def\mfyear{2016}
 \def\mfplacedate{Bratislava, \mfyear}
-\def\program{Aplikovaná informatika}
-\def\subject{9.2.9 \program}
-\def\dpt{Katedra aplikovanej informatiky}
-\def\school{Univerzita Komenského v Bratislave}
-\def\faculty{Fakulta Matematiky, Fyziky a Informatiky}
+\def\programme{Applied Informatics}
+\def\subject{9.2.9 \programme}
+\def\department{Department of Applied Informatics}
+\def\school{Comenius University in Bratislave}
+\def\faculty{Faculty of Mathematics, Physics and Informatics}
 \def\thesisname{
     Artifictial neural network as an opponent in Quoridor
 }
@@ -35,65 +42,32 @@
 \date{\mfyear}
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-%                                   DOCUMENT
+%                                DOCUMENT BODY
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 \begin{document}
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-%                                  FIRST PAGE
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-\maketitle
-\newpage
+  \input firstpages.tex
+  \newpage
 
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-%                                   ABSTRACT
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  \section{Abstract}
-  absctract text here
+  \input abstract.tex
   \newpage
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-%                                  INTRODUCTION
+%                                   PREFACE
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%                                   CONTENTS
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+%                                 INTRODUCTION
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   \section{Introduction}
     \begin{figure}
-      \includegraphics[width=0.25\textwidth]{/home/michal/School/quoridor/thesis/document_src/komlogo-new}
+      \includegraphics[width=0.25\textwidth]{komlogo-new}
     \end{figure}
     some intro words...
-
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-%                                      ...
-% ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  \newpage
-  \section{Math play}
-    section blah
-
-    \subsection{blabla}
-      subsection blah
-
-      \subsubsection{b1}
-        subsubsection blah $f(x) = 10 + 3x$, and that's it...
-
-        \begin{equation*}
-          f_1(x) = x^2 - 120
-        \end{equation*}
-
-        \begin{equation*}
-          f_2(x) = \frac{\sqrt[n]{x}}{v(x)}
-        \end{equation*}
-
-        \begin{align*}
-               1 + 3 &= 4 \\
-          -4 + 2 + 9 &= 8 - 1
-        \end{align*}
-
-        \begin{align*}
-          \left[
-          \begin{matrix}
-                 1 & f(x) \\
-            \sin x & 10
-          \end{matrix}
-          \right]
-        \end{align*}
 
 \end{document}
