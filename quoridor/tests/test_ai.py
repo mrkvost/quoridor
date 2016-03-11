@@ -7,6 +7,7 @@ from quoridor.ai import (
     make_weight_fmt,
     print_weights,
     print_layer_weights,
+    nice_print_data,
     SimplePerceptron,
     MLMCPerceptron
 )
@@ -74,10 +75,17 @@ def test_single_perceptron_learns_NAND():
 
 
 def assert_mlmc_perceptron_learns_logic(p, training_data, base):
-    for input_data, desired_output in training_data:
-        p.update_weights(input_data, [desired_output])
+    ds = []
+    for i, (input_data, desired_output) in enumerate(training_data):
+        data = p.update_weights(input_data, [desired_output])
+        if i > len(training_data) - 5:
+            ds.append(data)
 
     # print
+    # for data in ds:
+    #     print 'x'*100
+    #     nice_print_data(data)
+
     for input_data, desired_output in base:
         # print p.calculate(input_data)
         result = [int(round(r, 0)) for r in p.calculate(input_data)]
@@ -161,9 +169,9 @@ def test_MLMCP_learns_OR():
     assert_mlmc_perceptron_learns_logic(p, training_data, BASE)
 
 
-@attr('mlmc')
+@attr('mlmc', 'now')
 def test_MLMCP_learns_XOR():
-    REPEAT = 30000
+    REPEAT = 10
     BASE = [
         [[0, 0], 0],
         [[1, 0], 1],
@@ -174,3 +182,25 @@ def test_MLMCP_learns_XOR():
     p = MLMCPerceptron([2, 2, 1])
     training_data = training_data_from_base(BASE, REPEAT)
     assert_mlmc_perceptron_learns_logic(p, training_data, BASE)
+
+
+@attr('mlmc', 'now')
+def test_MLMCP_learns_whatewer():
+    BASE = [
+        [[0, 0], 0],
+        [[1, 0], 1],
+        [[0, 1], 1],
+        [[1, 1], 0],
+    ]
+
+    p = MLMCPerceptron([2, 2, 1])
+    # print
+    # print
+    # print '-'*140
+    # nice_print_data(p.data)
+    i = 1
+    p.update_weights(BASE[i][0], [BASE[i][1]])
+    # print '-'*140
+    # nice_print_data(p.data)
+    # print '-'*140
+    # print
