@@ -3,99 +3,21 @@ import random
 from math import exp
 from copy import deepcopy
 
-
-class SimplePerceptron(object):
-    WEIGHT_DELTA = 0.01
-    DOUBLE_WEIGHT_DELTA = 2 * WEIGHT_DELTA
-    BIAS_INPUT = -1
-    LEARNING_RATE = 0.1
-
-    def __init__(self, input_size=None, weights=None):
-        assert (input_size is not None) or weights
-        assert (input_size is None) or not weights
-
-        if input_size is not None:
-            self.weights = self.initial_weights(input_size)
-        elif weights:
-            self.weights = weights
-
-    def generate_weight(self):
-        return random.random() * self.DOUBLE_WEIGHT_DELTA - self.WEIGHT_DELTA
-        # while True:
-        #     weight = (
-        #         random.random() * self.DOUBLE_WEIGHT_DELTA - self.WEIGHT_DELTA
-        #     )
-        #     if weight:
-        #         break
-        # return weight
-
-    def initial_weights(self, input_size):
-        weights = []
-        # +1 for bias input
-        for i in range(input_size + 1):
-            weight = self.generate_weight()
-            weights.append(weight)
-        return weights
-
-    def calculate(self, input_data):
-        # assert self.weights
-        z = 0
-        for i, value in enumerate(input_data):
-            z += value * self.weights[i]
-        z += self.BIAS_INPUT * self.weights[-1]
-        return self.sigmoid(z)
-
-    def sigmoid(self, z):
-        return 1.0 / (1.0 + exp(-z))
-
-    def update_weight(self, i, x, d, y):
-        """
-        i = index
-        x = input value
-        d = desired output
-        y = output
-        """
-        # TODO: faster if L_R * (d-y) * y * (1.0 - y) would be stored
-        self.weights[i] += self.LEARNING_RATE * x * (d - y) * y * (1.0 - y)
-
-    def update_weights(self, input_data, desired_output):
-        y = self.calculate(input_data)
-        for i, x in enumerate(input_data):
-            self.update_weight(i, x, desired_output, y)
-        self.update_weight(-1, self.BIAS_INPUT, desired_output, y)
-
-
-def make_weight_fmt(precision):
-    return '{{0:+{size}.{precision}f}}'.format(
-        size=precision+2,
-        precision=precision,
-    )
-
-def print_layer_weights(layer, fmt, preceeding=''):
-    print preceeding + ' || '.join([
-        ', '.join([fmt.format(w) for w in neuron])
-        for neuron in layer
-    ])
-
-
-def print_weights(weights, fmt):
-    for layer in weights:
-        print_layer_weights(layer, fmt)
-
-
+DEBUG = True
 BIAS_INPUT = -1
-LEARNING_RATE = 0.1
+LEARNING_RATE = 0.5
 
 
 def nice_print_data(data):
-    print 'deltas:', data['deltas']
-    print 'values: desired:', data['values']['desired_output']
-    print '        activation: ', data['values']['activation']
-    print '        output: ', data['values']['output']
-    print 'old_weights: hidden:', data['old_weights']['hidden']
-    print '             output:', data['old_weights']['output']
-    print 'new_weights: hidden:', data['new_weights']['hidden']
-    print '             output:', data['new_weights']['output']
+    if DEBUG:
+        print 'deltas:', data['deltas']
+        print 'values: desired:', data['values']['desired_output']
+        print '        activation: ', data['values']['activation']
+        print '        output: ', data['values']['output']
+        print 'old_weights: hidden:', data['old_weights']['hidden']
+        print '             output:', data['old_weights']['output']
+        print 'new_weights: hidden:', data['new_weights']['hidden']
+        print '             output:', data['new_weights']['output']
 
 
 def make_data(input_vector, desired_output, hidden_weights,
@@ -167,6 +89,8 @@ def calculate_new_weights(weights, input_vector, faster):
     new_weights = []
     for i, weight in enumerate(weights):
         new_weights.append(weight + input_vector[i] * faster)
+    # print 'input_vector:', input_vector
+    # print 'new_weights:', new_weights
     return new_weights
 
 
@@ -218,13 +142,17 @@ def calculate_hidden_layer(data):
             )
             new_deltas.append(delta)
             faster = LEARNING_RATE * delta
+            # print 'delta, faster:', delta, faster
+            # print "data['old_weights']['hidden'][layer_index][neuron_number]:", data['old_weights']['hidden'][layer_index][neuron_number]
+            # print 'j'*30
             new_layer_weights.append(
                 calculate_new_weights(
                     data['old_weights']['hidden'][layer_index][neuron_number],
-                    data['values']['activation'][layer_index - 1],
+                    data['values']['activation'][layer_index - 2],
                     faster
                 )
             )
+            # print 'new_layer_weights[-1]:', new_layer_weights[-1]
         data['new_weights']['hidden'].append(new_layer_weights)
         data['deltas'].append(new_deltas)
     data['new_weights']['hidden'] = data['new_weights']['hidden'][::-1]
@@ -240,12 +168,14 @@ def update_weights(input_vector, desired_output, hidden_weights,
         output_weights,
     )
     calculate_activations_and_output(data)
+    # print '-'*140
+    # nice_print_data(data)
     calculate_output_layer(data)
     # print '-'*140
     # nice_print_data(data)
     calculate_hidden_layer(data)
     # print '-'*140
-    # nice_print_data(data)
+    nice_print_data(data)
     return data
 
 
@@ -288,6 +218,15 @@ class MLMCPerceptron(object):
             sizes[-1]
         )
 
+        hidden_weights = [
+            [
+                [1, -0.5, 0],
+                [-1, -0, 0.3],
+                # [0, 0.5, -0.3],
+            ],
+        ]
+        output_weights = [[0.3, 0.6, -1]]
+
         self.weights = {'hidden': hidden_weights, 'output': output_weights}
         self.data = make_data([], [], [], [])
         self.data['new_weights'] = {
@@ -296,10 +235,13 @@ class MLMCPerceptron(object):
         }
 
     def calculate(self, input_data):
+        # print
         data = input_data
         for layer_weights in self.weights['hidden']:
-            data = calculate_layer(data, layer_weights)
-        data = calculate_layer(data, self.weights['output'])
+            # print 'data:', data
+            # print 'layer_weights:', layer_weights
+            data = calculate_layer(data + [BIAS_INPUT], layer_weights)
+        data = calculate_layer(data + [BIAS_INPUT], self.weights['output'])
         return data
 
     def update_weights(self, input_data, desired_output_data):

@@ -1,14 +1,11 @@
 import random
+# import winpdb
 
 from nose.tools import assert_equal
 from nose.plugins.attrib import attr
 
 from quoridor.ai import (
-    make_weight_fmt,
-    print_weights,
-    print_layer_weights,
     nice_print_data,
-    SimplePerceptron,
     MLMCPerceptron
 )
 
@@ -17,7 +14,7 @@ def training_data_from_base(base, repeat):
     training_data = []
     for data in base:
         training_data += [data] * repeat
-    random.shuffle(training_data)
+    # random.shuffle(training_data)
     return training_data
 
 
@@ -75,25 +72,30 @@ def test_single_perceptron_learns_NAND():
 
 
 def assert_mlmc_perceptron_learns_logic(p, training_data, base):
-    ds = []
-    for i, (input_data, desired_output) in enumerate(training_data):
-        data = p.update_weights(input_data, [desired_output])
-        if i > len(training_data) - 5:
-            ds.append(data)
+    #ds = []
+    # for i, (input_data, desired_output) in enumerate(training_data):
+    #     data = p.update_weights(input_data, [desired_output])
+    #     # if i > len(training_data) - 5:
+    #     #     ds.append(data)
 
     # print
     # for data in ds:
     #     print 'x'*100
     #     nice_print_data(data)
 
+
+    # for data in base:
+    #     p.update_weights(data[0], [data[1]])
+    #     print p.data
+
     for input_data, desired_output in base:
         # print p.calculate(input_data)
-        result = [int(round(r, 0)) for r in p.calculate(input_data)]
-        # result = [r for r in p.calculate(input_data)]
-        # print 'input={in_!r}, result={result!r}'.format(
-        #     in_=input_data, result=result
-        # )
-        assert_equal(result, [desired_output])
+        # result = [int(round(r, 0)) for r in p.calculate(input_data)]
+        result = [r for r in p.calculate(input_data)]
+        print 'input={in_!r}, result={result!r}'.format(
+            in_=input_data, result=result
+        )
+        # assert_equal(result, [desired_output])
 
 
 @attr('mlmc')
@@ -169,9 +171,9 @@ def test_MLMCP_learns_OR():
     assert_mlmc_perceptron_learns_logic(p, training_data, BASE)
 
 
-@attr('mlmc', 'now')
+@attr('mlmc', 'xor')
 def test_MLMCP_learns_XOR():
-    REPEAT = 10
+    REPEAT = 10000
     BASE = [
         [[0, 0], 0],
         [[1, 0], 1],
@@ -182,7 +184,6 @@ def test_MLMCP_learns_XOR():
     p = MLMCPerceptron([2, 2, 1])
     training_data = training_data_from_base(BASE, REPEAT)
     assert_mlmc_perceptron_learns_logic(p, training_data, BASE)
-
 
 @attr('mlmc', 'now')
 def test_MLMCP_learns_whatewer():
@@ -200,6 +201,8 @@ def test_MLMCP_learns_whatewer():
     # nice_print_data(p.data)
     i = 1
     p.update_weights(BASE[i][0], [BASE[i][1]])
+    nice_print_data(p.data)
+    assert_false(1)
     # print '-'*140
     # nice_print_data(p.data)
     # print '-'*140
