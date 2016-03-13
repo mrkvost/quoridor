@@ -14,7 +14,7 @@ setup_info = dict(
     ),
 
     packages=find_packages(),
-    setup_requires=['nose==1.3.7'],
+    setup_requires=['nose==1.3.7', 'numpy==1.10.4'],
     entry_points={
         'console_scripts': [
             'qc = quoridor.quoridor:main',
@@ -22,9 +22,13 @@ setup_info = dict(
     },
 )
 
+if 'install_requires' not in setup_info:
+    setup_info['install_requires'] = []
+
+if 'develop' in sys.argv or 'install' in sys.argv:
+    setup_info['install_requires'].append('pip==8.1.0')
+
 if 'develop' in sys.argv:
-    if 'install_requires' not in setup_info:
-        setup_info['install_requires'] = []
     setup_info['install_requires'].append('latex==0.6.1')
 
     if 'scripts' not in setup_info:
