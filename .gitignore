@@ -5,3 +5,6 @@ e/*
 quoridor.egg-info/*
 thesis/document_src/*.log
 thesis/document_src/*.aux
+nose-*.egg/*
+numpy-*.egg/*
+rpdb2.py
