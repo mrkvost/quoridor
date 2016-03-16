@@ -65,9 +65,22 @@
 %                                 INTRODUCTION
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   \section{Introduction}
+    Quoridor is abstract board strategy game...
+    This thesis covers only 2 player version of this game.
+    \subsection{Rules}
+    Each player starts with a single pawn and 10 fences (or walls). Board is
+    square of 9x9 (81) squares. In the beginning, pawns are placed on the
+    opposite sides of the board in the center spaces of the edges. The goal is
+    to get pawn to opposite side of the board first. Walls are wide two spaces
+    and can be placed in the groove between 9x9 spaces, so there are 8x8
+    vertical and 8x8 horizontal possibilities to place walls. When player is
+    on turn, he must place wall, if he has left some, or move his pawn
+    to adjacent space not blocked by a wall. Diagonal are not considered
+    adjacent. If opponent's pawn stands on adjacent space, current player can
+    move (jump) with his pawn to all the places where the opponent pawn can
+    move.
     \begin{figure}
-      \includegraphics[width=0.25\textwidth]{komlogo-new}
+      \includegraphics[width=0.25\textwidth]{basic_board_01.jpg}
     \end{figure}
-    some intro words...
 
 \end{document}
