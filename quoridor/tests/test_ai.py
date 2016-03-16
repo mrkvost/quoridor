@@ -43,6 +43,16 @@ def assert_mlmc_perceptron_learns_logic(p, training_data, base):
         assert_equal(result, desired_output)
 
 
+def tryxept(function, repeat=3, *args, **kwargs):
+    try:
+        function(*args, **kwargs)
+    except:
+        if repeat > 0:
+            tryxept(function, repeat=repeat - 1, *args, **kwargs)
+        else:
+            raise
+
+
 @attr('mlmc', 'xor')
 def test_MLMCP_learns_XOR():
     REPEAT = 3500
@@ -53,9 +63,12 @@ def test_MLMCP_learns_XOR():
         [[1, 1], [0]],
     ]
 
-    p = MLMCPerceptron([2, 20, 1])
-    training_data = training_data_from_base(BASE, REPEAT)
-    assert_mlmc_perceptron_learns_logic(p, training_data, BASE)
+    def learn_XOR():
+        p = MLMCPerceptron([2, 20, 1])
+        training_data = training_data_from_base(BASE, REPEAT)
+        assert_mlmc_perceptron_learns_logic(p, training_data, BASE)
+
+    tryxept(learn_XOR)
 
 
 @attr('mlmc', 'nand')
