@@ -5,7 +5,7 @@ import numpy
 BIAS_INPUT = -1
 LEARNING_RATE_DEFAULT = 0.1
 WEIGHT_RANGE_DEFAULT = 0.5
-
+MOMENTUM_DEFAULT = 0.8
 
 def sigmoid(z):
     """ Sigmoid function.
@@ -105,7 +105,7 @@ def generate_weights(sizes, weight_range=WEIGHT_RANGE_DEFAULT):
 class MLMCPerceptron(object):
     """Multi-layer multi-class perceptron."""
 
-    def __init__(self, sizes=None, weights=None,
+    def __init__(self, sizes=None, weights=None, momentum=MOMENTUM_DEFAULT,
                  learning_rate=LEARNING_RATE_DEFAULT):
         if sizes is not None:
             assert len(sizes) > 1, (
@@ -114,7 +114,12 @@ class MLMCPerceptron(object):
             self.weights = generate_weights(sizes)
         else:
             self.weights = weights
+        self.delta_weights = [
+            numpy.zeros([len(layer), len(layer[0])])
+            for layer in self.weights
+        ]
         self.learning_rate = learning_rate
+        self.momentum = momentum
 
     def calculate(self, input_vector):
         return list(self.propagate_forward(input_vector))[-1]
@@ -147,7 +152,12 @@ class MLMCPerceptron(object):
                     input_value = BIAS_INPUT
                     if k + 1 < len(weights):
                         input_value = activation_vectors[i][k]
-                    self.weights[i][j][k] += faster * input_value
+                    delta_weight = faster * input_value
+                    self.weights[i][j][k] += delta_weight + (
+                        self.delta_weights[i][j][k] * self.momentum
+                    )
+                    self.delta_weights[i][j][k] = delta_weight
+        # self.last_error = (deltas[-1] ** 2).sum()
 
     def outgoing_layer_weights(self, layer_index):
         return numpy.array([

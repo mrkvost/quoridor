@@ -29,40 +29,6 @@ def training_data_from_base(base, repeat):
     return training_data
 
 
-@attr('mlmc', 'xor', 'slow')
-def test_MLMCP_learns_XOR_at_least_sometimes():
-    REPEAT = 5000
-    BASE = [
-        [[0, 0], [0]],
-        [[1, 0], [1]],
-        [[0, 1], [1]],
-        [[1, 1], [0]],
-    ]
-    p = MLMCPerceptron([2, 15, 1])
-    training_data = training_data_from_base(BASE, REPEAT)
-
-    measurements = 5
-    goods = 0
-    bads = 0
-    for i in range(measurements):
-        for input_data, desired_output in training_data:
-            p.learn(input_data, desired_output)
-
-        for input_data, desired_output in BASE:
-            output_vector = [r for r in p.calculate(input_data)]
-            result = [int(round(r, 0)) for r in output_vector]
-            print 'input={in_!r}, result={result!r}, out={out!r}'.format(
-                in_=input_data, result=result, out=output_vector
-            )
-            if result != desired_output:
-                bads += 1
-                break
-        else:
-            goods += 1
-        random.shuffle(training_data)
-    assert goods > measurements * 0.2
-
-
 @nottest
 def assert_mlmc_perceptron_learns_logic(p, training_data, base):
     for i, (input_data, desired_output) in enumerate(training_data):
@@ -75,6 +41,21 @@ def assert_mlmc_perceptron_learns_logic(p, training_data, base):
             in_=input_data, result=result, out=output_vector
         )
         assert_equal(result, desired_output)
+
+
+@attr('mlmc', 'xor')
+def test_MLMCP_learns_XOR():
+    REPEAT = 3500
+    BASE = [
+        [[0, 0], [0]],
+        [[1, 0], [1]],
+        [[0, 1], [1]],
+        [[1, 1], [0]],
+    ]
+
+    p = MLMCPerceptron([2, 20, 1])
+    training_data = training_data_from_base(BASE, REPEAT)
+    assert_mlmc_perceptron_learns_logic(p, training_data, BASE)
 
 
 @attr('mlmc', 'nand')
