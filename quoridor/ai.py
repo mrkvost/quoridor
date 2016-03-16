@@ -7,6 +7,7 @@ LEARNING_RATE_DEFAULT = 0.1
 WEIGHT_RANGE_DEFAULT = 0.5
 MOMENTUM_DEFAULT = 0.8
 
+
 def sigmoid(z):
     """ Sigmoid function.
 

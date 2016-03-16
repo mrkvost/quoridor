@@ -14,7 +14,11 @@ setup_info = dict(
     ),
 
     packages=find_packages(),
-    setup_requires=['nose==1.3.7', 'numpy==1.10.4'],
+    setup_requires=[
+        'nose==1.3.7',
+        'numpy==1.10.4',
+        'SQLAlchemy==1.0.12',
+    ],
     entry_points={
         'console_scripts': [
             'qc = quoridor.quoridor:main',
