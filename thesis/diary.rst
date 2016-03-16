@@ -1,3 +1,11 @@
+16th March 2016
+===============
+ - created Multi-Layer Multi-Class Perceptron (MLMC)
+ - tests for MLMC
+ - fixed sigmoid function for big weights
+ - added momentum calculation
+ - use SQLAlchemy to save/load weights
+
 3rd March 2016
 ==================
  - added .tex files with basic thesis structure
