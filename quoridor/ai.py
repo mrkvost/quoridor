@@ -107,7 +107,7 @@ class MLMCPerceptron(object):
     """Multi-layer multi-class perceptron."""
 
     def __init__(self, sizes=None, weights=None, momentum=MOMENTUM_DEFAULT,
-                 learning_rate=LEARNING_RATE_DEFAULT):
+                 alpha=LEARNING_RATE_DEFAULT, out_sigmoided=True):
         if sizes is not None:
             assert len(sizes) > 1, (
                 "At least sizes of input and output layer should be defined."
@@ -119,8 +119,11 @@ class MLMCPerceptron(object):
             numpy.zeros([len(layer), len(layer[0])])
             for layer in self.weights
         ]
-        self.learning_rate = learning_rate
+        self.alpha = alpha
         self.momentum = momentum
+        self.out_sigmoided = out_sigmoided
+    # if name is None:
+    #     name = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     def calculate(self, input_vector):
         return list(self.propagate_forward(input_vector))[-1]
@@ -130,14 +133,17 @@ class MLMCPerceptron(object):
 
         activations = numpy.array(input_vector)
         yield activations
-        for weights in self.weights:
+        for i, weights in enumerate(self.weights, 1):
             products = numpy.dot(
                 weights,
                 numpy.concatenate((activations, [BIAS_INPUT]), axis=0),
-             )
-            activations = numpy.array([
-                sigmoid(product) for product in products
-            ])
+            )
+            if self.out_sigmoided or i != len(self.weights):
+                activations = numpy.array([
+                    sigmoid(product) for product in products
+                ])
+            else:
+                activations = products
             yield activations
 
     def learn(self, input_vector, desired_output_vector):
@@ -148,7 +154,7 @@ class MLMCPerceptron(object):
         deltas = self.deltas(desired_output_vector, activation_vectors)
         for i, layer_weights in enumerate(self.weights):
             for j, weights in enumerate(layer_weights):
-                faster = self.learning_rate * deltas[i][j]
+                faster = self.alpha * deltas[i][j]
                 for k, weight in enumerate(weights):
                     input_value = BIAS_INPUT
                     if k + 1 < len(weights):
@@ -158,7 +164,6 @@ class MLMCPerceptron(object):
                         self.delta_weights[i][j][k] * self.momentum
                     )
                     self.delta_weights[i][j][k] = delta_weight
-        # self.last_error = (deltas[-1] ** 2).sum()
 
     def outgoing_layer_weights(self, layer_index):
         return numpy.array([
@@ -169,7 +174,10 @@ class MLMCPerceptron(object):
     def deltas(self, desired_output_vector, activation_vectors):
         output_vector = activation_vectors[-1]
         error = numpy.array(desired_output_vector) - output_vector
-        deltas = [error * output_vector * (1.0 - output_vector)]
+        if self.out_sigmoided:
+            deltas = [error * output_vector * (1.0 - output_vector)]
+        else:
+            deltas = [error]
         for i in range(len(self.weights) - 1, 0, -1):
             activations = activation_vectors[i]
             outgoing_weights = self.outgoing_layer_weights(i)

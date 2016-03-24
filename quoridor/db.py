@@ -2,6 +2,7 @@ import numpy
 
 from sqlalchemy import (
     create_engine, Column, String, Integer, Float, ForeignKey, MetaData,
+    Boolean,
 )
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
@@ -18,6 +19,7 @@ class Network(Base):
     name = Column(String)
     alpha = Column(Float, nullable=False)
     momentum = Column(Float, nullable=False)
+    out_sigmoided = Column(Boolean, nullable=False)
 
     def __str__(self):
         name = self.name
@@ -69,20 +71,24 @@ def make_db_session(db_path):
     # return connection
 
 
-def save_weights(db_session, network_name, alpha, momentum, weights):
-    new_network = Network(
-        name=network_name,
-        alpha=alpha,
-        momentum=momentum,
+def db_save_network(db_session, perceptron, name):
+    query = db_session.query(Network).filter_by(name=name)
+    assert query.count() == 0, 'Network name already present in the db.'
+
+    network = Network(
+        name=name,
+        alpha=perceptron.alpha,
+        momentum=perceptron.momentum,
+        out_sigmoided=perceptron.out_sigmoided,
     )
-    db_session.add(new_network)
+    db_session.add(network)
     db_session.commit()
 
-    for i in range(len(weights)):
-        for j in range(len(weights[i])):
-            for k, weight in enumerate(weights[i][j]):
+    for i, layer_weights in enumerate(perceptron.weights):
+        for j, neuron_weights in enumerate(layer_weights):
+            for k, weight in enumerate(neuron_weights):
                 new_weight = Weight(
-                    network_id=new_network.id,
+                    network_id=network.id,
                     layer=i,
                     input=k,
                     output=j,
@@ -92,7 +98,7 @@ def save_weights(db_session, network_name, alpha, momentum, weights):
     db_session.commit()
 
 
-def load_weights(db_session, network_name):
+def db_load_network(db_session, network_name):
     storage = {}
     maximums = {}
     network = db_session.query(Network).filter_by(name=network_name).one()
@@ -103,20 +109,23 @@ def load_weights(db_session, network_name):
                 maximums[weight.layer] < weight.input):
             maximums[weight.layer] = weight.input
         if (weight.layer + 1 not in maximums) or (
-                maximums[weight.layer + 1] < weight.output):
-            maximums[weight.layer + 1] = weight.output
+                maximums[weight.layer + 1] < weight.output + 1):
+            maximums[weight.layer + 1] = weight.output + 1
 
     weights = []
-    for i in range(1, len(maximums) - 1):
+    for i in range(1, len(maximums)):
         weights.append(numpy.array([
-            [storage[(i, j, k)] for k in range(maximums[i - 1] + 1)]
+            [storage[(i - 1, j, k)] for k in range(maximums[i - 1] + 1)]
             for j in range(maximums[i])
         ]))
-    weights.append(numpy.array([
-        [storage[(i, j, k)] for k in range(maximums[i] + 1)]
-        for j in range(maximums[i + 1] + 1)
-    ]))
-    return weights
+
+    network_attribues = dict(
+        alpha=network.alpha,
+        out_sigmoided=network.out_sigmoided,
+        momentum=network.momentum,
+        weights=weights,
+    )
+    return network_attribues
 
 
 # LIST_TABLES = """ SELECT name FROM sqlite_master WHERE type='table'"""
