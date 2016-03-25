@@ -12,6 +12,7 @@ from quoridor.db import (
     Weight,
     db_save_network,
     db_load_network,
+    db_update_network,
     build_db,
     make_db_session,
 )
@@ -222,3 +223,43 @@ def test_load_network_2_4_4_2(db_session):
             ],
         }
     )
+
+
+@attr('db', 'update')
+@with_db_session(with_build_db=True)
+def test_update_network_2_2(db_session):
+    network_name = '2_2'
+
+    old_network_attributes = {
+        'alpha': 0.1,
+        'momentum': 0.8,
+        'out_sigmoided': True,
+        'weights': [
+            numpy.array([
+                [50.1, -50.2, 50.3],
+                [50.4, -50.5, 50.6],
+            ]),
+        ]
+    }
+    perceptron = MLMCPerceptron(**old_network_attributes)
+    db_save_network(db_session, perceptron, name=network_name)
+    network = db_session.query(Network).filter_by(name=network_name).one()
+    assert_network_equal(network, old_network_attributes)
+
+    new_network_attributes = {
+        'alpha': 0.3,
+        'momentum': 0.1,
+        'out_sigmoided': False,
+        'weights': [
+            numpy.array([
+                [500.1, -500.2, 500.3],
+                [500.4, -500.5, 500.6],
+            ]),
+        ],
+    }
+    perceptron = MLMCPerceptron(**new_network_attributes)
+    db_update_network(db_session, network_name, perceptron)
+
+    after_update_attributes = db_load_network(db_session, network_name)
+    perceptron = MLMCPerceptron(**after_update_attributes)
+    assert_perceptron_equal(perceptron, new_network_attributes)

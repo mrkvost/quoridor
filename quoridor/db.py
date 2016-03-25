@@ -71,6 +71,20 @@ def make_db_session(db_path):
     # return connection
 
 
+def db_update_network(db_session, name, perceptron):
+    network = db_session.query(Network).filter_by(name=name).one()
+    network.alpha = perceptron.alpha
+    network.momentum = perceptron.momentum
+    network.out_sigmoided = perceptron.out_sigmoided
+
+    weights = db_session.query(Weight).filter_by(network_id=network.id)
+    for weight in weights:
+        weight.weight = (
+            perceptron.weights[weight.layer][weight.output][weight.input]
+        )
+    db_session.commit()
+
+
 def db_save_network(db_session, perceptron, name):
     query = db_session.query(Network).filter_by(name=name)
     assert query.count() == 0, 'Network name already present in the db.'
