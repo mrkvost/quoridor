@@ -1,3 +1,9 @@
+7th April 2016
+===============
+ - output layer sigmoided made optional
+ - train to estimate Q values, struggle with nonsigmoided output creating
+   too high numbers
+
 16th March 2016
 ===============
  - created Multi-Layer Multi-Class Perceptron (MLMC)

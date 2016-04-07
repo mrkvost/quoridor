@@ -22,6 +22,7 @@ setup_info = dict(
     entry_points={
         'console_scripts': [
             'qc = quoridor.quoridor:main',
+            'train = quoridor.training:run',
         ],
     },
 )
@@ -31,6 +32,8 @@ if 'install_requires' not in setup_info:
 
 if 'develop' in sys.argv or 'install' in sys.argv:
     setup_info['install_requires'].append('pip==8.1.0')
+    setup_info['install_requires'].append('numpy==1.10.4')
+    setup_info['install_requires'].append('SQLAlchemy==1.0.12')
 
 if 'develop' in sys.argv:
     setup_info['install_requires'].append('latex==0.6.1')

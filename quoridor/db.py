@@ -60,6 +60,23 @@ class Weight(Base):
         )
 
 
+class Game(Base):
+    __tablename__ = 'game'
+
+    id = Column(Integer, primary_key=True)
+    network_played_id = Column(Integer, ForeignKey('network.id'))
+    description = Column(String)
+
+
+class Move(Base):
+    __tablename__ = 'move'
+
+    id = Column(Integer, primary_key=True)
+    game_id = Column(Integer, ForeignKey('game.id'), nullable=False)
+    number = Column(Integer, nullable=False)
+    action = Column(Integer, nullable=False)
+
+
 def make_db_session(db_path):
     engine = create_engine(
         'sqlite:///{relative_db_path}'.format(relative_db_path=db_path)
