@@ -62,7 +62,10 @@ def get_all_table_names(db_session):
 @attr('db', 'build_db')
 @with_db_session(with_build_db=True)
 def test_build_db(db_session):
-    assert_equal(get_all_table_names(db_session), ['network', 'weight'])
+    assert_equal(
+        get_all_table_names(db_session),
+        ['game', 'move', 'network', 'weight']
+    )
     assert_equal(len(db_session.query(Network).all()), 0)
     assert_equal(len(db_session.query(Weight).all()), 0)
 
