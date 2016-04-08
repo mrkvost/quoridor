@@ -4,6 +4,7 @@ import re
 import random
 import copy
 import numpy
+import sys
 
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -38,6 +39,7 @@ SIZES_PATTERN = r'\d+(_\d+)+'
 SIZES_NAME_RE = re.compile(SIZES_PATTERN)
 
 REWARD = 100
+MAXINT = sys.maxint
 
 
 def input_vector_from_game_state(state):
@@ -124,7 +126,7 @@ def mkaction(game, state):
 def find_min(sequence):
     assert len(sequence)
     min_i = 0
-    min_element = +100000
+    min_element = +MAXINT
     for i, element in enumerate(sequence):
         if min_element > element:
             min_element = element
@@ -135,9 +137,9 @@ def find_min(sequence):
 def find_max(sequence):
     assert len(sequence)
     max_i = 0
-    max_element = -100000
+    max_element = -MAXINT
     for i, element in enumerate(sequence):
-        if max_element > element:
+        if max_element < element:
             max_element = element
             max_i = i
     return max_i, max_element
@@ -159,6 +161,7 @@ def train_MLMC_estimate_Q_value(cycles=100, save_every=1):
 
     game = Quoridor2()
     for cycle_number in range(1, 1 + cycles):
+        print 'starting new_game'
         state = game.initial_state()
 
         old_input_vector = input_vector_from_game_state(state)

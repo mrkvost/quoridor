@@ -160,10 +160,11 @@ class MLMCPerceptron(object):
                     if k + 1 < len(weights):
                         input_value = activation_vectors[i][k]
                     delta_weight = faster * input_value
-                    self.weights[i][j][k] += delta_weight + (
+                    complete_delta = delta_weight + (
                         self.delta_weights[i][j][k] * self.momentum
                     )
-                    self.delta_weights[i][j][k] = delta_weight
+                    self.weights[i][j][k] += complete_delta
+                    self.delta_weights[i][j][k] = complete_delta
 
     def outgoing_layer_weights(self, layer_index):
         return numpy.array([
