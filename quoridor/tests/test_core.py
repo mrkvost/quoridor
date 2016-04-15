@@ -1,1219 +1,313 @@
 # TODO: make test names more descriptive and apparent
 
-from nose.tools import (
-    assert_true, assert_false, assert_equal,
-)
+from nose.tools import assert_true, assert_false, assert_equal, assert_raises
+from nose.plugins.attrib import attr
 
 from quoridor.core import (
-    Vector,
     YELLOW,
     GREEN,
     VERTICAL,
     HORIZONTAL,
-    add_direction,
-    substract_direction,
-    adjacent_move_direction,
-    pawn_within_board,
-    wall_within_board,
-    pawn_move_distance_no_walls,
-    is_occupied,
-    is_wall_between,
-    pawn_legal_moves,
-    is_correct_pawn_move,
-    wall_intersects,
-    player_can_reach_goal,
-    is_correct_wall_move,
+    UP,
+    RIGHT,
+    DOWN,
+    LEFT,
+    _make_initial_state,
+    _make_blocker_positions,
+    _make_goal_positions,
+    _make_move_deltas,
+    is_horizontal_wall_crossing,
+    is_vertical_wall_crossing,
+    InvalidMove,
+    Quoridor2,
 )
 
 
-def test_add_direction_1():
+@attr('core')
+def test_make_initial_state():
     assert_equal(
-        add_direction(Vector(row=0, col=0), VERTICAL),
-        Vector(row=1, col=0)
+        (YELLOW, 4, 76, 10, 10, frozenset(), frozenset()),
+        _make_initial_state(9)
     )
 
 
-def test_add_direction_2():
+@attr('core')
+def test_make_blocker_positions_2():
     assert_equal(
-        add_direction(Vector(row=2, col=6), VERTICAL),
-        Vector(row=3, col=6)
+        {
+            0: {1: set([0]), 2: set([0])},
+            1: {2: set([0]), 3: set([0])},
+            2: {0: set([0]), 1: set([0])},
+            3: {0: set([0]), 3: set([0])},
+        },
+        _make_blocker_positions(2),
     )
 
 
-def test_add_direction_3():
+@attr('core')
+def test_make_blocker_positions_3():
     assert_equal(
-        add_direction(Vector(row=8, col=4), VERTICAL),
-        Vector(row=9, col=4)
+        {
+            0: {1: set([0]), 2: set([0])},
+            1: {1: set([1]), 2: set([0, 1]), 3: set([0])},
+            2: {2: set([1]), 3: set([1])},
+
+            3: {0: set([0]), 1: set([0, 2]), 2: set([2])},
+            4: {0: set([0, 1]), 1: set([1, 3]), 2: set([2, 3]), 3: set([0, 2])},
+            5: {0: set([1]), 2: set([3]), 3: set([1, 3])},
+
+            6: {0: set([2]), 1: set([2])},
+            7: {0: set([2, 3]), 1: set([3]), 3: set([2])},
+            8: {0: set([3]), 3: set([3])},
+        },
+        _make_blocker_positions(3),
     )
 
 
-def test_add_direction_4():
+@attr('core')
+def test_make_goal_positions_3():
     assert_equal(
-        add_direction(Vector(row=5, col=1), HORIZONTAL),
-        Vector(row=5, col=2)
+        {YELLOW: frozenset([6, 7, 8]), GREEN: frozenset([0, 1, 2])},
+        _make_goal_positions(3)
     )
 
 
-def test_add_direction_5():
+@attr('core')
+def test_make_goal_positions_9():
     assert_equal(
-        add_direction(Vector(row=3, col=0), HORIZONTAL),
-        Vector(row=3, col=1)
+        {
+            YELLOW: frozenset([72, 73, 74, 75, 76, 77, 78, 79, 80]),
+            GREEN: frozenset([0, 1, 2, 3, 4, 5, 6, 7, 8]),
+        },
+        _make_goal_positions(9)
     )
 
 
-def test_add_direction_6():
+@attr('core')
+def test_make_move_deltas_4():
     assert_equal(
-        add_direction(Vector(row=7, col=8), HORIZONTAL),
-        Vector(row=7, col=9)
+        {UP: -4, RIGHT: +1, DOWN: +4, LEFT: -1},
+        _make_move_deltas(4)
     )
 
 
-def test_substract_direction_1():
+@attr('core')
+def test_make_move_deltas_9():
     assert_equal(
-        substract_direction(Vector(row=0, col=7), VERTICAL),
-        Vector(row=-1, col=7)
+        {UP: -9, RIGHT: +1, DOWN: +9, LEFT: -1},
+        _make_move_deltas(9)
     )
 
 
-def test_substract_direction_2():
-    assert_equal(
-        substract_direction(Vector(row=8, col=8), VERTICAL),
-        Vector(row=7, col=8)
-    )
-
-
-def test_substract_direction_3():
-    assert_equal(
-        substract_direction(Vector(row=3, col=4), HORIZONTAL),
-        Vector(row=3, col=3)
-    )
-
-
-def test_substract_direction_4():
-    assert_equal(
-        substract_direction(Vector(row=6, col=0), HORIZONTAL),
-        Vector(row=6, col=-1)
-    )
-
-
-def test_adjacent_move_direction_wrong_1():
-    assert_equal(
-        adjacent_move_direction(Vector(row=0, col=0), Vector(0, 0)),
-        None
-    )
-
-
-def test_adjacent_move_direction_wrong_2():
-    assert_equal(
-        adjacent_move_direction(Vector(row=0, col=0), Vector(3, 3)),
-        None
-    )
-
-
-def test_adjacent_move_direction_wrong_3():
-    assert_equal(
-        adjacent_move_direction(Vector(row=2, col=5), Vector(2, 0)),
-        None
-    )
-
-
-def test_adjacent_move_direction_vertical_1():
-    assert_equal(
-        adjacent_move_direction(Vector(row=0, col=0), Vector(row=1, col=0)),
-        VERTICAL
-    )
-
-
-def test_adjacent_move_direction_vertical_2():
-    assert_equal(
-        adjacent_move_direction(Vector(row=7, col=5), Vector(row=6, col=5)),
-        VERTICAL
-    )
-
-
-def test_adjacent_move_direction_horizontal_1():
-    assert_equal(
-        adjacent_move_direction(Vector(row=8, col=3), Vector(row=8, col=2)),
-        HORIZONTAL
-    )
-
-
-def test_adjacent_move_direction_horizontal_2():
-    assert_equal(
-        adjacent_move_direction(Vector(row=0, col=7), Vector(row=0, col=8)),
-        HORIZONTAL
-    )
-
-
-def test_pawn_within_board_wrong_1():
-    assert_false(pawn_within_board(Vector(0, -1)))
-
-
-def test_pawn_within_board_wrong_2():
-    assert_false(pawn_within_board(Vector(1, 257)))
-
-
-def test_pawn_within_board_wrong_3():
-    assert_false(pawn_within_board(Vector(2147483649, -2147483649)))
-
-
-def test_pawn_within_board_correct_1():
-    assert_true(pawn_within_board(Vector(0, 0)))
-
-
-def test_pawn_within_board_correct_2():
-    assert_true(pawn_within_board(Vector(3, 7)))
-
-
-def test_pawn_within_board_correct_3():
-    assert_true(pawn_within_board(Vector(8, 8)))
-
-
-def test_wall_within_board_correct_1():
-    assert_true(wall_within_board(Vector(row=0, col=0)))
-
-
-def test_wall_within_board_correct_2():
-    assert_true(wall_within_board(Vector(row=7, col=0)))
-
-
-def test_wall_within_board_correct_3():
-    assert_true(wall_within_board(Vector(row=4, col=5)))
-
-
-def test_wall_within_board_correct_4():
-    assert_true(wall_within_board(Vector(row=7, col=7)))
-
-
-def test_wall_within_board_correct_5():
-    assert_true(wall_within_board(Vector(row=4, col=0)))
-
-
-def test_wall_within_board_wrong_1():
-    assert_false(wall_within_board(Vector(row=2, col=-1)))
-
-
-def test_wall_within_board_wrong_2():
-    assert_false(wall_within_board(Vector(row=-3, col=8)))
-
-
-def test_wall_within_board_wrong_3():
-    assert_false(wall_within_board(Vector(row=2, col=8)))
-
-
-def test_wall_within_board_wrong_4():
-    assert_false(wall_within_board(Vector(row=2147483651, col=5)))
-
-
-def test_wall_within_board_wrong_5():
-    assert_false(wall_within_board(Vector(row=-1, col=0)))
-
-
-def test_wall_within_board_wrong_6():
-    assert_false(wall_within_board(Vector(row=-1, col=65538)))
-
-
-def test_wall_within_board_wrong_7():
-    assert_false(wall_within_board(Vector(row=-4294967296, col=4294967296)))
-
-
-def test_pawn_move_distance_no_walls_1():
-    assert_equal(
-        pawn_move_distance_no_walls(
-            Vector(row=0, col=0),
-            Vector(row=5, col=5),
-        ),
-        10
-    )
-
-
-def test_pawn_move_distance_no_walls_2():
-    assert_equal(
-        pawn_move_distance_no_walls(
-            Vector(row=7, col=7),
-            Vector(row=6, col=2),
-        ),
-        6
-    )
-
-
-def test_pawn_move_distance_no_walls_3():
-    assert_equal(
-        pawn_move_distance_no_walls(
-            Vector(row=1, col=4),
-            Vector(row=7, col=3)
-        ),
-        7
-    )
-
-
-def test_pawn_move_distance_no_walls_4():
-    assert_equal(
-        pawn_move_distance_no_walls(
-            Vector(row=2, col=5),
-            Vector(row=2, col=5)
-        ),
-        0
-    )
-
-
-def test_is_occupied_1():
-    assert_true(
-        is_occupied(
-            {
-                'pawns': {
-                    YELLOW: Vector(row=4, col=3),
-                    GREEN: Vector(row=4, col=4),
-                },
-            },
-            Vector(row=4, col=4),
-        )
-    )
-
-
-def test_is_occupied_2():
-    assert_false(
-        is_occupied(
-            {
-                'pawns': {
-                    YELLOW: Vector(row=1, col=7),
-                    GREEN: Vector(row=0, col=1),
-                },
-            },
-            Vector(row=0, col=0),
-        )
-    )
-
-
-def test_is_wall_between_1():
-    assert_true(
-        is_wall_between(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=4, col=1)]),
-                    VERTICAL: set(),
-                },
-            },
-            Vector(row=4, col=2),
-            Vector(row=5, col=2),
-        )
-    )
-
-
-def test_is_wall_between_2():
-    assert_true(
-        is_wall_between(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=5, col=6)]),
-                    VERTICAL: set(),
-                },
-            },
-            Vector(row=6, col=6),
-            Vector(row=5, col=6),
-        )
-    )
-
-
-def test_is_wall_between_3():
-    assert_true(
-        is_wall_between(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set([Vector(row=3, col=1)]),
-                },
-            },
-            Vector(row=3, col=1),
-            Vector(row=3, col=2),
-        )
-    )
-
-
-def test_is_wall_between_4():
-    assert_true(
-        is_wall_between(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set([Vector(row=0, col=3)]),
-                },
-            },
-            Vector(row=1, col=4),
-            Vector(row=1, col=3),
-        )
-    )
-
-
-def test_is_wall_between_5():
-    assert_true(
-        is_wall_between(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set([Vector(row=2, col=6)]),
-                },
-            },
-            Vector(row=2, col=7),
-            Vector(row=2, col=6),
-        )
-    )
-
-
-def test_is_wall_between_6():
-    assert_false(
-        is_wall_between(
-            {'placed_walls': {HORIZONTAL: set(), VERTICAL: set()}},
-            Vector(row=0, col=0),
-            Vector(row=1, col=0),
-        )
-    )
-
-
-def test_is_wall_between_7():
-    assert_false(
-        is_wall_between(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=1, col=7)]),
-                    VERTICAL: set([Vector(row=2, col=6)]),
-                },
-            },
-            Vector(row=7, col=0),
-            Vector(row=7, col=1),
-        )
-    )
-
-
-def test_is_wall_between_8():
-    assert_false(
-        is_wall_between(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=2, col=1), Vector(row=2, col=4)]),
-                    VERTICAL: set([Vector(row=2, col=2)])
-                },
-            },
-            Vector(row=3, col=3),
-            Vector(row=2, col=3),
-        )
-    )
-
-
-def test_is_wall_between_wrong_1():
-    assert_equal(
-        is_wall_between(
-            {'placed_walls': {HORIZONTAL: set(), VERTICAL: set()}},
-            Vector(row=0, col=0),
-            Vector(row=5, col=5),
-        ),
-        None,
-    )
-
-
-def test_is_wall_between_wrong_2():
-    assert_equal(
-        is_wall_between(
-            {'placed_walls': {HORIZONTAL: set(), VERTICAL: set()}},
-            Vector(row=3, col=6),
-            Vector(row=0, col=6),
-        ),
-        None
-    )
-
-
-def test_is_wall_between_wrong_3():
-    assert_equal(
-        is_wall_between(
-            {'placed_walls': {HORIZONTAL: set(), VERTICAL: set()}},
-            Vector(row=6, col=7),
-            Vector(row=6, col=2),
-        ),
-        None
-    )
-
-
-def test_is_wall_between_wrong_4():
-    assert_equal(
-        is_wall_between(
-            {'placed_walls': {HORIZONTAL: set(), VERTICAL: set()}},
-            Vector(row=7, col=0),
-            Vector(row=7, col=0),
-        ),
-        None
-    )
-
-
-def test_pawn_legal_moves_corner_1():
-    assert_equal(
-        set(pawn_legal_moves(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set(),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=0, col=0),
-                    GREEN: Vector(row=5, col=5),
-                },
-            },
-            Vector(row=0, col=0),
-        )),
-        set([Vector(row=1, col=0), Vector(row=0, col=1)])
-    )
-
-
-def test_pawn_legal_moves_corner_2():
-    assert_equal(
-        set(pawn_legal_moves(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set(),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=7, col=8),
-                    GREEN: Vector(row=8, col=8),
-                },
-            },
-            Vector(row=8, col=8),
-        )),
-        set([Vector(row=8, col=7), Vector(row=7, col=7), Vector(row=6, col=8)])
-    )
-
-
-def test_pawn_legal_moves_corner_3():
-    assert_equal(
-        set(pawn_legal_moves(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=7, col=0)]),
-                    VERTICAL: set(),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=7, col=0),
-                    GREEN: Vector(row=8, col=0),
-                },
-            },
-            Vector(row=8, col=0),
-        )),
-        set([Vector(row=8, col=1)])
-    )
-
-
-def test_pawn_legal_moves_corner_4():
-    assert_equal(
-        set(pawn_legal_moves(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=1, col=7)]),
-                    VERTICAL: set(),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=0, col=8),
-                    GREEN: Vector(row=1, col=8),
-                },
-            },
-            Vector(row=0, col=8),
-        )),
-        set([Vector(row=0, col=7), Vector(row=1, col=7)])
-    )
-
-
-def test_pawn_legal_moves_corner_5():
-    assert_equal(
-        set(pawn_legal_moves(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=1, col=0)]),
-                    VERTICAL: set([Vector(row=0, col=0)]),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=0, col=0),
-                    GREEN: Vector(row=1, col=0),
-                },
-            },
-            Vector(row=0, col=0),
-        )),
-        set()
-    )
-
-
-def test_pawn_legal_moves_side_1():
-    assert_equal(
-        set(pawn_legal_moves(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=1, col=3)]),
-                    VERTICAL: set([Vector(row=0, col=2)]),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=0, col=3),
-                    GREEN: Vector(row=1, col=3),
-                },
-            },
-            Vector(row=0, col=3),
-        )),
-        set([Vector(row=0, col=4), Vector(row=1, col=4)])
-    )
-
-
-def test_pawn_legal_moves_side_2():
-    assert_equal(
-        set(pawn_legal_moves(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set([Vector(row=1, col=7)]),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=1, col=8),
-                    GREEN: Vector(row=2, col=8),
-                },
-            },
-            Vector(row=1, col=8),
-        )),
-        set([Vector(row=0, col=8), Vector(row=3, col=8)])
-    )
-
-
-def test_pawn_legal_moves_side_3():
-    assert_equal(
-        set(pawn_legal_moves(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set(),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=7, col=7),
-                    GREEN: Vector(row=8, col=7),
-                },
-            },
-            Vector(row=8, col=7),
-        )),
-        set([
-            Vector(row=8, col=6),
-            Vector(row=6, col=7),
-            Vector(row=8, col=8),
-            Vector(row=7, col=6),
-            Vector(row=7, col=8),
-        ])
-    )
-
-
-def test_pawn_legal_moves_side_4():
-    assert_equal(
-        set(pawn_legal_moves(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=1, col=0)]),
-                    VERTICAL: set([Vector(row=2, col=0)]),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=2, col=1),
-                    GREEN: Vector(row=2, col=0),
-                },
-            },
-            Vector(row=2, col=0),
-        )),
-        set([Vector(row=3, col=0)])
-    )
-
-
-def test_pawn_legal_moves_middle_1():
-    assert_equal(
-        set(pawn_legal_moves(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set(),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=2, col=4),
-                    GREEN: Vector(row=3, col=4),
-                },
-            },
-            Vector(row=2, col=4),
-        )),
-        set([
-            Vector(row=2, col=3),
-            Vector(row=2, col=5),
-            Vector(row=1, col=4),
-            Vector(row=3, col=5),
-            Vector(row=3, col=3),
-            Vector(row=4, col=4),
-        ])
-    )
-
+@attr('core')
+def test_is_horizontal_wall_crossing_true():
+    argss = (
+        (9, frozenset([55]), frozenset(), 55),
+        (9, frozenset(), frozenset([61]), 61),
+        (9, frozenset([4]), frozenset(), 5),
+        (9, frozenset([22]), frozenset(), 21),
+        (9, frozenset([11, 13]), frozenset(), 12),
+        (9, frozenset([0]), frozenset([1]), 1),
+        (9, frozenset([59, 61]), frozenset([60]), 60),
+    )
+    def check_true(args):
+        assert_true(is_horizontal_wall_crossing(*args))
+
+    for args in argss:
+        yield check_true, args
+
+
+@attr('core')
+def test_is_horizontal_wall_crossing_false():
+    argss = (
+        (9, frozenset(), frozenset(), 23),
+        (9, frozenset(), frozenset([1, 3]), 2),
+    )
+    def check_false(args):
+        assert_false(is_horizontal_wall_crossing(*args))
+
+    for args in argss:
+        yield check_false, args
+
+
+@attr('core')
+def test_is_vertical_wall_crossing_true():
+    argss = (
+        (9, frozenset(), frozenset([13]), 13),
+        (9, frozenset([27]), frozenset(), 27),
+        (9, frozenset(), frozenset([31]), 39),
+        (9, frozenset(), frozenset([41]), 33),
+        (9, frozenset(), frozenset([8, 24]), 16),
+        (9, frozenset([14]), frozenset([22]), 14),
+        (9, frozenset([44]), frozenset([36, 52]), 44),
+    )
+    def check_true(args):
+        assert_true(is_vertical_wall_crossing(*args))
+
+    for args in argss:
+        yield check_true, args
 
-def test_pawn_legal_moves_middle_2():
-    assert_equal(
-        set(pawn_legal_moves(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=5, col=4), Vector(row=4, col=5)]),
-                    VERTICAL: set([Vector(row=5, col=3), Vector(row=5, col=5)]),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=5, col=4),
-                    GREEN: Vector(row=5, col=5),
-                },
-            },
-            Vector(row=5, col=5),
-        )),
-        set([Vector(row=4, col=4)])
+
+@attr('core')
+def test_is_vertical_wall_crossing_false():
+    argss = (
+        (9, frozenset([10, 12, 14]), frozenset([9, 27]), 45),
     )
+    def check_false(args):
+        assert_false(is_vertical_wall_crossing(*args))
 
+    for args in argss:
+        yield check_false, args
 
-def test_pawn_legal_moves_middle_3():
-    assert_equal(
-        set(pawn_legal_moves(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=5, col=0), Vector(row=7, col=1)]),
-                    VERTICAL: set([Vector(row=6, col=0), Vector(row=6, col=1)]),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=7, col=1),
-                    GREEN: Vector(row=6, col=1),
-                },
-            },
-            Vector(row=7, col=1),
-        )),
-        set()
-    )
-
-
-def test_pawn_legal_moves_middle_4():
-    assert_equal(
-        set(pawn_legal_moves(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set([Vector(row=1, col=5)]),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=2, col=5),
-                    GREEN: Vector(row=2, col=6),
-                },
-            },
-            Vector(row=2, col=6),
-        )),
-        set([Vector(row=1, col=6), Vector(row=2, col=7), Vector(row=3, col=6)])
-    )
-
-
-def test_is_correct_pawn_move_correct_1():
-    assert_true(
-        is_correct_pawn_move(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set([Vector(row=4, col=4)]),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=0, col=4),
-                    GREEN: Vector(row=8, col=4),
-                },
-            },
-            Vector(row=0, col=4),
-            Vector(row=1, col=4),
-        )
-    )
-
-
-def test_is_correct_pawn_move_correct_2():
-    assert_true(
-        is_correct_pawn_move(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=4, col=1)]),
-                    VERTICAL: set([Vector(row=2, col=7)]),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=2, col=3),
-                    GREEN: Vector(row=6, col=5),
-                },
-            },
-            Vector(row=6, col=5),
-            Vector(row=5, col=5),
-        )
-    )
-
-
-def test_is_correct_pawn_move_correct_3():
-    assert_true(
-        is_correct_pawn_move(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=5, col=2)]),
-                    VERTICAL: set([Vector(row=3, col=2)]),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=4, col=2),
-                    GREEN: Vector(row=5, col=2),
-                },
-            },
-            Vector(row=4, col=2),
-            Vector(row=5, col=3),
-        )
-    )
-
-
-def test_is_correct_pawn_move_wrong_1():
-    assert_false(
-        is_correct_pawn_move(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set(),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=0, col=0),
-                    GREEN: Vector(row=3, col=4),
-                },
-            },
-            Vector(row=0, col=0),
-            Vector(row=2, col=0),
-        )
-    )
-
-
-def test_is_correct_pawn_move_wrong_2():
-    assert_false(
-        is_correct_pawn_move(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set(),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=6, col=0),
-                    GREEN: Vector(row=7, col=0),
-                },
-            },
-            Vector(row=7, col=0),
-            Vector(row=-1, col=6),
-        )
-    )
-
-
-def test_is_correct_pawn_move_wrong_3():
-    assert_false(
-        is_correct_pawn_move(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set(),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=5, col=7),
-                    GREEN: Vector(row=5, col=8),
-                },
-            },
-            Vector(row=5, col=7),
-            Vector(row=5, col=9),
-        )
-    )
-
-
-def test_is_correct_pawn_move_wrong_4():
-    assert_false(
-        is_correct_pawn_move(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set(),
-                },
-                'pawns': {
-                    Vector(row=4, col=4): YELLOW,
-                    Vector(row=5, col=4): GREEN,
-                },
-            },
-            Vector(row=5, col=4),
-            Vector(row=2, col=4),
-        )
-    )
 
+@attr('core')
+def test_game_is_move_impossible():
+    game = Quoridor2(board_size=9)
+    state = game.initial_state()
 
-def test_is_correct_pawn_move_wrong_5():
-    assert_false(
-        is_correct_pawn_move(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set(),
-                },
-                'pawns': {
-                    Vector(row=3, col=3): YELLOW,
-                    Vector(row=4, col=3): GREEN,
-                },
-            },
-            Vector(row=3, col=3),
-            Vector(row=3, col=3)
-        )
-    )
-
-
-def test_is_correct_pawn_move_wrong_6():
-    assert_false(
-        is_correct_pawn_move(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set(),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=1, col=5),
-                    GREEN: Vector(row=3, col=5),
-                },
-            },
-            Vector(row=1, col=5),
-            Vector(row=3, col=5)
-        )
-    )
-
-
-def test_wall_intersects_1():
-    assert_false(
-        wall_intersects(
-            {'placed_walls': {HORIZONTAL: set(), VERTICAL: set()}},
-            VERTICAL,
-            Vector(row=0, col=0),
-        )
-    )
+    assert_true(game.is_move_impossible(state, 0, UP))
+    assert_true(game.is_move_impossible(state, 0, LEFT))
+    assert_true(game.is_move_impossible(state, 80, DOWN))
+    assert_true(game.is_move_impossible(state, 80, RIGHT))
 
-
-def test_wall_intersects_2():
-    assert_false(
-        wall_intersects(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([
-                        Vector(row=4, col=3),
-                        Vector(row=4, col=5),
-                        Vector(row=3, col=4),
-                        Vector(row=5, col=4),
-                    ]),
-                    VERTICAL: set([
-                        Vector(row=2, col=4),
-                        Vector(row=6, col=4),
-                    ]),
-                },
-            },
-            VERTICAL,
-            Vector(row=4, col=4),
-        )
-    )
+    assert_false(game.is_move_impossible(state, 10, UP))
+    assert_false(game.is_move_impossible(state, 10, LEFT))
+    assert_false(game.is_move_impossible(state, 10, DOWN))
+    assert_false(game.is_move_impossible(state, 10, RIGHT))
 
+    state = state[:5] + (frozenset([6, 13]), frozenset([5, 14]))
+    assert_true(game.is_move_impossible(state, 15, UP))
+    assert_true(game.is_move_impossible(state, 15, LEFT))
+    assert_true(game.is_move_impossible(state, 15, DOWN))
+    assert_true(game.is_move_impossible(state, 15, RIGHT))
 
-def test_wall_intersects_3():
-    assert_false(
-        wall_intersects(
-            {'placed_walls': {HORIZONTAL: set(), VERTICAL: set()}},
-            HORIZONTAL,
-            Vector(row=0, col=7),
-        )
-    )
+    assert_false(game.is_move_impossible(state, 32, UP))
+    assert_false(game.is_move_impossible(state, 32, LEFT))
+    assert_false(game.is_move_impossible(state, 32, DOWN))
+    assert_false(game.is_move_impossible(state, 32, RIGHT))
 
 
-def test_wall_intersects_4():
-    assert_false(
-        wall_intersects(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([
-                        Vector(row=1, col=0),
-                        Vector(row=1, col=4),
-                    ]),
-                    VERTICAL: set([
-                        Vector(row=1, col=1),
-                        Vector(row=0, col=2),
-                        Vector(row=2, col=2),
-                        Vector(row=1, col=3),
-                    ]),
-                },
-            },
-            HORIZONTAL,
-            Vector(row=1, col=2),
-        )
-    )
+@attr('core')
+def test_game_is_valid_pawn_move():
+    game = Quoridor2(board_size=9)
+    state = game.initial_state()
 
+    assert_false(game.is_valid_pawn_move(state, 100))
+    assert_false(game.is_valid_pawn_move(state, -2))
+    assert_false(game.is_valid_pawn_move(state, UP))
+    assert_true(game.is_valid_pawn_move(state, RIGHT))
+    assert_true(game.is_valid_pawn_move(state, DOWN))
+    assert_true(game.is_valid_pawn_move(state, LEFT))
 
-def test_wall_intersects_5():
-    assert_true(
-        wall_intersects(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=6, col=4)]),
-                    VERTICAL: set()
-                },
-            },
-            HORIZONTAL,
-            Vector(row=6, col=5),
-        )
-    )
+    for i in range(4, 12):  # in the begenning, no jump should be possible
+        assert_false(game.is_valid_pawn_move(state, i))
 
+    state = (GREEN, 29, 30, 8, 9, frozenset([26]), frozenset([10, 16]))
+    assert_true(game.is_valid_pawn_move(state, UP))
+    assert_true(game.is_valid_pawn_move(state, RIGHT))
+    assert_false(game.is_valid_pawn_move(state, DOWN))
+    assert_false(game.is_valid_pawn_move(state, LEFT))
+    assert_false(game.is_valid_pawn_move(state, 4))
+    assert_false(game.is_valid_pawn_move(state, 5))
+    assert_false(game.is_valid_pawn_move(state, 6))
+    assert_true(game.is_valid_pawn_move(state, 7))
+    assert_false(game.is_valid_pawn_move(state, 8))
+    assert_true(game.is_valid_pawn_move(state, 9))
+    assert_false(game.is_valid_pawn_move(state, 10))
+    assert_false(game.is_valid_pawn_move(state, 11))
 
-def test_wall_intersects_6():
-    assert_true(
-        wall_intersects(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=1, col=4)]),
-                    VERTICAL: set()
-                }
-            },
-            HORIZONTAL,
-            Vector(row=1, col=3),
-        )
-    )
+    state = (YELLOW, 17, 8, 10, 9, frozenset(), frozenset([7]))
+    for i in range(12):
+        if i == DOWN:
+            assert_true(game.is_valid_pawn_move(state, i))
+        else:
+            assert_false(game.is_valid_pawn_move(state, i))
 
 
-def test_wall_intersects_7():
-    assert_true(
-        wall_intersects(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set([Vector(row=7, col=7)])
-                },
-            },
-            HORIZONTAL,
-            Vector(row=7, col=7),
-        )
-    )
+@attr('core')
+def test_game_player_can_reach_goal():
+    game = Quoridor2(board_size=9)
 
+    state = game.initial_state()
+    assert_true(game.player_can_reach_goal(state, YELLOW))
+    assert_true(game.player_can_reach_goal(state, GREEN))
 
-def test_wall_intersects_8():
-    assert_true(
-        wall_intersects(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set([Vector(row=0, col=0)])
-                },
-            },
-            VERTICAL,
-            Vector(row=1, col=0),
-        )
+    state = (
+        YELLOW, 40, 31, 7, 7, frozenset([31, 32, 34, 36, 38]), frozenset([39])
     )
+    assert_false(game.player_can_reach_goal(state, YELLOW))
+    assert_true(game.player_can_reach_goal(state, GREEN))
 
 
-def test_wall_intersects_9():
-    assert_true(
-        wall_intersects(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set([Vector(row=7, col=2)])
-                },
-            },
-            VERTICAL,
-            Vector(row=6, col=2),
-        )
-    )
+@attr('core', 'now')
+def test_game_players_can_reach_goal():
+    game = Quoridor2(board_size=9)
 
+    state = game.initial_state()
+    assert_true(game.players_can_reach_goal(state))
 
-def test_wall_intersects_10():
-    assert_true(
-        wall_intersects(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=2, col=2)]),
-                    VERTICAL: set()
-                },
-            },
-            VERTICAL,
-            Vector(row=2, col=2),
-        )
-    )
+    state = (YELLOW, 11, 20, 8, 8, frozenset([1, 18]), frozenset([9, 10]))
+    assert_false(game.players_can_reach_goal(state))
 
 
-def test_wall_intersects_11():
-    assert_true(
-        wall_intersects(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([Vector(row=5, col=5)]),
-                    VERTICAL: set(),
-                },
-            },
-            HORIZONTAL,
-            Vector(row=5, col=5),
-        )
-    )
+@attr('core')
+def test_game_is_terminal():
+    game = Quoridor2(board_size=9)
 
+    state = game.initial_state()
+    assert_false(game.is_terminal(state))
 
-def test_player_can_reach_goal_1():
-    assert_true(
-        player_can_reach_goal(
-            {
-                'placed_walls': {HORIZONTAL: set(), VERTICAL: set()},
-                'pawns': {YELLOW: Vector(row=4, col=3)},
-            },
-            YELLOW,
-        )
-    )
+    state = (GREEN, 77, 65, 9, 8, frozenset([26]), frozenset([19, 32]))
+    assert_true(game.is_terminal(state))
 
 
-def test_player_can_reach_goal_2():
-    assert_true(
-        player_can_reach_goal(
-            {
-                'placed_walls': {HORIZONTAL: set(), VERTICAL: set()},
-                'pawns': {GREEN: Vector(row=5, col=2)},
-            },
-            GREEN,
-        )
-    )
+@attr('core')
+def test_game_execute_action_exceptions():
+    game = Quoridor2(board_size=9)
 
+    def check_exception(state, actions, message):
+        for action in actions:
+            with assert_raises(InvalidMove) as e:
+                # print '\n\naction:', action
+                # print 'state:', state
+                new_state = game.execute_action(state, action)
+                # print '\nnew_state:', new_state
+            assert_equal(str(e.exception), message.format(action=action))
 
-def test_player_can_reach_goal_3():
-    assert_true(
-        player_can_reach_goal(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([
-                        Vector(row=0, col=1),
-                        Vector(row=1, col=3),
-                        Vector(row=1, col=5),
-                        Vector(row=2, col=0),
-                        Vector(row=2, col=2),
-                        Vector(row=2, col=5),
-                        Vector(row=2, col=7),
-                    ]),
-                    VERTICAL: set()
-                },
-                'pawns': {YELLOW: Vector(row=0, col=4)},
-            },
-            YELLOW,
-        )
-    )
+    state = game.initial_state()
+    check_exception(state, (23442, -13), 'Unknown action {action}!')
+    check_exception(state, range(132, 140), 'Pawn cannot move there!')
 
+    state = (GREEN, 33, 61, 10, 0, frozenset(), frozenset())
+    check_exception(state, range(128), 'Not enough walls!')
 
-def test_player_can_reach_goal_4():
-    assert_false(
-        player_can_reach_goal(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([
-                        Vector(row=2, col=2),
-                        Vector(row=3, col=3),
-                        Vector(row=4, col=4),
-                        Vector(row=2, col=4),
-                        Vector(row=4, col=2),
-                    ]),
-                    VERTICAL: set([
-                        Vector(row=3, col=1),
-                        Vector(row=3, col=5),
-                    ])
-                },
-                'pawns': {
-                    YELLOW: Vector(row=4, col=4),
-                },
-            },
-            YELLOW,
-        )
+    state = (
+        YELLOW, 27, 62, 3, 3,
+        frozenset((1, 3, 5, 7, 53, 55, 56, 58, 60, 62)),
+        frozenset((0, 16, 32, 46))
     )
-
 
-def test_player_can_reach_goal_5():
-    assert_false(
-        player_can_reach_goal(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([
-                        Vector(row=0, col=0),
-                        Vector(row=0, col=2),
-                        Vector(row=0, col=4),
-                        Vector(row=0, col=6),
-                        Vector(row=1, col=7),
-                    ]),
-                    VERTICAL: set([
-                        Vector(row=0, col=7),
-                    ])
-                },
-                'pawns': {
-                    GREEN: Vector(row=8, col=3),
-                },
-            },
-            GREEN,
-        )
+    horizontal = tuple(range(8)) + (16, 32, 46) + tuple(range(52, 64))
+    vertical = (
+        64, 65, 67, 69, 71, 72, 80, 88, 96, 102, 104, 110, 117, 118, 119, 120,
+        122, 124, 126
     )
 
-
-def test_is_correct_wall_move_1():
-    assert_true(
-        is_correct_wall_move(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set(),
-                    VERTICAL: set(),
-                },
-                'pawns': {
-                    YELLOW: Vector(row=0, col=4),
-                    GREEN: Vector(row=8, col=4),
-                },
-            },
-            HORIZONTAL,
-            Vector(row=0, col=4),
-        )
+    check_exception(
+        state,
+        horizontal + vertical,
+        'Wall crosses already placed walls!'
     )
-
 
-def test_is_correct_wall_move_2():
-    assert_true(
-        is_correct_wall_move(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([
-                        Vector(row=5, col=0),
-                        Vector(row=5, col=2),
-                        Vector(row=5, col=4),
-                        Vector(row=1, col=0),
-                        Vector(row=1, col=2),
-                        Vector(row=1, col=4),
-                        Vector(row=1, col=6),
-                    ]),
-                    VERTICAL: set([
-                        Vector(row=1, col=7),
-                        Vector(row=3, col=7),
-                        Vector(row=5, col=7),
-                    ])
-                },
-                'pawns': {
-                    YELLOW: Vector(row=0, col=4),
-                    GREEN: Vector(row=8, col=4),
-                },
-            },
-            HORIZONTAL,
-            Vector(row=5, col=6),
-        )
+    check_exception(
+        state,
+         #                    48,  52,  61,  63
+         (8, 24, 39, 40, 47, 112, 116, 125, 127),
+        'Pawn can not reach the goal!'
     )
-
-
-def test_is_correct_wall_move_3():
-    assert_false(
-        is_correct_wall_move(
-            {
-                'placed_walls': {
-                    HORIZONTAL: set([
-                        Vector(row=1, col=4),
-                    ]),
-                    VERTICAL: set([
-                        Vector(row=0, col=1),
-                        Vector(row=0, col=5),
-                        Vector(row=1, col=3),
-                    ])
-                },
-                'pawns': {
-                    YELLOW: Vector(row=0, col=4),
-                    GREEN: Vector(row=8, col=4)
-                },
-            },
-            HORIZONTAL,
-            Vector(row=0, col=2),
-        )
+    check_exception(state, (129, 131), 'Pawn cannot move there!')
+    check_exception(
+        (GREEN, ) + state[1:],
+        (129, 130),
+        'Pawn cannot move there!'
     )
