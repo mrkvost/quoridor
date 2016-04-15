@@ -92,6 +92,7 @@ MODE = {
     10: 'quit',
 
     # 11: 'menu',
+    # 12: 'back_to_menu...',
 }
 
 
@@ -110,7 +111,6 @@ class HeuristicPlayer(Player):
         to_visit = collections.deque((current_position, ))
         visited = set()
         previous_positions = {}
-        # counter = 0
 
         while to_visit:
             position = to_visit.popleft()
@@ -118,14 +118,8 @@ class HeuristicPlayer(Player):
                 continue
 
             if position in self.game.goal_positions[player]:
-                # path = collections.deque((position, ))
                 path = [position]
                 while True:
-                    # counter += 1
-                    # if counter > 10:
-                    #     print previous_positions
-                    #     raise Exception('ba')
-                    # print counter, 'path:', path
                     previous_position = previous_positions.get(path[-1])
                     path.append(previous_position)
                     if previous_position == current_position:
@@ -213,7 +207,6 @@ class HeuristicPlayer(Player):
             )
         )
 
-        # print 'just_move:', just_move
         if not just_move:
             temp_state = new_state[:5] + [set(new_state[5]), set(new_state[6])]
             for action in self.good_blockers(context, player, next_):
@@ -221,8 +214,6 @@ class HeuristicPlayer(Player):
                 wall = action - direction * self.game.wall_board_positions
                 temp_state[5 + direction].add(wall)
                 path = self.shortest_path(temp_state, next_)
-                # print 'good_blocker_action:', action,
-                # print 'direction:', direction, 'wall:', wall
                 if path is None:
                     temp_state[5 + direction].remove(wall)
                     context[next_]['goal_cut'].add(action)
@@ -259,7 +250,6 @@ class HeuristicPlayer(Player):
             #       does not happen often...
             new = context[player]['path'][-1]
         move = self.game.delta_moves[new - current]
-        # print 'MOVE >>', 'new:', new, 'current:', current, 'move:', move
 
         context['last_action'] = self.game.wall_moves + move
         context[player]['goal_cut'].clear()
@@ -282,6 +272,24 @@ class HeuristicPlayer(Player):
         next_ = FOLLOWING_PLAYER[player]
 
         if 0 <= last_action < self.game.wall_moves:   # wall
+            if last_action < self.game.wall_board_positions:
+                context['crossers'] = context['crossers'].union(
+                    horizontal_crossers(
+                        state,
+                        self.game.wall_board_size,
+                        self.game.wall_board_positions,
+                        last_action
+                    )
+                )
+            else:
+                context['crossers'] = context['crossers'].union(
+                    vertical_crossers(
+                        state,
+                        self.game.wall_board_size,
+                        self.game.wall_board_positions,
+                        last_action - self.game.wall_board_positions
+                    )
+                )
             for color in (YELLOW, GREEN):
                 if last_action in context[color]['blockers']:
                     context[color]['path'] = self.shortest_path(state, color)
@@ -407,9 +415,11 @@ class ConsoleGame(Quoridor2):
 
         fw2 = (self.field_width // 2)
         for col in range(self.board_size):
-            base[Vector(row=0, col=col * self.field_width + fw2)] = ''.join([
+            # position = Vector(row=0, col=(1 + col) * self.field_width)
+            position = Vector(row=0, col=col * self.field_width + fw2)
+            base[position] = ''.join([
                 u'\x1b[47m\x1b[1m\x1b[30m',
-                u'ABCDEFGHI'[col],
+                u'ABCDEFGHIJ'[col],
                 COLOR_END_CONSOLE
             ])
 
@@ -456,6 +466,22 @@ class ConsoleGame(Quoridor2):
             for row_delta in range(self.wall_length_vertical):
                 position = Vector(row=row_offset + row_delta, col=col_offset)
                 new_base[position] = u'\u2551'
+
+        row_offset = self.field_height
+        col_offset = self.field_width
+        for row in range(self.wall_board_size):
+            for col in range(self.wall_board_size):
+                num = row * self.wall_board_size + col
+                if num in state[5] or num in state[6]:
+                    continue
+
+                num = str(num)
+                for i in range(len(num)):
+                    position = Vector(
+                        row=row_offset + row * self.field_height,
+                        col=col_offset + col * self.field_width - i,
+                    )
+                    new_base[position] = num[-i - 1]
 
         return new_base
 
@@ -518,17 +544,20 @@ class ConsoleGame(Quoridor2):
             ])
             for row in range(self.board_height)
         ])
+
         print u''.join([
             u'| ',
             self.yellow,
             u'YELLOW walls:{walls:2} {moves}'.format(
-                walls=state[3], moves='moves' if state[0] == YELLOW else '',
+                walls=state[3],
+                moves='moves' if state[0] == YELLOW else '     ',
             ),
             self.color_end,
             u' | ',
             self.green,
             u'GREEN walls:{walls:2} {moves}'.format(
-                walls=state[4], moves='moves' if state[0] == GREEN else '',
+                walls=state[4],
+                moves='moves' if state[0] == GREEN else '     ',
             ),
             self.color_end,
             u' |',
@@ -606,7 +635,7 @@ class ConsoleGame(Quoridor2):
                 r'(?P<type>'
                     r'undo|quit|exit|[hv]|[urdl]{1,2}|up|right|down|left'
                 r')?'
-                r'(?P<column>[a-i])?'       # TODO: what with variable size?
+                r'(?P<column>[a-h])?'       # TODO: what with variable size?
                 r'(?P<number>[-+]?\d+)?'
                 r'$'
             ),
@@ -644,10 +673,12 @@ class ConsoleGame(Quoridor2):
 
         if data['type'] in ('h', 'v'):
             shift = {'h': 0, 'v': 64}
-            row = int(data['number'])
-            column = ord(data['column'].lower()) - 97
-            # print 'data:', data, 'column:', column, 'row:', row
-            action = (self.board_size - 1) * row + column + shift[data['type']]
+            if data['column'] is None:
+                action = int(data['number']) + shift[data['type']]
+            else:
+                row = int(data['number'])
+                column = ord(data['column'].lower()) - 97
+                action = (self.board_size - 1) * row + column + shift[data['type']]
             return move_result[self._play(action)]
 
         if data['number'] is not None or data['column'] is not None:
