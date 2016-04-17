@@ -1,4 +1,7 @@
+import collections
+
 # TODO: documentation
+
 
 HORIZONTAL = 0
 VERTICAL = 1
@@ -203,7 +206,7 @@ def vertical_crossers(state, wall_board_size, wall_board_positions, wall):
 
 def crossing_actions(state, wall_board_size):
     actions = set()
-    2 * (wall_board_size ** 2)
+    wall_board_positions = wall_board_size ** 2
     for wall in state[5]:
         crossers = horizontal_crossers(
             state,
@@ -278,6 +281,38 @@ class Quoridor2(object):
             else:
                 return True
         return False
+
+    def shortest_path(self, state, player):
+        current_position = state[1 + player]
+        to_visit = collections.deque((current_position, ))
+        visited = set()
+        previous_positions = {}
+
+        while to_visit:
+            position = to_visit.popleft()
+            if position in visited:
+                continue
+
+            if position in self.goal_positions[player]:
+                # TODO: consider using ordered set:
+                path = [position]
+                while True:
+                    previous_position = previous_positions.get(path[-1])
+                    path.append(previous_position)
+                    if previous_position == current_position:
+                        return path
+
+            visited.add(position)
+            for move in self.blocker_positions[position]:
+                placed_walls = state[5 + (move % 2)]
+                intercepting_walls = self.blocker_positions[position][move]
+                if placed_walls is None or not (
+                        intercepting_walls & placed_walls):
+                    new_position = position + self.move_deltas[move]
+                    if new_position not in visited:
+                        to_visit.append(new_position)
+                    if new_position not in previous_positions:
+                        previous_positions[new_position] = position
 
     def player_can_reach_goal(self, state, player):
         player_position = state[1 + player]
@@ -401,7 +436,7 @@ class Quoridor2(object):
 #             affected = wall_affects(state, dimension, position)
 #             for direction, position in affected:
 #                 result_walls[direction].discard(position)
-# 
+#
 #     for direction, walls in result_walls.items():
 #         for wall in walls:
 #             yield (direction, wall)

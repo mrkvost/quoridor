@@ -1,5 +1,7 @@
-# from core import *
-from quoridor.core import *
+from quoridor.core import (
+    YELLOW,
+    GREEN,
+)
 
 
 def print_number_table(size):
@@ -33,4 +35,39 @@ COMBINED_TABLE_9 = """\
 ---------------------------------------------------------------
 """
 
+
 # TODO: def print_combined_table(size):
+def print_installed_distributions():
+    import pip
+    for p in pip.get_installed_distributions():
+        print 'project_name:', repr(p.project_name)
+        print '    version:', repr(p.version)
+        print '    platform:', repr(p.platform)
+        print '    location:', repr(p.location)
+        print '    key:', repr(p.key)
+        print '    parsed_version:', repr(p.parsed_version)
+        print '    py_version:', repr(p.py_version)
+        print '    requires():', repr(p.requires())
+        print '    precedence:', repr(p.precedence)
+        print '    extras:', repr(p.extras)
+        print '    get_entry_map():', repr(p.get_entry_map())
+        print ' -'*40
+
+
+def print_context_and_state(context, state):
+    history = context['history']
+    print 'context last_action:', history[-1] if history else None
+    print 'context len(crossers):', len(context['crossers'])
+    print 'context crossers:', context['crossers']
+    print 'context yellow:', context[YELLOW]
+    print 'context green:', context[GREEN]
+    print 'state:', state
+
+
+def print_console_colors():
+    for i in range(10):
+        color = i + 30
+        print str(color),
+        print u'  \x1b[1m\x1b[{color}m CONSOLE COLOR \x1b[0m'.format(
+            color=str(color)
+        )
