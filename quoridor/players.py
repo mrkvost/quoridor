@@ -1,20 +1,243 @@
+import re
 import abc
 import sys
 import copy
 import random
+import itertools
 import collections
+
+from core import (
+    YELLOW,
+    GREEN,
+    FOLLOWING_PLAYER,
+    UP,
+    RIGHT,
+    DOWN,
+    LEFT,
+
+    horizontal_crossers,
+    vertical_crossers,
+
+    InvalidMove,
+)
+
+from db import make_db_session, db_load_network, db_save_network
+from ai import MLMCPerceptron
 
 
 class Player(object):
     __metaclass__ = abc.ABCMeta
 
+    def __call__(self, state, context):
+        return self.play(state, context)
+
     @abc.abstractmethod
-    def play(self, state):
+    def play(self, state, context):
         pass
 
     def __init__(self, game):
         self.game = game
         super(Player, self).__init__()
+
+
+class HeuristicPlayer(Player):
+    def __init__(self, game, pawn_moves=0.6, **kwargs):
+        super(HeuristicPlayer, self).__init__(game)
+        self.pawn_moves = pawn_moves
+
+    def good_blockers(self, context, player, next_):
+        for action in context[next_]['blockers']:
+            if action not in context[player]['blockers']:
+                if action not in context['crossers']:
+                    if action not in context[next_]['goal_cut']:
+                        yield action
+
+    def should_move(self, state, context):
+        player = state[0]
+        next_ = FOLLOWING_PLAYER[player]
+        if not state[3 + player]:
+            return True     # no walls left
+        elif len(context[player]['path']) == 2:
+            return True     # last winning move
+        elif state[1 + player] in self.game.goal_positions[next_]:
+            return True     # on the first line is probably the beginning
+        elif len(context[next_]['blockers']) > 2:
+            # has enough time to block at least once in the future
+            return random.random() < self.pawn_moves
+        else:
+            # probably one of the last changes to block
+            return False
+
+    def _try_good_wall_action(self, new_state, temp_state, context, player,
+                              next_, action):
+        direction = int(action >= self.game.wall_board_positions)
+        wall = action - direction * self.game.wall_board_positions
+        temp_state[5 + direction].add(wall)
+        new_opponent_path = self.game.shortest_path(temp_state, next_)
+        if new_opponent_path is None:
+            temp_state[5 + direction].remove(wall)
+            context[next_]['goal_cut'].add(action)
+            return False
+        new_state[5 + direction] = frozenset(temp_state[5 + direction])
+        new_state[3 + player] -= 1
+        context[next_]['path'] = new_opponent_path
+        args = (
+            new_state,
+            self.game.wall_board_size,
+            self.game.wall_board_positions,
+            wall
+        )
+        crossers_getters = {1: vertical_crossers, 0: horizontal_crossers}
+        new_crossers = crossers_getters[direction](*args)
+        for crosser in new_crossers:
+            context['crossers'].add(crosser)
+        context[next_]['blockers'] = self.game.blockers(
+            new_opponent_path,
+            context['crossers'],
+            context[next_]['goal_cut']
+        )
+        new_state[0] = next_
+        context['history'].append(action)
+        return True
+
+    def move_pawn(self, new_state, context, player, next_):
+        current_position = context[player]['path'].pop()
+        new_position = context[player]['path'][-1]
+        if new_position == new_state[1 + next_]:
+            if len(context[player]['path']) > 1:    # jump
+                context[player]['path'].pop()
+                new_position = context[player]['path'][-1]
+            else: # opponent occupies final position
+                final = context[player]['path'][-1]
+                new_path = self.game.shortest_path(
+                    new_state, player, set([final])
+                )
+                if new_path is None or len(new_path) != 3:
+                    context[player]['path'].append(current_position)
+                    if player == YELLOW:
+                        new_position = (
+                            current_position + self.game.move_deltas[UP]
+                        )
+                    else:
+                        new_position = (
+                            current_position + self.game.move_deltas[DOWN]
+                        )
+                    context[player]['path'].append(new_position)
+                else:   # ok to finish
+                    new_position = new_path[0]
+
+        move = self.game.delta_moves[new_position - current_position]
+
+        context['history'].append(self.game.wall_moves + move)
+        context[player]['goal_cut'].clear()
+        context[player]['blockers'] = self.game.blockers(
+            context[player]['path'],
+            context['crossers'],
+            context[player]['goal_cut']
+        )
+        new_state[1 + player] = new_position
+        new_state[0] = next_
+
+    def play(self, state, context):
+        """
+        choose between shortest path and wall
+        updates context for effectiveness with action played
+        and returns new_state
+
+        context can be initialized with make_context
+        """
+        # TODO: if state in self.openings... play by it
+
+        player = state[0]
+        next_ = FOLLOWING_PLAYER[player]
+        new_state = list(state)
+
+        if not self.should_move(state, context):  # try place good wall
+            temp_state = new_state[:5] + [set(new_state[5]), set(new_state[6])]
+            for action in self.good_blockers(context, player, next_):
+                success = self._try_good_wall_action(
+                    new_state,
+                    temp_state,
+                    context,
+                    player,
+                    next_,
+                    action,
+                )
+                if success:
+                    return tuple(new_state)
+            # TODO: is there something more to try?
+
+        self.move_pawn(new_state, context, player, next_)
+        return tuple(new_state)
+
+
+class NetworkPlayer(Player):
+    SIZES_PATTERN = r'\d+(_\d+)+'
+    SIZES_NAME_RE = re.compile(SIZES_PATTERN)
+
+    def __init__(self, game, db_name, create=False):
+        super(NetworkPlayer, self).__init__(game)
+
+        self.db_name = db_name
+        db_session = make_db_session('data.db')     # TODO: fixed/variable?
+        if create:
+            assert self.SIZES_NAME_RE.match(db_name)
+            sizes = [int(size) for size in db_name.split('_')]
+            self.perceptron = MLMCPerceptron(sizes)
+            db_save_network(db_session, self.perceptron, name=self.db_name)
+        else:
+            self.load_from_db(db_session)
+
+    def load_from_db(self, db_session):
+        network_attributes = db_load_network(db_session, self.db_name)
+        self.perceptron = MLMCPerceptron(**network_attributes)
+
+    def update_in_db(self, db_session):
+        db_update_network(db_session, self.db_name, self.perceptron)
+
+    def input_vector_from_game_state(self, state):
+        """
+        1: player on the move
+        2: yellow player position (0, 1, ..., 80)
+        3: green player position
+        4: yellow player walls stock (0, ..., 10)
+        5: gren player walls stock
+
+        6...69: horizonal walls (0 or 1)
+        70...133: vecrical walls
+        """
+
+        # TODO: add shortest path lengths for both players?
+        return itertools.chain(
+            state[:5],
+            [int(i in state[5]) for i in range(64)],
+            [int(i in state[6]) for i in range(64)],
+        )
+
+
+class QlearningNetworkPlayer(NetworkPlayer):
+    ORDER = {YELLOW: reversed, GREEN: sorted}
+
+    def __init__(self, game, **kwargs):
+        super(QlearningNetworkPlayer, self).__init__(game, '133_200_140')
+
+    def play(self, state, context):
+        input_vector = tuple(self.input_vector_from_game_state(state))
+        # print 'input_vector:', input_vector
+        q_values = tuple(self.perceptron.propagate_forward(input_vector))[-1]
+        # print 'q_values:', q_values
+        q_values_to_action = self.ORDER[state[0]]([
+            (value, action) for action, value in enumerate(q_values)
+        ])
+        for value, action in q_values_to_action:
+            try:
+                new_state = self.game.execute_action(state, action)
+                if not self.game.is_terminal(new_state):
+                    # print 'player:', state[0], 'action:', action, 'value:', value
+                    self.game.update_context(new_state, context, action)
+                return new_state
+            except InvalidMove:
+                pass
 
 
 # from core import (

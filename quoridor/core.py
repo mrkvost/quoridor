@@ -282,7 +282,8 @@ class Quoridor2(object):
                 return True
         return False
 
-    def shortest_path(self, state, player):
+    def shortest_path(self, state, player, avoid=None):
+        avoid = avoid or set()
         current_position = state[1 + player]
         to_visit = collections.deque((current_position, ))
         visited = set()
@@ -293,7 +294,8 @@ class Quoridor2(object):
             if position in visited:
                 continue
 
-            if position in self.goal_positions[player]:
+            if position in self.goal_positions[player] and (
+                    position not in avoid):
                 # TODO: consider using ordered set:
                 path = [position]
                 while True:

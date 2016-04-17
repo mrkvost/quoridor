@@ -145,7 +145,7 @@ def find_max(sequence):
     return max_i, max_element
 
 
-def train_MLMC_estimate_Q_value(cycles=100, save_every=1):
+def train_MLMC_estimate_Q_value(cycles=100, save_every=10):
     """
     akcie:
         128 = 64 horizontalne + 64 vertikalne moznne pozicie murikov
@@ -155,7 +155,7 @@ def train_MLMC_estimate_Q_value(cycles=100, save_every=1):
     # TODO: trestat siet za nemozne tahy? napr. nemozny skok, alebo murik?
     # TODO: db_save_network
     # build_db('data.db')
-    network_name = '133_266_140'
+    network_name = '133_200_140'
     db_session = make_db_session('data.db')
     perceptron = create_or_load_network(db_session, network_name)
 

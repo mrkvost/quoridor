@@ -25,7 +25,7 @@ from core import (
 
 )
 
-from players import Player
+from players import HeuristicPlayer, QlearningNetworkPlayer
 # from players import RandomPlayer, RandomPlayerWithPath, QLPlayer
 
 
@@ -65,12 +65,31 @@ MENU_CHOICE = {
         'text': 'Watch Game Heuristic vs Heuristic',
     },
     4: {
+        'mode': 'human_qlnn',
+        'text': 'New Game vs QL Neural Network (Human First)',
+    },
+    5: {
+        'mode': 'qlnn_human',
+        'text': 'New Game vs QL Neural Network (Human Second)',
+    },
+    6: {
+        'mode': 'qlnn_qlnn',
+        'text': 'Watch QL Neural Network vs QL Neural Network',
+    },
+    7: {
+        'mode': 'qlnn_heuristic',
+        'text': 'Watch QL Neural Network vs Heuristic',
+    },
+    8: {
+        'mode': 'heuristic_qlnn',
+        'text': 'Watch Heuristic vs QL Neural Network',
+    },
+    9: {
         'mode': 'quit',
         'text': 'Quit',
     },
 
-    # TODO: qlearning neural network,
-    #       temporal difference network
+    # TODO: temporal difference network
     #       simple qlearning player
     #       random player with path
     #       random player
@@ -81,123 +100,17 @@ MENU_CHOICE = {
 }
 
 
-class HeuristicPlayer(Player):
-    def __init__(self, game, pawn_moves=0.6, **kwargs):
-        super(HeuristicPlayer, self).__init__(game)
-        self.pawn_moves = pawn_moves
-
-    def __call__(self, state, context):
-        return self.play(state, context)
-
-    def good_blockers(self, context, player, next_):
-        for action in context[next_]['blockers']:
-            if action not in context[player]['blockers']:
-                if action not in context['crossers']:
-                    if action not in context[next_]['goal_cut']:
-                        yield action
-
-    def should_move(self, state, context):
-        player = state[0]
-        next_ = FOLLOWING_PLAYER[player]
-        if not state[3 + player]:
-            return True     # no walls left
-        elif len(context[player]['path']) == 2:
-            return True     # last winning move
-        elif state[1 + player] in self.game.goal_positions[next_]:
-            return True     # on the first line is probably the beginning
-        elif len(context[next_]['blockers']) > 2:
-            # has enough time to block at least once in the future
-            return random.random() < self.pawn_moves
-        else:
-            # probably one of the last changes to block
-            return False
-
-    def _try_good_wall_action(self, new_state, temp_state, context, player,
-                              next_, action):
-        direction = int(action >= self.game.wall_board_positions)
-        wall = action - direction * self.game.wall_board_positions
-        temp_state[5 + direction].add(wall)
-        new_opponent_path = self.game.shortest_path(temp_state, next_)
-        if new_opponent_path is None:
-            temp_state[5 + direction].remove(wall)
-            context[next_]['goal_cut'].add(action)
-            return False
-        new_state[5 + direction] = frozenset(temp_state[5 + direction])
-        new_state[3 + player] -= 1
-        context[next_]['path'] = new_opponent_path
-        args = (
-            new_state,
-            self.game.wall_board_size,
-            self.game.wall_board_positions,
-            wall
-        )
-        crossers_getters = {1: vertical_crossers, 0: horizontal_crossers}
-        new_crossers = crossers_getters[direction](*args)
-        for crosser in new_crossers:
-            context['crossers'].add(crosser)
-        context[next_]['blockers'] = self.game.blockers(
-            new_opponent_path,
-            context['crossers'],
-            context[next_]['goal_cut']
-        )
-        new_state[0] = next_
-        return True
-
-    def move_pawn(self, new_state, context, player, next_):
-        current_position = context[player]['path'].pop()
-        new_position = context[player]['path'][-1]
-        if new_position == new_state[1 + next_]:     # occupied, will jump
-            context[player]['path'].pop()
-            # TODO: if opponent occupies last move, this will fail, but this
-            #       does not happen often...
-            new_position = context[player]['path'][-1]
-        move = self.game.delta_moves[new_position - current_position]
-
-        context['history'].append(self.game.wall_moves + move)
-        context[player]['goal_cut'].clear()
-        context[player]['blockers'] = self.game.blockers(
-            context[player]['path'],
-            context['crossers'],
-            context[player]['goal_cut']
-        )
-        new_state[1 + player] = new_position
-        new_state[0] = next_
-
-    def play(self, state, context):
-        """
-        choose between shortest path and wall
-        updates context for effectiveness with action played
-        and returns new_state
-
-        context can be initialized with make_context
-        """
-        # TODO: if state in self.openings... play by it
-
-        player = state[0]
-        next_ = FOLLOWING_PLAYER[player]
-        new_state = list(state)
-
-        if not self.should_move(state, context):  # try place good wall
-            temp_state = new_state[:5] + [set(new_state[5]), set(new_state[6])]
-            for action in self.good_blockers(context, player, next_):
-                success = self._try_good_wall_action(
-                    new_state,
-                    temp_state,
-                    context,
-                    player,
-                    next_,
-                    action,
-                )
-                if success:
-                    return tuple(new_state)
-            # TODO: is there something more to try?
-
-        self.move_pawn(new_state, context, player, next_)
-        return tuple(new_state)
-
-
 def clear_console():
     os.system(CONSOLE_CLEAR[os.name])
+
+
+def print_context_and_state(context, state):
+    print 'context history:', context['history']
+    print 'context len(crossers):', len(context['crossers'])
+    print 'context crossers:', context['crossers']
+    print 'context yellow:', context[YELLOW]
+    print 'context green:', context[GREEN]
+    print 'state:', state
 
 
 class ConsoleGame(Quoridor2):
@@ -277,8 +190,6 @@ class ConsoleGame(Quoridor2):
             self.color_end = COLOR_END_CONSOLE
         self.pawn_colors = {YELLOW: self.yellow, GREEN: self.green}
         self.messages = self.make_output_messages()
-
-        self.history = []
 
     def blockers(self, path, crossers, avoid=None):
         if avoid is None:
@@ -545,7 +456,7 @@ class ConsoleGame(Quoridor2):
             '#{moves_made:03d} '.format(moves_made=len(context['history'])),
             self.yellow,
             u'YELLOW({type_}) walls:{walls:2} dist:{dist:2} {moves}'.format(
-                type_='HU' if context[YELLOW]['type'] == 'human' else u'AI',
+                type_=context[YELLOW]['type'][:2].upper(),
                 walls=state[3],
                 dist=len(context[YELLOW]['path']) - 1,
                 moves='moves' if state[0] == YELLOW else '     ',
@@ -554,7 +465,7 @@ class ConsoleGame(Quoridor2):
             u' | ',
             self.green,
             u'GREEN({type_}) walls:{walls:2} dist:{dist:2} {moves}'.format(
-                type_='HU' if context[GREEN]['type'] == 'human' else u'AI',
+                type_=context[GREEN]['type'][:2].upper(),
                 walls=state[4],
                 dist=len(context[GREEN]['path']) - 1,
                 moves='moves' if state[0] == GREEN else '     ',
@@ -670,13 +581,13 @@ class ConsoleGame(Quoridor2):
                     # TODO: at least undo, save, load
                     return result
                 state = result
-                self.update_context(state, context)
+            elif 'qlnn' == context[state[0]]['type']:
+                state = context[state[0]]['player'](state, context)
+            elif 'heuristic' == context[state[0]]['type']:
+                state = context[state[0]]['player'](state, context)
+                continue
             else:
-                if 'heuristic' == context[state[0]]['type']:
-                    state = context[state[0]]['player'](state, context)
-                else:
-                    # TODO: update context!
-                    raise NotImplemented('Other player types not implemented.')
+                raise NotImplemented()
 
         self.display_on_console(state, context)
         print self.messages['game_ended']
@@ -733,6 +644,9 @@ class ConsoleGame(Quoridor2):
             elif mode.startswith('heuristic'):
                 context[YELLOW]['type'] = 'heuristic'
                 context[YELLOW]['player'] = HeuristicPlayer(self)
+            elif mode.startswith('qlnn'):
+                context[YELLOW]['type'] = 'qlnn'
+                context[YELLOW]['player'] = QlearningNetworkPlayer(self)
             else:
                 raise NotImplemented('unknown mode %' % mode)
 
@@ -742,6 +656,9 @@ class ConsoleGame(Quoridor2):
             elif mode.endswith('heuristic'):
                 context[GREEN]['type'] = 'heuristic'
                 context[GREEN]['player'] = HeuristicPlayer(self)
+            elif mode.endswith('qlnn'):
+                context[GREEN]['type'] = 'qlnn'
+                context[GREEN]['player'] = QlearningNetworkPlayer(self)
             else:
                 raise NotImplemented('unknown mode %' % mode)
 
