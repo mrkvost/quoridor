@@ -64,7 +64,8 @@ class Game(Base):
     __tablename__ = 'game'
 
     id = Column(Integer, primary_key=True)
-    network_played_id = Column(Integer, ForeignKey('network.id'))
+    yellow_played = Column(String)
+    green_played = Column(String)
     description = Column(String)
 
 
@@ -165,3 +166,7 @@ def build_db(db_path):
         'sqlite:///{relative_db_path}'.format(relative_db_path=db_path)
     )
     Base.metadata.create_all(engine)
+
+
+def run():
+    build_db('data.db')
