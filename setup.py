@@ -13,9 +13,9 @@ REQUIREMENTS = {
 
 def get_setup_requirements():
     matching_installed_packages = dict([
-        (package.name.lower(), package)
+        (package.project_name.lower(), package)
         for package in pip.get_installed_distributions()
-        if package.project_name in REQUIREMENTS
+        if str(package.project_name) in REQUIREMENTS
     ])
     # ...TODO...
 
@@ -55,7 +55,7 @@ def create_setup_info():
         ),
 
         packages=find_packages(),
-        setup_requires=setup_requires,
+        setup_requires=setup_requirements,
         entry_points={
             'console_scripts': [
                 'qc = quoridor.quoridor:main',
@@ -69,7 +69,7 @@ def create_setup_info():
 
     if 'develop' in sys.argv or 'install' in sys.argv:
         setup_info['install_requires'] = list(set(
-            set(setup_info['install_requires'] + setup_requirements
+            setup_info['install_requires'] + setup_requirements
         ))
 
     if 'develop' in sys.argv:
@@ -78,5 +78,6 @@ def create_setup_info():
         if 'scripts' not in setup_info:
             setup_info['scripts'] = []
         setup_info['scripts'].append('bin/docmake')
+    return setup_info
 
-setup(**create_setup_info)
+setup(**create_setup_info())
