@@ -53,6 +53,7 @@ class HeuristicPlayer(Player):
                         yield action
 
     def should_move(self, state, context):
+        # TODO: is there heurisic for defending wall?
         player = state[0]
         next_ = FOLLOWING_PLAYER[player]
         if not state[3 + player]:
@@ -78,6 +79,7 @@ class HeuristicPlayer(Player):
             temp_state[5 + direction].remove(wall)
             context[next_]['goal_cut'].add(action)
             return False
+        # TODO: may be better if played only when making opponents path longer
         new_state[5 + direction] = frozenset(temp_state[5 + direction])
         new_state[3 + player] -= 1
         context[next_]['path'] = new_opponent_path
@@ -218,13 +220,17 @@ class NetworkPlayer(Player):
 class QlearningNetworkPlayer(NetworkPlayer):
     ORDER = {YELLOW: reversed, GREEN: sorted}
 
-    def __init__(self, game, **kwargs):
+    def __init__(self, game, learning=False):
         super(QlearningNetworkPlayer, self).__init__(game, '133_200_140')
+        self.learning = learning
 
     def play(self, state, context):
+        # TODO: when learning, should it be here any randomness? e.g. first few
+        #       q_values have similar probability to be chosend to play?
         input_vector = tuple(self.input_vector_from_game_state(state))
         # print 'input_vector:', input_vector
-        q_values = tuple(self.perceptron.propagate_forward(input_vector))[-1]
+        activations = tuple(self.perceptron.propagate_forward(input_vector))
+        q_values = activations[-1]
         # print 'q_values:', q_values
         q_values_to_action = self.ORDER[state[0]]([
             (value, action) for action, value in enumerate(q_values)
@@ -237,7 +243,18 @@ class QlearningNetworkPlayer(NetworkPlayer):
                     self.game.update_context(new_state, context, action)
                 return new_state
             except InvalidMove:
+                # TODO: add to desired output vector with bad reward?
                 pass
+
+    def learn(self, old_state, new_state, context):
+        # 1. desired_output_vector is copy of old activations and:
+        #    a) updated value for action played by min/max
+        #    b) updated values for impossible moves in old_state
+        # 2. perceptron.propagate_backward(
+        #        old_activations,
+        #        desired_output_vector
+        #    )
+        pass
 
 
 # from core import (

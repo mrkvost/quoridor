@@ -573,6 +573,12 @@ class ConsoleGame(Quoridor2):
     def handle_game(self, state, context):
         assert not self.is_terminal(state)
         while not self.is_terminal(state):
+            # TODO: avoid endless loop with move counter?
+            #       e.g. assert len(context['history']) < 1000
+            # TODO: when training network:
+            #       1. save network to db every 50 games
+            #       2. print output of the game after save
+            #       3. print game counter
             self.display_on_console(state, context)
             # print_context_and_state(context, state)
             if 'human' == context[state[0]]['type']:
