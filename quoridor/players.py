@@ -15,13 +15,20 @@ from core import (
     DOWN,
     LEFT,
 
+    PAWN_MOVE_PATHS,
+
     horizontal_crossers,
     vertical_crossers,
 
     InvalidMove,
 )
 
-from db import make_db_session, db_load_network, db_save_network
+from db import (
+    make_db_session,
+    db_load_network,
+    db_save_network,
+    db_update_network,
+)
 from ai import MLMCPerceptron
 
 
@@ -220,18 +227,19 @@ class NetworkPlayer(Player):
 class QlearningNetworkPlayer(NetworkPlayer):
     ORDER = {YELLOW: reversed, GREEN: sorted}
 
-    def __init__(self, game, learning=False):
+    def __init__(self, game):
         super(QlearningNetworkPlayer, self).__init__(game, '133_200_140')
-        self.learning = learning
+
+    def activations_from_state(self, state):
+        input_vector = tuple(self.input_vector_from_game_state(state))
+        activations = tuple(self.perceptron.propagate_forward(input_vector))
+        return activations
 
     def play(self, state, context):
         # TODO: when learning, should it be here any randomness? e.g. first few
         #       q_values have similar probability to be chosend to play?
-        input_vector = tuple(self.input_vector_from_game_state(state))
-        # print 'input_vector:', input_vector
-        activations = tuple(self.perceptron.propagate_forward(input_vector))
-        q_values = activations[-1]
-        # print 'q_values:', q_values
+        self.activations = self.activations_from_state(state)
+        q_values = self.activations[-1]
         q_values_to_action = self.ORDER[state[0]]([
             (value, action) for action, value in enumerate(q_values)
         ])
@@ -239,22 +247,46 @@ class QlearningNetworkPlayer(NetworkPlayer):
             try:
                 new_state = self.game.execute_action(state, action)
                 if not self.game.is_terminal(new_state):
-                    # print 'player:', state[0], 'action:', action, 'value:', value
                     self.game.update_context(new_state, context, action)
-                return new_state
+                break
             except InvalidMove:
                 # TODO: add to desired output vector with bad reward?
                 pass
+        return new_state
 
-    def learn(self, old_state, new_state, context):
-        # 1. desired_output_vector is copy of old activations and:
-        #    a) updated value for action played by min/max
-        #    b) updated values for impossible moves in old_state
-        # 2. perceptron.propagate_backward(
-        #        old_activations,
-        #        desired_output_vector
-        #    )
-        pass
+    def invalid_actions(self, state, context):
+        invalid_pawn_moves = [
+            move + 128
+            for move in range(12)
+            if not self.game.is_valid_pawn_move(state, move)
+        ]
+        return itertools.chain(
+            context['crossers'],
+            context[YELLOW]['goal_cut'],
+            context[GREEN]['goal_cut'],
+            invalid_pawn_moves,
+        )
+
+    def desired_output_vector(self, player, invalid_actions, old_activations,
+                              last_action, new_state, new_activations):
+        reward = 100 + player * (-200)
+        desired_output_vector = copy.deepcopy(old_activations[-1])
+
+        for action in invalid_actions:
+            desired_output_vector[action] -= reward
+
+        if player == YELLOW:
+            best_value = max(new_activations[-1])
+        else:
+            best_value = min(new_activations[-1])
+        desired_output_vector[last_action] = best_value
+
+        if self.game.is_terminal(new_state):
+            desired_output_vector[last_action] += reward
+        return desired_output_vector
+
+    def learn(self, old_activations, desired_output):
+        self.perceptron.propagate_backward(old_activations, desired_output)
 
 
 # from core import (

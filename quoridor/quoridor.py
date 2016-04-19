@@ -2,9 +2,11 @@
 
 import os
 import re
+import sys
 import copy
 # import time
 import random
+import datetime
 import collections
 # import traceback
 
@@ -26,6 +28,7 @@ from core import (
 )
 
 from players import HeuristicPlayer, QlearningNetworkPlayer
+from db import make_db_session
 # from players import RandomPlayer, RandomPlayerWithPath, QLPlayer
 
 
@@ -84,7 +87,13 @@ MENU_CHOICE = {
         'mode': 'heuristic_qlnn',
         'text': 'Watch Heuristic vs QL Neural Network',
     },
+
     9: {
+        'mode': 'train',
+        'text': 'Train QLNN vs Heuristic',
+    },
+
+    10: {
         'mode': 'quit',
         'text': 'Quit',
     },
@@ -599,11 +608,103 @@ class ConsoleGame(Quoridor2):
         print self.messages['game_ended']
         return 'menu'
 
+    def handle_training(self, state, context):
+        qlearning = QlearningNetworkPlayer(self)
+        heuristic = HeuristicPlayer(self)
+
+        game_counter = 0
+        show_and_save_cycle = 100
+
+        db_session = make_db_session('data.db')
+        try:
+            start = datetime.datetime.now()
+            while True:
+                state = self.initial_state()
+                context = self.make_context(state)
+                if game_counter % 2:
+                    context[YELLOW]['player'] = qlearning
+                    context[YELLOW]['type'] = 'qlnn'
+                    context[GREEN]['player'] = heuristic
+                    context[GREEN]['type'] = 'heuristic'
+                else:
+                    context[YELLOW]['player'] = heuristic
+                    context[YELLOW]['type'] = 'heuristic'
+                    context[GREEN]['player'] = qlearning
+                    context[GREEN]['type'] = 'qlnn'
+
+                old_activations = qlearning.activations_from_state(state)
+
+                show_and_save = not game_counter % show_and_save_cycle
+                if show_and_save:
+                    print
+
+                while not self.is_terminal(state):
+                    if len(context['history']) > 300:
+                        print 'Game too long:', context['history']
+                        break
+
+                    if show_and_save:
+                        self.display_on_console(state, context)
+
+                    invalid_actions = qlearning.invalid_actions(state, context)
+                    new_state = context[state[0]]['player'](state, context)
+
+                    if context[state[0]]['player'] == 'qlnn':
+                        new_activations = qlearning.activations
+                    else:
+                        new_activations = qlearning.activations_from_state(
+                            new_state
+                        )
+
+                    desired_output = qlearning.desired_output_vector(
+                        state[0],
+                        invalid_actions,
+                        old_activations,
+                        context['history'][-1],
+                        new_state,
+                        new_activations,
+                    )
+                    qlearning.learn(old_activations, desired_output)
+
+                    old_activations = new_activations
+                    state = new_state
+
+                if show_and_save:
+                    self.display_on_console(state, context)
+                else:
+                    delta = datetime.datetime.now() - start
+                    seconds = int(delta.total_seconds())
+                    message = (
+                        u'\r'
+                        u'games played:{games: 5} '
+                        u'| seconds since:{seconds: 6}, '
+                        u'| s/game:{pace: 3}s, '
+                        '     '
+                    ).format(
+                        seconds=seconds,
+                        games=game_counter,
+                        pace=int(0.5 + (float(seconds) / game_counter)),
+                    )
+                    sys.stdout.write(message)
+                    sys.stdout.flush()
+                game_counter += 1
+                if show_and_save:
+                    sys.stdout.write('saving weights into database... ')
+                    sys.stdout.flush()
+                    qlearning.update_in_db(db_session)
+                    sys.stdout.write('saved\n')
+        except KeyboardInterrupt:
+            pass
+        db_session.close()
+
+        return 'quit'
+
     def run(self):
         game_mode = 'menu'
         handle_mode = {
             'menu': self.handle_menu,
             'game': self.handle_game,
+            'train': self.handle_training,
         }
         state = self.initial_state()
         context = self.make_context(state)
@@ -639,6 +740,8 @@ class ConsoleGame(Quoridor2):
                 continue
             elif mode == 'quit':
                 return 'quit'
+            elif mode == 'train':
+                return 'train'
 
             # new game or watch, or later TODO: load game
             for key, value in self.make_context(self.initial_state()).items():

@@ -55,6 +55,7 @@ def _make_initial_state(board_size):
         (board_size ** 2) - half - int(bool(mod)),  # GREEN's position
         STARTING_WALL_COUNT,                        # YELLOW's walls
         STARTING_WALL_COUNT,                        # GREEN's walls
+        # TODO: only one frozenset for all walls 0...127
         frozenset(),                                # horizontal walls
         frozenset(),                                # vertical walls
     )
