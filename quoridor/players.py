@@ -227,8 +227,11 @@ class NetworkPlayer(Player):
 class QlearningNetworkPlayer(NetworkPlayer):
     ORDER = {YELLOW: reversed, GREEN: sorted}
 
-    def __init__(self, game):
-        super(QlearningNetworkPlayer, self).__init__(game, '133_200_140')
+    def __init__(self, *args, **kwargs):
+        assert args
+        if len(args) < 2:
+            args += (kwargs.pop('db_name', '133_200_140'), )
+        super(QlearningNetworkPlayer, self).__init__(*args, **kwargs)
 
     def activations_from_state(self, state):
         input_vector = tuple(self.input_vector_from_game_state(state))
