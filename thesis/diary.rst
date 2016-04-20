@@ -1,3 +1,10 @@
+20th April 2016
+===============
+ - fixed computation with momentum
+ - refactored state as tuple
+ - created 'heuristic' player
+ - updated game menu, human vs. heuristic, ... qlnn vs. human, training, ...
+
 7th April 2016
 ===============
  - output layer sigmoided made optional
