@@ -113,7 +113,7 @@ class HeuristicPlayer(PathPlayer):
             return True     # last winning move
         elif state[1 + player] in self.game.goal_positions[next_]:
             return True     # on the first line is probably the beginning
-        elif len(context[next_]['blockers']) > 3:
+        elif len(context[next_]['blockers']) > 2:
             # has enough time to block at least once in the future
             return random.random() < self.pawn_moves
         else:
