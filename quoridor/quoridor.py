@@ -217,7 +217,7 @@ class ConsoleGame(Quoridor2):
         for i in range(len(path) - 1):
             move = self.delta_moves[path[i + 1] - path[i]]
             for wall in self.blocker_positions[path[i]][move]:
-                if wall not in crossers or wall not in avoid:
+                if wall not in crossers and wall not in avoid:
                     blockers.add(wall)
         return blockers
 
