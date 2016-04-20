@@ -113,6 +113,15 @@ MENU_CHOICE = {
     # 10: 'quit',
 }
 
+# PLAYERS = {
+#     # -1: {'type': 'rand', 'text': 'Random player'},
+#     0: {'type': 'human', 'text': 'Human player'},
+#     1: {'type': 'path', 'text': 'Path player'},
+#     2: {'type': 'heuristic', 'text': 'Heuristic player'},
+#     3: {'type': 'qlnn', 'text': 'QLearning Neural Network player'},
+#     # 4: {'type': 'tdnn', 'text': 'Temporal Difference Neural Network player'},
+# }
+
 
 def clear_console():
     os.system(CONSOLE_CLEAR[os.name])
@@ -675,7 +684,7 @@ class ConsoleGame(Quoridor2):
         }
         OVERALL_FMT = (
             u'\rgames:{games: 4}| seconds:{seconds: 5}s| s./game:{pace}s| '
-            u'ql/he: {ql: 3} /{he: 4}|  '
+            u'win/loses: {won: 3} /{lost: 4}|  '
         )
         try:
             while True:
@@ -691,8 +700,8 @@ class ConsoleGame(Quoridor2):
                     seconds=seconds,
                     games=game_counter,
                     pace=int(0.5 + (float(seconds) / game_counter)),
-                    ql=qlnn_wins,
-                    he=game_counter - qlnn_wins,
+                    won=qlnn_wins,
+                    lost=game_counter - qlnn_wins,
                 )
                 sys.stdout.write(message)
                 sys.stdout.flush()
@@ -713,6 +722,7 @@ class ConsoleGame(Quoridor2):
             'path': PathPlayer(self),
         }
         self.handle_training(players, show_save_cycle=1000)
+        return 'quit'
 
     def train_heuristic(self, state, context):
         players = {
@@ -720,6 +730,7 @@ class ConsoleGame(Quoridor2):
             'heuristic': HeuristicPlayer(self),
         }
         self.handle_training(players, display_games=True)
+        return 'quit'
 
     def run(self):
         game_mode = 'menu'

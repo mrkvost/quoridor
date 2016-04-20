@@ -258,8 +258,9 @@ class QlearningNetworkPlayer(NetworkPlayer):
         for value, action in q_values_to_action:
             try:
                 new_state = self.game.execute_action(state, action)
+                context['history'].append(action)
                 if not self.game.is_terminal(new_state):
-                    self.game.update_context(new_state, context, action)
+                    self.game.update_context(new_state, context)
                 break
             except InvalidMove:
                 # TODO: add to desired output vector with bad reward?
