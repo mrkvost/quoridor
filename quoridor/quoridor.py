@@ -19,9 +19,6 @@ from core import (
     FOLLOWING_PLAYER,
     BOARD_SIZE_DEFAULT,
 
-    horizontal_crossers,
-    vertical_crossers,
-    crossing_actions,
     InvalidMove,
     Quoridor2,
 
@@ -214,36 +211,29 @@ class ConsoleGame(Quoridor2):
         self.pawn_colors = {YELLOW: self.yellow, GREEN: self.green}
         self.messages = self.make_output_messages()
 
-    def blockers(self, path, crossers, avoid=None):
-        if avoid is None:
-            avoid = set()
-        blocking_wall_actions = set()
+    def path_blockers(self, path, crossers, avoid=None):
+        avoid = set() if avoid is None else avoid
+        blockers = set()
         for i in range(len(path) - 1):
             move = self.delta_moves[path[i + 1] - path[i]]
-            direction = move % 2
             for wall in self.blocker_positions[path[i]][move]:
-                wall_action = wall + direction * self.wall_board_positions
-                if wall_action not in crossers or wall_action not in avoid:
-                    blocking_wall_actions.add(wall_action)
-        return blocking_wall_actions
+                if wall not in crossers or wall not in avoid:
+                    blockers.add(wall)
+        return blockers
 
     def make_context(self, state, types=None):
-        if types is None:
-            types = {YELLOW: 'human', GREEN: 'human'}
+        types = {YELLOW: 'human', GREEN: 'human'} if types is None else types
+        context = {'history': [], 'crossers': self.crossing_actions(state)}
 
-        context = {
-            'history': [],
-            'crossers': crossing_actions(state, self.wall_board_size),
-        }
-
-        for player in (YELLOW, GREEN):
-            path = self.shortest_path(state, player)
-            color_name = PLAYER_COLOR_NAME[player]
-            assert path is not None, 'no path to goal for ' + color_name
-            context[player] = {
+        for color in (YELLOW, GREEN):
+            path = self.shortest_path(state, color)
+            assert path is not None, (
+                'no path to goal for ' + PLAYER_COLOR_NAME[color]
+            )
+            context[color] = {
                 'path': path,
-                'blockers': self.blockers(path, context['crossers']),
-                'type': types[player],
+                'blockers': self.path_blockers(path, context['crossers']),
+                'type': types[color],
                 'goal_cut': set(),  # TODO: consider using ordered set
             }
         return context
@@ -262,23 +252,12 @@ class ConsoleGame(Quoridor2):
         player = state[0]
 
         if 0 <= action < self.wall_moves:  # wall
-            args = [
-                state,
-                self.wall_board_size,
-                self.wall_board_positions,
-                action
-            ]
-            if action < self.wall_board_positions:
-                new_crossers = horizontal_crossers(*args)
-            else:
-                args[-1] = action - self.wall_board_positions
-                new_crossers = vertical_crossers(*args)
+            new_crossers = self.wall_crossers(action)
             context['crossers'] = context['crossers'].union(new_crossers)
-
             for color in (YELLOW, GREEN):
                 if action in context[color]['blockers']:
                     context[color]['path'] = self.shortest_path(state, color)
-                    context[color]['blockers'] = self.blockers(
+                    context[color]['blockers'] = self.path_blockers(
                         context[color]['path'],
                         context['crossers'],
                         context[color]['goal_cut']
@@ -297,7 +276,7 @@ class ConsoleGame(Quoridor2):
             context[next_]['path'] = self.shortest_path(state, next_)
 
         context[next_]['goal_cut'].clear()
-        context[next_]['blockers'] = self.blockers(
+        context[next_]['blockers'] = self.path_blockers(
             context[next_]['path'],
             context['crossers'],
             context[next_]['goal_cut']
@@ -381,45 +360,41 @@ class ConsoleGame(Quoridor2):
         return base
 
     def walls_to_base(self, state, base):
-        new_base = copy.deepcopy(base)
-
-        for wall in state[5]:
-            row, col = divmod(wall, self.board_size - 1)
-            row_offset = (row + 1) * self.field_height
-            col_offset = col * self.field_width + 1
-            for col_delta in range(self.wall_length_horizontal):
-                position = Vector(row=row_offset, col=col_offset + col_delta)
-                new_base[position] = u'\u2550'
-
-        for wall in state[6]:
-            row, col = divmod(wall, self.board_size - 1)
-            row_offset = row * self.field_height + 1
-            col_offset = (col + 1) * self.field_width
-            for row_delta in range(self.wall_length_vertical):
-                position = Vector(row=row_offset + row_delta, col=col_offset)
-                new_base[position] = u'\u2551'
-
         row_offset = self.field_height
         col_offset = self.field_width
         for row in range(self.wall_board_size):
             for col in range(self.wall_board_size):
-                num = row * self.wall_board_size + col
-                if num in state[5] or num in state[6]:
-                    continue
-
-                num = str(num)
+                num = str(row * self.wall_board_size + col)
                 for i in range(len(num)):
                     position = Vector(
                         row=row_offset + row * self.field_height,
                         col=col_offset + col * self.field_width - i,
                     )
-                    new_base[position] = num[-i - 1]
+                    base[position] = num[-i - 1]
 
-        return new_base
+        for wall in state[5]:
+            if wall < self.wall_board_positions:
+                row, col = divmod(wall, self.wall_board_size)
+                row_offset = (row + 1) * self.field_height
+                col_offset = col * self.field_width + 1
+                for col_delta in range(self.wall_length_horizontal):
+                    position = Vector(
+                        row=row_offset, col=col_offset + col_delta
+                    )
+                    base[position] = u'\u2550'
+                continue
+
+            row, col = divmod(
+                wall - self.wall_board_positions,
+                self.wall_board_size
+            )
+            row_offset = row * self.field_height + 1
+            col_offset = (col + 1) * self.field_width
+            for row_delta in range(self.wall_length_vertical):
+                position = Vector(row=row_offset + row_delta, col=col_offset)
+                base[position] = u'\u2551'
 
     def pawns_to_base(self, state, base):
-        new_base = copy.deepcopy(base)
-
         for player in (YELLOW, GREEN):
             color_start = self.pawn_colors[player]
 
@@ -431,20 +406,20 @@ class ConsoleGame(Quoridor2):
 
             # top and bottom sides:
             for column in range(leftmost, rightmost + 1):
-                new_base[Vector(row=top, col=column)] = u'\u203e'
-                new_base[Vector(row=bottom, col=column)] = u'_'
+                base[Vector(row=top, col=column)] = u'\u203e'
+                base[Vector(row=bottom, col=column)] = u'_'
 
             # left and right sides:
             for row in range(top, bottom + 1):
-                new_base[Vector(row=row, col=leftmost)] = (
+                base[Vector(row=row, col=leftmost)] = (
                     color_start + u'\u23b8'
                 )
-                new_base[Vector(row=row, col=rightmost)] = (
+                base[Vector(row=row, col=rightmost)] = (
                     u'\u23b9' + self.color_end
                 )
 
             # corners:
-            new_base.update({
+            base.update({
                 Vector(row=top, col=leftmost): color_start + u'\u27cb',
                 Vector(row=top, col=rightmost): u'\u27cd' + self.color_end,
                 Vector(row=bottom, col=leftmost): color_start + u'\u27cd',
@@ -458,13 +433,12 @@ class ConsoleGame(Quoridor2):
                 row = int(round(0.25 + float(top + bottom) / 2))
                 position = Vector(row=row, col=leftmost + offset)
                 if offset <= len(name):
-                    new_base[position] = name[offset - 1]
-
-        return new_base
+                    base[position] = name[offset - 1]
 
     def display_on_console(self, state, context):
-        base = self.walls_to_base(state, self.output_base)
-        base = self.pawns_to_base(state, base)
+        base = copy.deepcopy(self.output_base)
+        self.walls_to_base(state, base)
+        self.pawns_to_base(state, base)
 
         print '\n'.join([
             ''.join([
@@ -590,7 +564,7 @@ class ConsoleGame(Quoridor2):
                 continue
 
             if not self.is_terminal(state):
-                self.update_context(state, context, action)
+                self.update_context(new_state, context, action)
             return new_state
 
     def handle_game(self, state, context):
@@ -683,13 +657,13 @@ class ConsoleGame(Quoridor2):
             1: {YELLOW: type_keys[1], GREEN: type_keys[0]},
         }
         OVERALL_FMT = (
-            u'\rgames:{games: 4}| seconds:{seconds: 5}s| s./game:{pace}s| '
+            u'\rgames:{games: 4}| sec.:{seconds: 5}s| sec./game:{pace}s| '
             u'win/loses: {won: 3} /{lost: 4}|  '
         )
         try:
             while True:
                 types = type_base[game_counter % 2]
-                show_and_save = not game_counter % show_save_cycle
+                show_and_save = not (game_counter + 1) % show_save_cycle
                 display_game = show_and_save and display_games
                 qlnn_win = self.train_game(players, types, display_game)
                 qlnn_wins += int(qlnn_win)
@@ -785,7 +759,7 @@ class ConsoleGame(Quoridor2):
 
             if mode.startswith('human'):
                 context[YELLOW]['type'] = 'human'
-                context[YELLOW]['player'] = self.human_play
+                context[YELLOW]['player'] = None
             elif mode.startswith('path'):
                 context[YELLOW]['type'] = 'path'
                 context[YELLOW]['player'] = PathPlayer(self)
@@ -800,7 +774,7 @@ class ConsoleGame(Quoridor2):
 
             if mode.endswith('human'):
                 context[GREEN]['type'] = 'human'
-                context[GREEN]['player'] = self.human_play
+                context[GREEN]['player'] = None
             elif mode.endswith('path'):
                 context[GREEN]['type'] = 'path'
                 context[GREEN]['player'] = PathPlayer(self)

@@ -56,8 +56,7 @@ def _make_initial_state(board_size):
         STARTING_WALL_COUNT,                        # YELLOW's walls
         STARTING_WALL_COUNT,                        # GREEN's walls
         # TODO: only one frozenset for all walls 0...127
-        frozenset(),                                # horizontal walls
-        frozenset(),                                # vertical walls
+        frozenset(),                                # walls
     )
 
 
@@ -65,42 +64,43 @@ def _make_blocker_positions(board_size):
     # assert board_size > 1
     blocker_positions = {}
     wall_board_size = board_size - 1
+    wall_board_positions = wall_board_size ** 2
+    shift = {HORIZONTAL: 0, VERTICAL: wall_board_positions}
+
     for position in range(board_size * board_size):
-        row = position // board_size
-        col = position % board_size
+        row, col = divmod(position, board_size)
         blocker_positions[position] = {}
 
-        if row != 0:                # can move up
+        if row:                # can move up
             blocker_positions[position][UP] = set()
             new_row = wall_board_size * (row - 1)
-            if col != 0:
+            if col:
                 blocker_positions[position][UP].add(new_row + col - 1)
             if col != wall_board_size:
                 blocker_positions[position][UP].add(new_row + col)
 
+        if row != wall_board_size:  # can move down
+            blocker_positions[position][DOWN] = set()
+            new_row = wall_board_size * row
+            if col:
+                blocker_positions[position][DOWN].add(new_row + col - 1)
+            if col != wall_board_size:
+                blocker_positions[position][DOWN].add(new_row + col)
+
+        new_row = wall_board_size * row + wall_board_positions
         if col != wall_board_size:  # can move right
             blocker_positions[position][RIGHT] = set()
-            new_row = wall_board_size * row
-            if row != 0:
+            if row:
                 blocker_positions[position][RIGHT].add(
                     new_row - wall_board_size + col
                 )
             if row != wall_board_size:
                 blocker_positions[position][RIGHT].add(new_row + col)
 
-        if row != wall_board_size:  # can move down
-            blocker_positions[position][DOWN] = set()
-            new_row = wall_board_size * row
-            if col != 0:
-                blocker_positions[position][DOWN].add(new_row + col - 1)
-            if col != wall_board_size:
-                blocker_positions[position][DOWN].add(new_row + col)
-
-        if col != 0:                # can move left
+        if col:                # can move left
             blocker_positions[position][LEFT] = set()
             new_col = col - 1
-            new_row = wall_board_size * row
-            if row != 0:
+            if row:
                 blocker_positions[position][LEFT].add(
                     new_row - wall_board_size + new_col
                 )
@@ -147,90 +147,6 @@ def _make_delta_moves(board_size):
     }
 
 
-def is_horizontal_wall_crossing(board_size, horizontal_walls, vertical_walls,
-                                wall):
-    wall_board_size = board_size - 1
-    if wall in horizontal_walls:
-        return True
-    elif wall in vertical_walls:
-        return True
-    elif wall % wall_board_size != 0 and (wall - 1) in horizontal_walls:
-        return True
-    elif (wall + 1) % wall_board_size != 0 and (wall + 1) in horizontal_walls:
-        return True
-    else:
-        return False
-
-
-def is_vertical_wall_crossing(board_size, horizontal_walls, vertical_walls,
-                              wall):
-    wall_board_size = board_size - 1
-    row = wall // wall_board_size
-    if wall in horizontal_walls:
-        return True
-    elif wall in vertical_walls:
-        return True
-    elif row != 0 and (wall - wall_board_size) in vertical_walls:
-        return True
-    elif row != (wall_board_size - 1) and (
-            (wall + wall_board_size) in vertical_walls):
-        return True
-    else:
-        return False
-
-
-IS_WALL_CROSSING = {
-    0: is_horizontal_wall_crossing,
-    1: is_vertical_wall_crossing,
-}
-
-
-def horizontal_crossers(state, wall_board_size, wall_board_positions, wall):
-    yield wall
-    yield wall + wall_board_positions
-    col = wall % wall_board_size
-    if col != 0:
-        yield wall - 1
-    if col != wall_board_size - 1:
-        yield wall + 1
-
-
-def vertical_crossers(state, wall_board_size, wall_board_positions, wall):
-    yield wall
-    yield wall + wall_board_positions
-    row = wall // wall_board_size
-    if row != 0:
-        yield wall - wall_board_size + wall_board_positions
-    if row != wall_board_size - 1:
-        yield wall + wall_board_size + wall_board_positions
-
-
-def crossing_actions(state, wall_board_size):
-    actions = set()
-    wall_board_positions = wall_board_size ** 2
-    for wall in state[5]:
-        crossers = horizontal_crossers(
-            state,
-            wall_board_size,
-            wall_board_positions,
-            wall
-        )
-        for crosser in crossers:
-            actions.add(crosser)
-
-    for wall in state[6]:
-        crossers = vertical_crossers(
-            state,
-            wall_board_size,
-            wall_board_positions,
-            wall
-        )
-        for crosser in crossers:
-            actions.add(crosser)
-
-    return actions
-
-
 class InvalidMove(Exception):
     pass
 
@@ -252,11 +168,70 @@ class Quoridor2(object):
         self.move_deltas = _make_move_deltas(self.board_size)
         self.delta_moves = _make_delta_moves(self.board_size)
 
+    def is_wall_crossing(self, walls, wall):
+        if wall in walls:
+            return True
+
+        if wall < self.wall_board_positions:
+            return (
+                wall + self.wall_board_positions in walls or \
+                (wall % self.wall_board_size != 0 and (wall - 1) in walls) or \
+                ((wall + 1) % self.wall_board_size != 0 and (wall + 1) in walls)
+            )
+
+        position = wall - self.wall_board_positions
+        row = position // self.wall_board_size
+        return (
+            position in walls or \
+            (row != 0 and (wall - self.wall_board_size) in walls) or \
+            (
+                row != (self.wall_board_size - 1) and \
+                (wall + self.wall_board_size) in walls
+            )
+        )
+
+    def wall_crossers(self, wall):
+        actions = set((wall, ))
+        if wall < self.wall_board_positions:
+            actions.add(wall + self.wall_board_positions)
+            col = wall % self.wall_board_size
+            if col:
+                actions.add(wall - 1)
+            if col != self.wall_board_size - 1:
+                actions.add(wall + 1)
+        else:
+            position = wall - self.wall_board_size
+            actions.add(position)
+            row = position // self.wall_board_size
+            if row:
+                actions.add(wall - self.wall_board_size)
+            if row != self.wall_board_size - 1:
+                actions.add(wall + self.wall_board_size)
+        return actions
+
+    def crossing_actions(self, state):
+        actions = set(state[5])
+        for wall in state[5]:
+            if wall < self.wall_board_positions:
+                actions.add(wall + self.wall_board_positions)
+                col = wall % self.wall_board_size
+                if col:
+                    actions.add(wall - 1)
+                if col != self.wall_board_size - 1:
+                    actions.add(wall + 1)
+            else:
+                position = wall - self.wall_board_size
+                actions.add(position)
+                row = pos // self.wall_board_size
+                if row:
+                    actions.add(wall - self.wall_board_size)
+                if row != self.wall_board_size - 1:
+                    actions.add(wall + self.wall_board_size)
+        return actions
+
     def is_move_impossible(self, state, position, pawn_move):
         intercepting_walls = self.blocker_positions[position].get(pawn_move)
-        return intercepting_walls is None or (
-            intercepting_walls & state[5 + (pawn_move % 2)]
-        )
+        return intercepting_walls is None or intercepting_walls & state[5]
 
     def is_valid_pawn_move(self, state, move):
         current_pawn = state[1 + state[0]]
@@ -285,8 +260,8 @@ class Quoridor2(object):
 
     def shortest_path(self, state, player, avoid=None):
         avoid = avoid or set()
-        current_position = state[1 + player]
-        to_visit = collections.deque((current_position, ))
+        player_position = state[1 + player]
+        to_visit = collections.deque((player_position, ))
         visited = set()
         previous_positions = {}
 
@@ -302,42 +277,21 @@ class Quoridor2(object):
                 while True:
                     previous_position = previous_positions.get(path[-1])
                     path.append(previous_position)
-                    if previous_position == current_position:
+                    if previous_position == player_position:
                         return path
 
             visited.add(position)
-            for move in self.blocker_positions[position]:
-                placed_walls = state[5 + (move % 2)]
-                intercepting_walls = self.blocker_positions[position][move]
-                if placed_walls is None or not (
-                        intercepting_walls & placed_walls):
+            for move, blockers in self.blocker_positions[position].items():
+                if not blockers & state[5]:
                     new_position = position + self.move_deltas[move]
                     if new_position not in visited:
                         to_visit.append(new_position)
                     if new_position not in previous_positions:
                         previous_positions[new_position] = position
 
-    def player_can_reach_goal(self, state, player):
-        player_position = state[1 + player]
-        to_visit = set([player_position])
-        visited = set()
-        while to_visit:
-            position = to_visit.pop()
-            if position in self.goal_positions[player]:
-                return True
-            visited.add(position)
-            for move in self.blocker_positions[position]:
-                intercepting_walls = self.blocker_positions[position][move]
-                placed_walls = state[5 + (move % 2)]
-                if not intercepting_walls & placed_walls:
-                    new_position = position + self.move_deltas[move]
-                    if new_position not in visited:
-                        to_visit.add(new_position)
-        return False
-
     def players_can_reach_goal(self, state):
-        return self.player_can_reach_goal(state, YELLOW) and (
-            self.player_can_reach_goal(state, GREEN)
+        return bool(self.shortest_path(state, YELLOW)) and bool(
+            self.shortest_path(state, GREEN)
         )
 
     def initial_state(self):
@@ -366,14 +320,9 @@ class Quoridor2(object):
                 raise InvalidMove('Not enough walls!')
 
             if check_crossing:
-                direction = int(action >= self.wall_board_positions)
-                wall = action - direction * self.wall_board_positions
-                is_wall_crossing = IS_WALL_CROSSING[direction](
-                    self.board_size, state[5], state[6], wall
-                )
-                if is_wall_crossing:
+                if self.is_wall_crossing(state[5], action):
                     raise InvalidMove('Wall crosses already placed walls!')
-                new_state[5 + direction] = state[5 + direction].union((wall, ))
+                new_state[5] = state[5].union((action, ))
 
             if check_paths_to_goal:
                 if not self.players_can_reach_goal(new_state):

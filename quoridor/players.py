@@ -17,9 +17,6 @@ from core import (
 
     PAWN_MOVE_PATHS,
 
-    horizontal_crossers,
-    vertical_crossers,
-
     InvalidMove,
 )
 
@@ -78,7 +75,7 @@ class PathPlayer(Player):
 
         context['history'].append(self.game.wall_moves + move)
         context[player]['goal_cut'].clear()
-        context[player]['blockers'] = self.game.blockers(
+        context[player]['blockers'] = self.game.path_blockers(
             context[player]['path'],
             context['crossers'],
             context[player]['goal_cut']
@@ -116,43 +113,33 @@ class HeuristicPlayer(PathPlayer):
             return True     # last winning move
         elif state[1 + player] in self.game.goal_positions[next_]:
             return True     # on the first line is probably the beginning
-        elif len(context[next_]['blockers']) > 2:
+        elif len(context[next_]['blockers']) > 3:
             # has enough time to block at least once in the future
             return random.random() < self.pawn_moves
         else:
             # probably one of the last changes to block
             return False
 
-    def _try_good_wall_action(self, new_state, temp_state, context, player,
-                              next_, action):
-        direction = int(action >= self.game.wall_board_positions)
-        wall = action - direction * self.game.wall_board_positions
-        temp_state[5 + direction].add(wall)
+    def _try_good_wall(self, state, temp_state, context, action):
+        next_ = FOLLOWING_PLAYER[state[0]]
+        temp_state[5].add(action)
         new_opponent_path = self.game.shortest_path(temp_state, next_)
         if new_opponent_path is None:
-            temp_state[5 + direction].remove(wall)
+            temp_state[5].remove(action)
             context[next_]['goal_cut'].add(action)
             return False
         # TODO: may be better if played only when making opponents path longer
-        new_state[5 + direction] = frozenset(temp_state[5 + direction])
-        new_state[3 + player] -= 1
+        state[5] = frozenset(temp_state[5])
+        state[3 + state[0]] -= 1
         context[next_]['path'] = new_opponent_path
-        args = (
-            new_state,
-            self.game.wall_board_size,
-            self.game.wall_board_positions,
-            wall
-        )
-        crossers_getters = {1: vertical_crossers, 0: horizontal_crossers}
-        new_crossers = crossers_getters[direction](*args)
-        for crosser in new_crossers:
-            context['crossers'].add(crosser)
-        context[next_]['blockers'] = self.game.blockers(
+        new_crossers = self.game.wall_crossers(action)
+        context['crossers'] = context['crossers'].union(new_crossers)
+        context[next_]['blockers'] = self.game.path_blockers(
             new_opponent_path,
             context['crossers'],
             context[next_]['goal_cut']
         )
-        new_state[0] = next_
+        state[0] = next_
         context['history'].append(action)
         return True
 
@@ -171,17 +158,9 @@ class HeuristicPlayer(PathPlayer):
         new_state = list(state)
 
         if not self.should_move(state, context):  # try place good wall
-            temp_state = new_state[:5] + [set(new_state[5]), set(new_state[6])]
+            temp_state = new_state[:5] + [set(new_state[5])]
             for action in self.good_blockers(context, player, next_):
-                success = self._try_good_wall_action(
-                    new_state,
-                    temp_state,
-                    context,
-                    player,
-                    next_,
-                    action,
-                )
-                if success:
+                if self._try_good_wall(new_state, temp_state, context, action):
                     return tuple(new_state)
             # TODO: is there something more to try?
 
@@ -228,8 +207,7 @@ class NetworkPlayer(Player):
         # TODO: add shortest path lengths for both players?
         return itertools.chain(
             state[:5],
-            [int(i in state[5]) for i in range(64)],
-            [int(i in state[6]) for i in range(64)],
+            [int(i in state[5]) for i in range(self.game.wall_moves)],
         )
 
 
