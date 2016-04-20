@@ -47,7 +47,54 @@ class Player(object):
         super(Player, self).__init__()
 
 
-class HeuristicPlayer(Player):
+class PathPlayer(Player):
+    def move_pawn(self, new_state, context, player, next_):
+        current_position = context[player]['path'].pop()
+        new_position = context[player]['path'][-1]
+        if new_position == new_state[1 + next_]:
+            if len(context[player]['path']) > 1:    # jump
+                context[player]['path'].pop()
+                new_position = context[player]['path'][-1]
+            else: # opponent occupies final position
+                final = context[player]['path'][-1]
+                new_path = self.game.shortest_path(
+                    new_state, player, set([final])
+                )
+                if new_path is None or len(new_path) != 3:
+                    context[player]['path'].append(current_position)
+                    if player == YELLOW:
+                        new_position = (
+                            current_position + self.game.move_deltas[UP]
+                        )
+                    else:
+                        new_position = (
+                            current_position + self.game.move_deltas[DOWN]
+                        )
+                    context[player]['path'].append(new_position)
+                else:   # ok to finish
+                    new_position = new_path[0]
+
+        move = self.game.delta_moves[new_position - current_position]
+
+        context['history'].append(self.game.wall_moves + move)
+        context[player]['goal_cut'].clear()
+        context[player]['blockers'] = self.game.blockers(
+            context[player]['path'],
+            context['crossers'],
+            context[player]['goal_cut']
+        )
+        new_state[1 + player] = new_position
+        new_state[0] = next_
+
+    def play(self, state, context):
+        player = state[0]
+        next_ = FOLLOWING_PLAYER[player]
+        new_state = list(state)
+        self.move_pawn(new_state, context, player, next_)
+        return tuple(new_state)
+
+
+class HeuristicPlayer(PathPlayer):
     def __init__(self, game, pawn_moves=0.6, **kwargs):
         super(HeuristicPlayer, self).__init__(game)
         self.pawn_moves = pawn_moves
@@ -108,44 +155,6 @@ class HeuristicPlayer(Player):
         new_state[0] = next_
         context['history'].append(action)
         return True
-
-    def move_pawn(self, new_state, context, player, next_):
-        current_position = context[player]['path'].pop()
-        new_position = context[player]['path'][-1]
-        if new_position == new_state[1 + next_]:
-            if len(context[player]['path']) > 1:    # jump
-                context[player]['path'].pop()
-                new_position = context[player]['path'][-1]
-            else: # opponent occupies final position
-                final = context[player]['path'][-1]
-                new_path = self.game.shortest_path(
-                    new_state, player, set([final])
-                )
-                if new_path is None or len(new_path) != 3:
-                    context[player]['path'].append(current_position)
-                    if player == YELLOW:
-                        new_position = (
-                            current_position + self.game.move_deltas[UP]
-                        )
-                    else:
-                        new_position = (
-                            current_position + self.game.move_deltas[DOWN]
-                        )
-                    context[player]['path'].append(new_position)
-                else:   # ok to finish
-                    new_position = new_path[0]
-
-        move = self.game.delta_moves[new_position - current_position]
-
-        context['history'].append(self.game.wall_moves + move)
-        context[player]['goal_cut'].clear()
-        context[player]['blockers'] = self.game.blockers(
-            context[player]['path'],
-            context['crossers'],
-            context[player]['goal_cut']
-        )
-        new_state[1 + player] = new_position
-        new_state[0] = next_
 
     def play(self, state, context):
         """
@@ -292,14 +301,6 @@ class QlearningNetworkPlayer(NetworkPlayer):
         self.perceptron.propagate_backward(old_activations, desired_output)
 
 
-# from core import (
-#     YELLOW, GREEN, GOAL_ROW, WALL_BOARD_SIZE, STARTING_WALL_COUNT_2_PLAYERS,
-#     pawn_legal_moves, current_pawn_position, wall_legal_moves,
-#     is_correct_wall_move, adjacent_spaces_not_blocked, is_occupied,
-#     PLAYER_UTILITIES,
-# )
-# 
-# 
 # MAX_NUMBER_OF_CHOICES = 2 * (WALL_BOARD_SIZE ** 2)
 # # MAX_MISSING_CHOICES = 4 + 2 * 3 * STARTING_WALL_COUNT_2_PLAYERS
 # # MIN_NUMBER_OF_CHOICES_WITH_WALLS = MAX_NUMBER_OF_CHOICES - MAX_MISSING_CHOICES

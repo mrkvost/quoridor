@@ -20,6 +20,7 @@ class Network(Base):
     alpha = Column(Float, nullable=False)
     momentum = Column(Float, nullable=False)
     out_sigmoided = Column(Boolean, nullable=False)
+    games_played = Column(Integer, default=0, nullable=False)
 
     def __str__(self):
         name = self.name

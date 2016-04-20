@@ -27,7 +27,7 @@ from core import (
 
 )
 
-from players import HeuristicPlayer, QlearningNetworkPlayer
+from players import PathPlayer, HeuristicPlayer, QlearningNetworkPlayer
 from db import make_db_session
 # from players import RandomPlayer, RandomPlayerWithPath, QLPlayer
 
@@ -89,11 +89,16 @@ MENU_CHOICE = {
     },
 
     9: {
-        'mode': 'train',
+        'mode': 'train_vs_heuristic',
         'text': 'Train QLNN vs Heuristic',
     },
 
     10: {
+        'mode': 'train_vs_path',
+        'text': 'Train QLNN vs Path',
+    },
+
+    11: {
         'mode': 'quit',
         'text': 'Quit',
     },
@@ -601,6 +606,9 @@ class ConsoleGame(Quoridor2):
             elif 'heuristic' == context[state[0]]['type']:
                 state = context[state[0]]['player'](state, context)
                 continue
+            elif 'path' == context[state[0]]['type']:
+                state = context[state[0]]['player'](state, context)
+                continue
             else:
                 raise NotImplemented()
 
@@ -655,43 +663,39 @@ class ConsoleGame(Quoridor2):
             return False
         return True
 
-    def handle_training(self, state, context):
-        players = {
-            'qlnn': QlearningNetworkPlayer(self),
-            'heuristic': HeuristicPlayer(self),
-        }
-        game_counter = 0
-        qlnn_wins = 0
-        show_and_save_cycle = 100
+    def handle_training(self, players, show_save_cycle=100,
+                        display_games=False):
+        game_counter = qlnn_wins = 0
         db_session = make_db_session('data.db')
+        start = datetime.datetime.now()
+        type_keys = [type_ for type_ in players]
+        type_base = {
+            0: {YELLOW: type_keys[0], GREEN: type_keys[1]},
+            1: {YELLOW: type_keys[1], GREEN: type_keys[0]},
+        }
+        OVERALL_FMT = (
+            u'\rgames:{games: 4}| seconds:{seconds: 5}s| s./game:{pace}s| '
+            u'ql/he: {ql: 3} /{he: 4}|  '
+        )
         try:
-            start = datetime.datetime.now()
             while True:
-                color = game_counter % 2
-                types = {color: 'qlnn', int(not color): 'heuristic'}
-                show_and_save = not game_counter % show_and_save_cycle
-                qlnn_win = self.train_game(players, types, show_and_save)
+                types = type_base[game_counter % 2]
+                show_and_save = not game_counter % show_save_cycle
+                display_game = show_and_save and display_games
+                qlnn_win = self.train_game(players, types, display_game)
                 qlnn_wins += int(qlnn_win)
                 game_counter += 1
-                if not show_and_save:
-                    delta = datetime.datetime.now() - start
-                    seconds = int(delta.total_seconds())
-                    message = (
-                        u'\r'
-                        u'games:{games: 4} | '
-                        u'seconds:{seconds: 5}s | '
-                        u'sec./game:{pace}s | '
-                        u'ql/he: {ql: 3} /{he: 4} '
-                        '     '
-                    ).format(
-                        seconds=seconds,
-                        games=game_counter,
-                        pace=int(0.5 + (float(seconds) / game_counter)),
-                        ql=qlnn_wins,
-                        he=game_counter - qlnn_wins,
-                    )
-                    sys.stdout.write(message)
-                    sys.stdout.flush()
+                delta = datetime.datetime.now() - start
+                seconds = int(delta.total_seconds())
+                message = OVERALL_FMT.format(
+                    seconds=seconds,
+                    games=game_counter,
+                    pace=int(0.5 + (float(seconds) / game_counter)),
+                    ql=qlnn_wins,
+                    he=game_counter - qlnn_wins,
+                )
+                sys.stdout.write(message)
+                sys.stdout.flush()
                 if show_and_save:
                     sys.stdout.write('saving weights into database... ')
                     sys.stdout.flush()
@@ -700,15 +704,30 @@ class ConsoleGame(Quoridor2):
         except KeyboardInterrupt:
             pass
         db_session.close()
-
         return 'quit'
+
+    def train_path(self, state, context):
+        players = {
+            'qlnn': QlearningNetworkPlayer(self),
+            # 'heuristic': HeuristicPlayer(self),
+            'path': PathPlayer(self),
+        }
+        self.handle_training(players, show_save_cycle=1000)
+
+    def train_heuristic(self, state, context):
+        players = {
+            'qlnn': QlearningNetworkPlayer(self),
+            'heuristic': HeuristicPlayer(self),
+        }
+        self.handle_training(players, display_games=True)
 
     def run(self):
         game_mode = 'menu'
         handle_mode = {
             'menu': self.handle_menu,
             'game': self.handle_game,
-            'train': self.handle_training,
+            'train_vs_path': self.train_path,
+            'train_vs_heuristic': self.train_heuristic,
         }
         state = self.initial_state()
         context = self.make_context(state)
@@ -744,8 +763,10 @@ class ConsoleGame(Quoridor2):
                 continue
             elif mode == 'quit':
                 return 'quit'
-            elif mode == 'train':
-                return 'train'
+            elif mode == 'train_vs_path':
+                return 'train_vs_path'
+            elif mode == 'train_vs_heuristic':
+                return 'train_vs_heuristic'
 
             # new game or watch, or later TODO: load game
             for key, value in self.make_context(self.initial_state()).items():
@@ -754,6 +775,9 @@ class ConsoleGame(Quoridor2):
             if mode.startswith('human'):
                 context[YELLOW]['type'] = 'human'
                 context[YELLOW]['player'] = self.human_play
+            elif mode.startswith('path'):
+                context[YELLOW]['type'] = 'path'
+                context[YELLOW]['player'] = PathPlayer(self)
             elif mode.startswith('heuristic'):
                 context[YELLOW]['type'] = 'heuristic'
                 context[YELLOW]['player'] = HeuristicPlayer(self)
@@ -761,11 +785,14 @@ class ConsoleGame(Quoridor2):
                 context[YELLOW]['type'] = 'qlnn'
                 context[YELLOW]['player'] = QlearningNetworkPlayer(self)
             else:
-                raise NotImplemented('unknown mode %' % mode)
+                raise NotImplementedError('unknown mode %s' % mode)
 
             if mode.endswith('human'):
                 context[GREEN]['type'] = 'human'
                 context[GREEN]['player'] = self.human_play
+            elif mode.endswith('path'):
+                context[GREEN]['type'] = 'path'
+                context[GREEN]['player'] = PathPlayer(self)
             elif mode.endswith('heuristic'):
                 context[GREEN]['type'] = 'heuristic'
                 context[GREEN]['player'] = HeuristicPlayer(self)
@@ -773,7 +800,7 @@ class ConsoleGame(Quoridor2):
                 context[GREEN]['type'] = 'qlnn'
                 context[GREEN]['player'] = QlearningNetworkPlayer(self)
             else:
-                raise NotImplemented('unknown mode %' % mode)
+                raise NotImplementedError('unknown mode %' % mode)
 
             return 'game'
 
