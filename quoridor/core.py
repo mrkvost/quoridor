@@ -367,28 +367,3 @@ class Quoridor2(object):
     #         state['placed_walls'][direction].remove(position)
     #         state['walls'][last_player] += 1
     #     state['on_move'] = last_player
-
-# def wall_affects(state, direction, wall_position):
-#     yield direction, wall_position
-#     yield direction, add_direction(wall_position, direction)
-#     yield direction, substract_direction(wall_position, direction)
-#     yield ORTOGONAL_DIRECTION[direction], wall_position
-
-
-# def wall_legal_moves(state):
-#     if not state['walls'][state['on_move']]:
-#         return
-#     # TODO: what to do with leaving the paths to goals?
-#     result_walls = {
-#         HORIZONTAL: set(ALL_WALL_POSITIONS),
-#         VERTICAL: set(ALL_WALL_POSITIONS),
-#     }
-#     for dimension, walls in state['placed_walls'].items():
-#         for position in walls:
-#             affected = wall_affects(state, dimension, position)
-#             for direction, position in affected:
-#                 result_walls[direction].discard(position)
-#
-#     for direction, walls in result_walls.items():
-#         for wall in walls:
-#             yield (direction, wall)

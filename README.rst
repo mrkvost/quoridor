@@ -46,13 +46,13 @@ or for developers::
 
 RUN
 ===
-To run the game in console mode with linux terminal colors on::
+To run the game in console mode::
+
+    (e) $ qc
+
+To run without colors::
 
     (e) $ qc -c
-
-To run without clearing the console output::
-
-    (e) $ qc -w
 
 To display help::
 

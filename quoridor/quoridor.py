@@ -10,7 +10,7 @@ import datetime
 import collections
 # import traceback
 
-# from optparse import OptionParser
+from optparse import OptionParser
 
 from core import (
     YELLOW,
@@ -436,6 +436,9 @@ class ConsoleGame(Quoridor2):
                     base[position] = name[offset - 1]
 
     def display_on_console(self, state, context):
+        # TODO: menu possibilities
+        # TODO: history list
+        # TODO: winner info
         base = copy.deepcopy(self.output_base)
         self.walls_to_base(state, base)
         self.pawns_to_base(state, base)
@@ -572,10 +575,6 @@ class ConsoleGame(Quoridor2):
         while not self.is_terminal(state):
             # TODO: avoid endless loop with move counter?
             #       e.g. assert len(context['history']) < 1000
-            # TODO: when training network:
-            #       1. save network to db every 50 games
-            #       2. print output of the game after save
-            #       3. print game counter
             self.display_on_console(state, context)
             # print_context_and_state(context, state)
             if 'human' == context[state[0]]['type']:
@@ -837,54 +836,6 @@ class ConsoleGame(Quoridor2):
 #         base[Vector(row=row, col=BOARD_WIDTH + offset)] = char
 #
 #
-# def pawn_distance_from_goal(state, color):
-#     starting_position = state['pawns'][color]
-#     goal_row = GOAL_ROW[color]
-#     walls = state['placed_walls']
-#
-#     to_visit = collections.deque([(starting_position, 0)])
-#     visited = set()
-#
-#     while to_visit:
-#         position, distance = to_visit.popleft()
-#         if position in visited:
-#             continue
-#         if position.row == goal_row:
-#             return distance
-#         visited.add(position)
-#
-#         right_distance = distance % 2 == int(color == state['on_move'])
-#         for possible in adjacent_spaces_not_blocked(state, position):
-#             jumps = right_distance and possible in state['pawns'].values()
-#             if jumps:
-#                 to_visit.append((possible, distance))
-#             else:
-#                 to_visit.append((possible, distance + 1))
-#
-#     error_msg_fmt = u'{color_name} player can not reach goal row!'
-#     color_name = PLAYER_COLOR_NAME[color].upper()
-#     raise Exception(error_msg_fmt.format(color_name=color_name))
-#
-#
-# def player_status_to_base(state, base):
-#     # TODO: WINNER info
-#     for n, color in enumerate(state['pawns']):
-#         row = n * 5 + 2
-#         color_name = PLAYER_COLOR_NAME[color].upper()
-#
-#         line = color_name + u' player'
-#         if color == state['on_move']:
-#             line += ' - now playing'
-#         status_line_to_base(row, line, base)
-#
-#         status_line_to_base(row + 1, PLAYER_GOAL_INFO[color], base)
-#
-#         walls = unicode(state['walls'][color])
-#         status_line_to_base(row + 2, u' Walls: ' + walls, base)
-#
-#         line = u' Dist: ' + unicode(pawn_distance_from_goal(state, color))
-#         status_line_to_base(row + 3, line, base)
-#
 #
 # def history_to_base(base, history):
 #     status_line_to_base(12, 'HISTORY:', base)
@@ -893,44 +844,6 @@ class ConsoleGame(Quoridor2):
 #         action_type, position = action
 #         move = ACTION_TYPE[action_type](row=position.row, col=position.col)
 #         status_line_to_base(row, ' ' + repr(move), base)
-#
-# def status_to_base(state, history, base):
-#     moves_made = len(history)
-#     line = u'Moves made: ' + unicode(moves_made)
-#     status_line_to_base(0, line, base)
-#
-#     player_status_to_base(state, base)
-#
-#     history_to_base(base, history)
-#
-#     # info: Invalid move, etc...
-#     # menu possibilities
-#     # input
-#
-#
-# def display_on_console(state, colors_on, history=None, message=None,
-#                        with_clear=True):
-#     if history is None:
-#         history = []
-#     if with_clear:
-#         clear_console()
-#     base = make_base()
-#     for direction, walls in state['placed_walls'].items():
-#         for wall in walls:
-#             wall_to_base(direction, wall, base, colors_on=colors_on)
-#     for color, pawn in state['pawns'].items():
-#         pawn_to_base(pawn, color, base, colors_on=colors_on)
-#
-#     status_to_base(state, history, base)
-#
-#     print_base(base)
-#
-#     if message is not None:
-#         print message
-#
-#
-# class InputError(Exception):
-#     pass
 #
 #
 # COLUMN_LETTERS = u'abcdefghi'
@@ -961,45 +874,6 @@ class ConsoleGame(Quoridor2):
 # ACTION_MOVE = 'move'
 # ACTION_UNDO = 'undo'
 #
-#
-# def parse_input():
-#     try:
-#         user_input = raw_input('Enter choice:')
-#     except (EOFError, KeyboardInterrupt, SystemExit):
-#         return ACTION_END, None
-#
-#     match = UNDO_INPUT_RE.match(user_input)
-#     if match is not None:
-#         return ACTION_UNDO, None
-#
-#     match = WALL_INPUT_RE.match(user_input)
-#     if match is not None:
-#         direction, row, col = match.groups(0)
-#         return ACTION_MOVE, {
-#             'type': 'wall',
-#             'direction': INPUT_DIRECTIONS[direction],
-#             'position': Vector(
-#                 row=int(row),
-#                 col=COLUMN_LETTERS.find(col.lower())
-#             ),
-#         }
-#
-#     match = MOVE_INPUT_RE.match(user_input)
-#     if match is not None:
-#         row, col = match.groups(0)
-#         return ACTION_MOVE, {
-#             'type': 'pawn',
-#             'position': Vector(
-#                 row=int(row),
-#                 col=COLUMN_LETTERS.find(col.lower())
-#             ),
-#         }
-#
-#     match = QUIT_INPUT_RE.match(user_input)
-#     if match is not None:
-#         return ACTION_END, None
-#
-#     return ACTION_UNKNOWN, None
 #
 #
 # def qlearn(with_clear=True):
@@ -1065,12 +939,6 @@ class ConsoleGame(Quoridor2):
 #
 #
 # def console_run(options):
-#     colors_on = options.colors_on
-#     if os.getenv('ANSI_COLORS_DISABLED') is not None:
-#         colors_on = False
-#
-#     game = Quoridor2()
-#     state = game.initial_state()
 #
 #     try:
 #         if options.random:
@@ -1082,108 +950,22 @@ class ConsoleGame(Quoridor2):
 #     except (EOFError, KeyboardInterrupt, SystemExit):
 #         pass
 #     finally:
+#         # TODO: look:
 #         if traceback.format_exc() != 'None\n':
 #             traceback.print_exc()
-#
-#     if options.example:
-#         random_pawn_positions(game, state)
-#         random_walls(game, state)
-#         display_on_console(state, colors_on, with_clear=options.with_clear)
-#         return
-#
-#     message = None
-#     history = []
-#     while not game.is_terminal(state):
-#         display_on_console(
-#             state,
-#             colors_on,
-#             history=history,
-#             message=message,
-#             with_clear=options.with_clear,
-#         )
-#         message = None
-#         action_type, action_info = parse_input()
-#         if action_type == ACTION_END:
-#             break
-#         elif action_type == ACTION_UNDO:
-#             # print history
-#             if history:
-#                 game.undo(state, history.pop())
-#             else:
-#                 message = 'No history to undo.'
-#         elif action_type == ACTION_MOVE:
-#             try:
-#                 action = (
-#                     action_info.get('direction'),
-#                     action_info['position']
-#                 )
-#                 if action_info['type'] == 'wall':
-#                     game.execute_action(state, action)
-#                     history.append(action)
-#                 else:
-#                     history_position = current_pawn_position(state)
-#                     game.execute_action(state, action)
-#                     history.append((None, history_position))
-#             except InvalidMove as e:
-#                 message = e.message
-#         else:
-#             # assert action_info['action'] == ACTION_UNKNOWN
-#             message = 'Wrong input. (Examples: wh1e, wv1e, p1e, 1e, quit, q)'
-#
-#     if game.is_terminal(state):
-#         display_on_console(state, colors_on, with_clear=options.with_clear)
-#         print PLAYER_COLOR_NAME[FOLLOWING_PLAYER[state['on_move']]] + ' wins!'
-#
-#
-# def main():
-#     parser = OptionParser()
-#     parser.add_option(
-#         '-c', '--colors', dest='colors_on', default=False, action='store_true',
-#         help='Enable color output in console mode. Disabled by default.'
-#     )
-#
-#     parser.add_option(
-#         '-e', '--example', dest='example', default=False, action='store_true',
-#         help=(
-#             'In console mode, create random board position display it and end.'
-#             ' Serves for debugging.'
-#         )
-#     )
-#
-#     parser.add_option(
-#         '-r', '--random', dest='random', default=False, action='store_true',
-#         help=(
-#             'In console mode, play with random playes.'
-#         )
-#     )
-#
-#     parser.add_option(
-#         '-w', '--withot-clear-console', dest='with_clear', default=True, action='store_false',
-#         help=(
-#             'Do not clear console on each move.'
-#         )
-#     )
-#
-#     parser.add_option(
-#         '-q', '--qlearn', dest='qlearn', default=False, action='store_true',
-#         help=(
-#             'Train QPlayer.'
-#         )
-#     )
-#
-#     options, args = parser.parse_args()
-#     console_run(options)
-
-
-def manual_test():
-    game = ConsoleGame(console_colors=True)
-    state = game.initial_state()
-    # state = (GREEN, 30, 9, 3, 3, frozenset([3, 6]), frozenset([18, 27]))
-    game.display_on_console(state)
 
 
 def main():
-    # manual_test()
-    # return
-    game = ConsoleGame(console_colors=True)
+    parser = OptionParser()
+    parser.add_option(
+        '-c', '--colors', dest='colors_on', default=True, action='store_false',
+        help='Disable color output in console mode. Enabled by default.'
+    )
+    options, args = parser.parse_args()
+
+    colors_on = options.colors_on
+    if os.getenv('ANSI_COLORS_DISABLED') is not None:
+        colors_on = False
+
+    game = ConsoleGame(console_colors=colors_on)
     game.run()
