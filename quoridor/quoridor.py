@@ -660,6 +660,7 @@ class ConsoleGame(Quoridor2):
             u'\rgames:{games: 4}| sec.:{seconds: 5}s| sec./game:{pace}s| '
             u'win/loses: {won: 3} /{lost: 4}|  '
         )
+        qlnn = players['qlnn']
         try:
             while True:
                 types = type_base[game_counter % 2]
@@ -668,6 +669,9 @@ class ConsoleGame(Quoridor2):
                 qlnn_win = self.train_game(players, types, display_game)
                 qlnn_wins += int(qlnn_win)
                 game_counter += 1
+                qlnn.perceptron.exploration_probability = (
+                    0.1 * (600000 - game_counter) / 600000
+                )
                 delta = datetime.datetime.now() - start
                 seconds = int(delta.total_seconds())
                 message = OVERALL_FMT.format(

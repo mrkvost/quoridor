@@ -6,6 +6,7 @@ BIAS_INPUT = -1
 LEARNING_RATE_DEFAULT = 0.1
 WEIGHT_RANGE_DEFAULT = 0.5
 MOMENTUM_DEFAULT = 0.8
+EXPLORATION_PROBABILITY_DEFAULT = 0
 
 
 def sigmoid(z):
@@ -107,7 +108,8 @@ class MLMCPerceptron(object):
     """Multi-layer multi-class perceptron."""
 
     def __init__(self, sizes=None, weights=None, momentum=MOMENTUM_DEFAULT,
-                 alpha=LEARNING_RATE_DEFAULT, out_sigmoided=True):
+                 alpha=LEARNING_RATE_DEFAULT, out_sigmoided=True,
+                 exploration_probability=EXPLORATION_PROBABILITY_DEFAULT):
         if sizes is not None:
             assert len(sizes) > 1, (
                 "At least sizes of input and output layer should be defined."
@@ -122,6 +124,7 @@ class MLMCPerceptron(object):
         self.alpha = alpha
         self.momentum = momentum
         self.out_sigmoided = out_sigmoided
+        self.exploration_probability = exploration_probability
     # if name is None:
     #     name = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 

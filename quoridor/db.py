@@ -21,6 +21,7 @@ class Network(Base):
     momentum = Column(Float, nullable=False)
     out_sigmoided = Column(Boolean, nullable=False)
     games_played = Column(Integer, default=0, nullable=False)
+    exploration_probability = Column(Float, default=0, nullable=False)
 
     def __str__(self):
         name = self.name
@@ -113,6 +114,7 @@ def db_save_network(db_session, perceptron, name):
         alpha=perceptron.alpha,
         momentum=perceptron.momentum,
         out_sigmoided=perceptron.out_sigmoided,
+        exploration_probability=perceptron.exploration_probability,
     )
     db_session.add(network)
     db_session.commit()
@@ -157,6 +159,7 @@ def db_load_network(db_session, network_name):
         out_sigmoided=network.out_sigmoided,
         momentum=network.momentum,
         weights=weights,
+        exploration_probability=network.exploration_probability,
     )
     return network_attribues
 

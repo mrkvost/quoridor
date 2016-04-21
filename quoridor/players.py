@@ -6,6 +6,7 @@ import random
 import itertools
 import collections
 
+from sqlalchemy.orm.exc import NoResultFound
 from core import (
     YELLOW,
     GREEN,
@@ -27,6 +28,15 @@ from db import (
     db_update_network,
 )
 from ai import MLMCPerceptron
+
+
+def print_context_and_state(context, state):
+    print 'context history:', context['history']
+    print 'context len(crossers):', len(context['crossers'])
+    print 'context crossers:', context['crossers']
+    print 'context yellow:', context[YELLOW]
+    print 'context green:', context[GREEN]
+    print 'state:', state
 
 
 class Player(object):
@@ -172,22 +182,28 @@ class NetworkPlayer(Player):
     SIZES_PATTERN = r'\d+(_\d+)+'
     SIZES_NAME_RE = re.compile(SIZES_PATTERN)
 
-    def __init__(self, game, db_name, create=False):
+    def __init__(self, game, db_name):
         super(NetworkPlayer, self).__init__(game)
 
         self.db_name = db_name
         db_session = make_db_session('data.db')     # TODO: fixed/variable?
-        if create:
-            assert self.SIZES_NAME_RE.match(db_name)
-            sizes = [int(size) for size in db_name.split('_')]
-            self.perceptron = MLMCPerceptron(sizes)
-            db_save_network(db_session, self.perceptron, name=self.db_name)
-        else:
-            self.load_from_db(db_session)
+        self.load_from_db(db_session)
 
     def load_from_db(self, db_session):
-        network_attributes = db_load_network(db_session, self.db_name)
-        self.perceptron = MLMCPerceptron(**network_attributes)
+        try:
+            network_attributes = db_load_network(db_session, self.db_name)
+            self.perceptron = MLMCPerceptron(**network_attributes)
+        except NoResultFound:
+            print 'Network {name} not found in db. Creating new...',
+            assert self.SIZES_NAME_RE.match(self.db_name)
+            sizes = [int(size) for size in self.db_name.split('_')]
+            self.perceptron = MLMCPerceptron(
+                sizes,
+                alpha=0.01,
+                exploration_probability=0.1,
+            )
+            db_save_network(db_session, self.perceptron, name=self.db_name)
+            print 'created'
 
     def update_in_db(self, db_session):
         db_update_network(db_session, self.db_name, self.perceptron)
@@ -233,16 +249,31 @@ class QlearningNetworkPlayer(NetworkPlayer):
         q_values_to_action = self.ORDER[state[0]]([
             (value, action) for action, value in enumerate(q_values)
         ])
-        for value, action in q_values_to_action:
-            try:
-                new_state = self.game.execute_action(state, action)
-                context['history'].append(action)
-                if not self.game.is_terminal(new_state):
-                    self.game.update_context(new_state, context)
-                break
-            except InvalidMove:
-                # TODO: add to desired output vector with bad reward?
-                pass
+        explore = self.perceptron.exploration_probability
+        if explore and explore > random.random():
+            while True:
+                action = random.choice(range(self.game.all_moves))
+                try:
+                    new_state = self.game.execute_action(state, action)
+                    context['history'].append(action)
+                    if not self.game.is_terminal(new_state):
+                        self.game.update_context(new_state, context)
+                    break
+                except InvalidMove:
+                    # TODO: add to desired output vector with bad reward?
+                    pass
+
+        else:
+            for value, action in q_values_to_action:
+                try:
+                    new_state = self.game.execute_action(state, action)
+                    context['history'].append(action)
+                    if not self.game.is_terminal(new_state):
+                        self.game.update_context(new_state, context)
+                    break
+                except InvalidMove:
+                    # TODO: add to desired output vector with bad reward?
+                    pass
         return new_state
 
     def invalid_actions(self, state, context):
