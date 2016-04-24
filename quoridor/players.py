@@ -194,7 +194,8 @@ class NetworkPlayer(Player):
             network_attributes = db_load_network(db_session, self.db_name)
             self.perceptron = MLMCPerceptron(**network_attributes)
         except NoResultFound:
-            print 'Network {name} not found in db. Creating new...',
+            message_fmt = 'Network {name!r} not found in db. Creating new...'
+            print message_fmt.format(name=self.db_name),
             assert self.SIZES_NAME_RE.match(self.db_name)
             sizes = [int(size) for size in self.db_name.split('_')]
             self.perceptron = MLMCPerceptron(
