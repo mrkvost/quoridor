@@ -290,27 +290,6 @@ class QlearningNetworkPlayer(NetworkPlayer):
             invalid_pawn_moves,
         )
 
-    def desired_output_vector(self, player, invalid_actions, old_activations,
-                              last_action, new_state, new_activations):
-        reward = 100 + player * (-200)
-        desired_output_vector = copy.deepcopy(old_activations[-1])
-
-        for action in invalid_actions:
-            desired_output_vector[action] -= reward
-
-        if player == YELLOW:
-            best_value = max(new_activations[-1])
-        else:
-            best_value = min(new_activations[-1])
-        desired_output_vector[last_action] = best_value
-
-        if self.game.is_terminal(new_state):
-            desired_output_vector[last_action] += reward
-        return desired_output_vector
-
-    def learn(self, old_activations, desired_output):
-        self.perceptron.propagate_backward(old_activations, desired_output)
-
 
 # MAX_NUMBER_OF_CHOICES = 2 * (WALL_BOARD_SIZE ** 2)
 # # MAX_MISSING_CHOICES = 4 + 2 * 3 * STARTING_WALL_COUNT_2_PLAYERS

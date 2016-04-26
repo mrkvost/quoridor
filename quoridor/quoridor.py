@@ -29,6 +29,8 @@ from db import make_db_session
 # from players import RandomPlayer, RandomPlayerWithPath, QLPlayer
 
 
+REWARD = 100
+
 BOARD_BORDER_THICKNESS = 1
 
 FIELD_INNER_HEIGHT_DEFAULT = 3
@@ -131,6 +133,23 @@ def print_context_and_state(context, state):
     print 'context yellow:', context[YELLOW]
     print 'context green:', context[GREEN]
     print 'state:', state
+
+
+def desired_output(player, invalid_actions, activations, last_action,
+                   is_terminal, new_values):
+    reward = (1 - player * 2) * REWARD
+    output = copy.deepcopy(activations[-1])
+
+    for action in invalid_actions:
+        output[action] -= reward
+
+    # update qvalue for current action
+    best_value = max(new_values) if player else min(new_values)
+    if is_terminal:
+        best_value += reward
+    output[last_action] = best_value
+
+    return output
 
 
 class ConsoleGame(Quoridor2):
@@ -606,10 +625,11 @@ class ConsoleGame(Quoridor2):
             if type_ == 'qlnn':
                 qlnn_color = color
         qlnn = players['qlnn']
-        old_activations = qlnn.activations_from_state(state)
+        activations = qlnn.activations_from_state(state)
         if show_and_save:
             print
-        while not self.is_terminal(state):
+        is_terminal = False
+        while not is_terminal:
             if len(context['history']) > 300:
                 print '\nGame too long:', context['history'], '\n'
                 break
@@ -619,23 +639,24 @@ class ConsoleGame(Quoridor2):
 
             invalid_actions = qlnn.invalid_actions(state, context)
             new_state = context[state[0]]['player'](state, context)
+            is_terminal = self.is_terminal(new_state)
 
             if context[state[0]]['type'] == 'qlnn':
                 new_activations = qlnn.activations
             else:
                 new_activations = qlnn.activations_from_state(new_state)
 
-            desired_output = qlnn.desired_output_vector(
+            desired = desired_output(
                 state[0],
                 invalid_actions,
-                old_activations,
+                activations,
                 context['history'][-1],
-                new_state,
-                new_activations,
+                is_terminal,
+                new_activations[-1],
             )
-            qlnn.learn(old_activations, desired_output)
+            qlnn.perceptron.propagate_backward(activations, desired)
 
-            old_activations = new_activations
+            activations = new_activations
             state = new_state
 
         if show_and_save:

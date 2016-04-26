@@ -1,16 +1,15 @@
+import re
+import os
+import sys
+import time
+import datetime
+import numpy as np
+
 from quoridor.core import (
     YELLOW,
     GREEN,
+    Quoridor2,
 )
-
-
-def print_number_table(size):
-    count = size ** 2
-    fmt = '{{:{}}}'.format(len(str(count-1)))
-    for i in range(count):
-        print fmt.format(i),
-        if (i + 1) % size == 0:
-            print
 
 
 COMBINED_TABLE_9 = """\
@@ -34,6 +33,15 @@ COMBINED_TABLE_9 = """\
 | 72  |  73  |  74  |  75  |  76  |  77  |  78  |  79  |  80  |
 ---------------------------------------------------------------
 """
+
+
+def print_number_table(size):
+    count = size ** 2
+    fmt = '{{:{}}}'.format(len(str(count-1)))
+    for i in range(count):
+        print fmt.format(i),
+        if (i + 1) % size == 0:
+            print
 
 
 # TODO: def print_combined_table(size):
@@ -71,3 +79,6 @@ def print_console_colors():
         print u'  \x1b[1m\x1b[{color}m CONSOLE COLOR \x1b[0m'.format(
             color=str(color)
         )
+
+
+print COMBINED_TABLE_9
