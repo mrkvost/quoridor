@@ -4,11 +4,14 @@ import os
 import re
 import sys
 import copy
+import numpy
+import random
 import datetime
 import collections
 
 from optparse import OptionParser
 
+from commonsettings import DB_PATH
 from db.utils import make_db_session
 from ai.players import (
     HumanPlayer,
@@ -29,7 +32,7 @@ from core.game import (
 from core.context import QuoridorContext
 
 
-REWARD = 100
+numpy.set_printoptions(suppress=True)
 
 BOARD_BORDER_THICKNESS = 1
 
@@ -120,14 +123,15 @@ OVERALL_FMT = (
     u'won/lost: {won: 3} /{lost: 4}|  '
 )
 
+REWARD = 1000
+
 
 def desired_output(player, invalid_actions, activations, last_action,
                    is_terminal, new_values):
     reward = (1 - player * 2) * REWARD
     output = copy.deepcopy(activations[-1])
-
-    for action in invalid_actions:
-        output[action] -= reward
+    # for action in invalid_actions:
+    #     output[action] -= reward
 
     # update qvalue for current action
     best_value = max(new_values) if player else min(new_values)
@@ -499,9 +503,7 @@ class ConsoleGame(Quoridor2):
         return 'menu'
 
     def train_game(self, context, players, display):
-        context.reset(players=players)
         qlnn = players[YELLOW]['player']    # qlnn is only YELLOW!
-        activations = qlnn.activations_from_state(context.state)
         if display:
             print
         while not context.is_terminal:
@@ -512,30 +514,34 @@ class ConsoleGame(Quoridor2):
             if display:
                 self.display_on_console(context)
 
-            invalid_actions = context.invalid_actions
             player = context.state[0]
-            players[player]['player'](context)
-
             if context[player]['name'] == 'qlnn':
+                invalid_actions = context.invalid_actions
+                activations = qlnn.activations_from_state(context.state)
+                players[player]['player'](context)
                 new_activations = qlnn.activations
+                last_qlnn_action = context.last_action
+                desired = desired_output(
+                    player,
+                    invalid_actions,
+                    activations,
+                    last_qlnn_action,
+                    context.is_terminal,
+                    new_activations[-1],
+                )
+                qlnn.perceptron.propagate_backward(activations, desired)
             else:
-                new_activations = qlnn.activations_from_state(context.state)
-
-            desired = desired_output(
-                player,
-                invalid_actions,
-                activations,
-                context.last_action,
-                context.is_terminal,
-                new_activations[-1],
-            )
-            qlnn.perceptron.propagate_backward(activations, desired)
-            activations = new_activations
+                players[player]['player'](context)
 
         if display:
             self.display_on_console(context)
 
         if YELLOW == context.state[0]:
+            assert context.is_terminal
+            new_activations = qlnn.activations_from_state(context.state)
+            desired = copy.deepcopy(activations[-1])
+            desired[last_qlnn_action] -= REWARD
+            qlnn.perceptron.propagate_backward(activations, desired)
             return False
         return True
 
@@ -543,12 +549,24 @@ class ConsoleGame(Quoridor2):
                         display_games=False):
         game_counter = qlnn_wins = 0
         qlnn = players[YELLOW]['player']
-        db_session = make_db_session('data.db')
+        db_session = make_db_session(DB_PATH)
         start_time = datetime.datetime.now()
+        status_every = 50
+        states = (
+            (0, 67, 13, 10, 10, frozenset()),
+            (0, 58, 22, 10, 10, frozenset()),
+            (0, 49, 31, 10, 10, frozenset()),
+            (0, 40, 31, 10, 10, frozenset()),
+        )
         try:
             while True:
                 show_and_save = not (game_counter + 1) % show_save_cycle
                 display_game = show_and_save and display_games
+                context.reset(
+                    players=players,
+                    state=random.choice(states)
+                )
+                # context.reset(players=players)
                 win = int(self.train_game(context, players, display_game))
                 qlnn_wins += win
                 game_counter += 1
@@ -557,19 +575,20 @@ class ConsoleGame(Quoridor2):
                 )
                 delta_time = datetime.datetime.now() - start_time
                 seconds = int(delta_time.total_seconds())
-                message = OVERALL_FMT.format(
-                    seconds=seconds,
-                    games=game_counter,
-                    pace=(float(seconds) / game_counter),
-                    won=qlnn_wins,
-                    lost=game_counter - qlnn_wins,
-                )
-                sys.stdout.write(message)
-                sys.stdout.flush()
+                if not game_counter % status_every:
+                    message = OVERALL_FMT.format(
+                        seconds=seconds,
+                        games=game_counter,
+                        pace=(float(seconds) / game_counter),
+                        won=qlnn_wins,
+                        lost=game_counter - qlnn_wins,
+                    )
+                    sys.stdout.write(message)
+                    sys.stdout.flush()
                 if show_and_save:
                     sys.stdout.write('saving weights into database... ')
                     sys.stdout.flush()
-                    players['qlnn'].update_in_db(db_session)
+                    qlnn.update_in_db(db_session)
                     sys.stdout.write('saved\n')
         finally:
             db_session.close()

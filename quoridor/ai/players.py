@@ -306,9 +306,9 @@ class QlearningNetworkPlayer(NetworkPlayer):
         #       q_values have similar probability to be chosend to play?
         self.activations = self.activations_from_state(context.state)
         q_values = self.activations[-1]
-        q_values_to_action = self.ORDER[context.state[0]]([
+        q_values_to_action = list(sorted([
             (value, action) for action, value in enumerate(q_values)
-        ])
+        ], reverse=True))
         explore = self.perceptron.exploration_probability
         if explore and explore > random.random():
             while True:
