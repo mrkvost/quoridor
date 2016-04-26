@@ -7,4 +7,6 @@ thesis/document_src/*.log
 thesis/document_src/*.aux
 nose-*.egg/*
 numpy-*.egg/*
+SQLAlchemy-*.egg*
+funcsigs-*.egg*
 rpdb2.py

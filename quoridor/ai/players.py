@@ -1,16 +1,23 @@
 import re
 import abc
-import sys
-import copy
 import random
 import itertools
-import collections
 
 from sqlalchemy.orm.exc import NoResultFound
-from core import (
+
+from quoridor.commonsettings import DB_PATH
+from quoridor.ai.perceptron import MLMCPerceptron
+from quoridor.db.utils import (
+    make_db_session,
+    db_load_network,
+    db_save_network,
+    db_update_network,
+)
+from quoridor.core.game import (
     YELLOW,
     GREEN,
     FOLLOWING_PLAYER,
+
     UP,
     RIGHT,
     DOWN,
@@ -21,37 +28,88 @@ from core import (
     InvalidMove,
 )
 
-from db import (
-    make_db_session,
-    db_load_network,
-    db_save_network,
-    db_update_network,
-)
-from ai import MLMCPerceptron
-
-
-def print_context_and_state(context, state):
-    print 'context history:', context['history']
-    print 'context len(crossers):', len(context['crossers'])
-    print 'context crossers:', context['crossers']
-    print 'context yellow:', context[YELLOW]
-    print 'context green:', context[GREEN]
-    print 'state:', state
-
 
 class Player(object):
     __metaclass__ = abc.ABCMeta
 
-    def __call__(self, state, context):
-        return self.play(state, context)
-
-    @abc.abstractmethod
-    def play(self, state, context):
-        pass
+    def __call__(self, context):
+        return self.play(context)
 
     def __init__(self, game):
         self.game = game
         super(Player, self).__init__()
+
+
+class HumanPlayer(Player):
+    GAME_INPUT_PATTERN = (
+        r'(?i)'
+        r'(?P<type>menu|undo|quit|[hv]|[urdl]{1,2})?'
+        r'(?P<number>[-+]?\d+)?'
+        r'$'
+    )
+    GAME_INPUT_RE = re.compile(GAME_INPUT_PATTERN)
+
+    def __init__(self, game, messages=None, game_controls=None,
+                 fail_callback=None):
+        super(HumanPlayer, self).__init__(game)
+        self.messages = (
+            messages if messages else {'enter_choice': 'enter choice:'}
+        )
+        self.controls = (
+            game_controls if game_controls else set(['quit', 'unknown', 'undo'])
+        )
+        self.fail_callback = fail_callback
+
+    def play(self, context):
+        while True:
+            try:
+                action = self.get_human_action()
+                if action not in self.controls:
+                    context.update(action)
+                return action
+            except InvalidMove as e:
+                if self.fail_callback:
+                    self.fail_callback(context, action, e)
+
+    def get_human_action(self):
+        user_input = raw_input(self.messages['enter_choice']).strip()
+        if not user_input:
+            return 'unknown'
+
+        match = self.GAME_INPUT_RE.match(user_input)
+        if match is None:
+            return 'unknown'
+
+        data = match.groupdict()
+        # if not any([data.values()]):
+        #     return self._unknown('human_human')
+
+        if data['type'] is None:
+            if data['number'] is None:
+                return 'unknown'
+            action = int(data['number'])
+            if action in self.game.possible_game_actions:
+                return action
+            return 'unknown'
+
+        data['type'] = data['type'].lower()
+        if data['type'] in self.controls:
+            return data['type']
+        elif data['type'] in self.game.PAWN_MOVES:
+            return self.game.PAWN_MOVES[data['type']] + self.game.wall_moves
+        elif data['type'] not in ('h', 'v'):
+            return 'unknown'
+        elif data['number'] is None:
+            return 'unknown'
+
+        number = int(data['number'])
+        if data['type'] == 'h' and number >= self.game.wall_board_positions:
+            return 'unknown'
+
+        direction_offset = 0
+        if data['type'] == 'v':
+            direction_offset = self.game.wall_board_positions
+        return number + direction_offset
 
 
 class PathPlayer(Player):
@@ -83,7 +141,7 @@ class PathPlayer(Player):
 
         move = self.game.delta_moves[new_position - current_position]
 
-        context['history'].append(self.game.wall_moves + move)
+        context.history.append(self.game.wall_moves + move)
         context[player]['goal_cut'].clear()
         context[player]['blockers'] = self.game.path_blockers(
             context[player]['path'],
@@ -93,12 +151,12 @@ class PathPlayer(Player):
         new_state[1 + player] = new_position
         new_state[0] = next_
 
-    def play(self, state, context):
-        player = state[0]
+    def play(self, context):
+        player = context.state[0]
         next_ = FOLLOWING_PLAYER[player]
-        new_state = list(state)
+        new_state = list(context.state)
         self.move_pawn(new_state, context, player, next_)
-        return tuple(new_state)
+        context['state'] = tuple(new_state)
 
 
 class HeuristicPlayer(PathPlayer):
@@ -113,15 +171,15 @@ class HeuristicPlayer(PathPlayer):
                     if action not in context[next_]['goal_cut']:
                         yield action
 
-    def should_move(self, state, context):
+    def should_move(self, context):
         # TODO: is there heurisic for defending wall?
-        player = state[0]
+        player = context.state[0]
         next_ = FOLLOWING_PLAYER[player]
-        if not state[3 + player]:
+        if not context.state[3 + player]:
             return True     # no walls left
         elif len(context[player]['path']) == 2:
             return True     # last winning move
-        elif state[1 + player] in self.game.goal_positions[next_]:
+        elif context.state[1 + player] in self.game.goal_positions[next_]:
             return True     # on the first line is probably the beginning
         elif len(context[next_]['blockers']) > 2:
             # has enough time to block at least once in the future
@@ -153,7 +211,7 @@ class HeuristicPlayer(PathPlayer):
         context['history'].append(action)
         return True
 
-    def play(self, state, context):
+    def play(self, context):
         """
         choose between shortest path and wall
         updates context for effectiveness with action played
@@ -163,19 +221,20 @@ class HeuristicPlayer(PathPlayer):
         """
         # TODO: if state in self.openings... play by it
 
-        player = state[0]
+        player = context.state[0]
         next_ = FOLLOWING_PLAYER[player]
-        new_state = list(state)
+        new_state = list(context.state)
 
-        if not self.should_move(state, context):  # try place good wall
+        if not self.should_move(context):  # try place good wall
             temp_state = new_state[:5] + [set(new_state[5])]
             for action in self.good_blockers(context, player, next_):
                 if self._try_good_wall(new_state, temp_state, context, action):
-                    return tuple(new_state)
+                    context['state'] = tuple(new_state)
+                    return
             # TODO: is there something more to try?
 
         self.move_pawn(new_state, context, player, next_)
-        return tuple(new_state)
+        context['state'] = tuple(new_state)
 
 
 class NetworkPlayer(Player):
@@ -186,7 +245,7 @@ class NetworkPlayer(Player):
         super(NetworkPlayer, self).__init__(game)
 
         self.db_name = db_name
-        db_session = make_db_session('data.db')     # TODO: fixed/variable?
+        db_session = make_db_session(DB_PATH)     # TODO: fixed/variable?
         self.load_from_db(db_session)
 
     def load_from_db(self, db_session):
@@ -242,12 +301,12 @@ class QlearningNetworkPlayer(NetworkPlayer):
         activations = tuple(self.perceptron.propagate_forward(input_vector))
         return activations
 
-    def play(self, state, context):
+    def play(self, context):
         # TODO: when learning, should it be here any randomness? e.g. first few
         #       q_values have similar probability to be chosend to play?
-        self.activations = self.activations_from_state(state)
+        self.activations = self.activations_from_state(context.state)
         q_values = self.activations[-1]
-        q_values_to_action = self.ORDER[state[0]]([
+        q_values_to_action = self.ORDER[context.state[0]]([
             (value, action) for action, value in enumerate(q_values)
         ])
         explore = self.perceptron.exploration_probability
@@ -255,10 +314,7 @@ class QlearningNetworkPlayer(NetworkPlayer):
             while True:
                 action = random.choice(range(self.game.all_moves))
                 try:
-                    new_state = self.game.execute_action(state, action)
-                    context['history'].append(action)
-                    if not self.game.is_terminal(new_state):
-                        self.game.update_context(new_state, context)
+                    context.update(action)
                     break
                 except InvalidMove:
                     # TODO: add to desired output vector with bad reward?
@@ -267,171 +323,8 @@ class QlearningNetworkPlayer(NetworkPlayer):
         else:
             for value, action in q_values_to_action:
                 try:
-                    new_state = self.game.execute_action(state, action)
-                    context['history'].append(action)
-                    if not self.game.is_terminal(new_state):
-                        self.game.update_context(new_state, context)
+                    context.update(action)
                     break
                 except InvalidMove:
                     # TODO: add to desired output vector with bad reward?
                     pass
-        return new_state
-
-    def invalid_actions(self, state, context):
-        invalid_pawn_moves = [
-            move + 128
-            for move in range(12)
-            if not self.game.is_valid_pawn_move(state, move)
-        ]
-        return itertools.chain(
-            context['crossers'],
-            context[YELLOW]['goal_cut'],
-            context[GREEN]['goal_cut'],
-            invalid_pawn_moves,
-        )
-
-
-# MAX_NUMBER_OF_CHOICES = 2 * (WALL_BOARD_SIZE ** 2)
-# # MAX_MISSING_CHOICES = 4 + 2 * 3 * STARTING_WALL_COUNT_2_PLAYERS
-# # MIN_NUMBER_OF_CHOICES_WITH_WALLS = MAX_NUMBER_OF_CHOICES - MAX_MISSING_CHOICES
-# # MIN_NUMBER_OF_WALL_CHOICES = MIN_NUMBER_OF_CHOICES_WITH_WALLS - 2
-# 
-# MAX_INTEGER = sys.maxint - 1
-# 
-# 
-# ONE_THIRD = 1.0/3
-# 
-# 
-# class RandomPlayer(Player):
-#     def __init__(self, *args, **kwargs):
-#         self.pawn_move_probability = kwargs.pop(
-#             'pawn_move_probability',
-#             ONE_THIRD
-#         )
-#         super(RandomPlayer, self).__init__(*args, **kwargs)
-# 
-#     def _play_pawn(self, state):
-#         positions = list(
-#             pawn_legal_moves(state, current_pawn_position(state))
-#         )
-#         return (None, random.choice(positions))
-# 
-#     def _play_wall(self, state):
-#         random_number = random.randint(0, MAX_NUMBER_OF_CHOICES)
-#         actions = []
-#         for number, action in enumerate(wall_legal_moves(state)):
-#             if number == random_number:
-#                 action_type, position = action
-#                 if not is_correct_wall_move(state, action_type, position):
-#                     continue
-#                 return action
-#             else:
-#                 actions.append(action)
-# 
-#         while True:
-#             action = random.choice(actions)
-#             action_type, position = action
-#             if not is_correct_wall_move(state, action_type, position):
-#                 continue
-#             return action
-# 
-#     def play(self, state):
-#         if not state['walls'][state['on_move']] or (
-#                 random.random() < self.pawn_move_probability):
-#             return self._play_pawn(state)
-#         return self._play_wall(state)
-# 
-# 
-# class RandomPlayerWithPath(RandomPlayer):
-#     def _play_pawn(self, state):
-#         current_position = current_pawn_position(state)
-#         to_visit = collections.deque(
-#             adjacent_spaces_not_blocked(state, current_position)
-#         )
-#         visited = set([current_position])
-#         paths = {}
-#         for position in set(to_visit):
-#             if is_occupied(state, position):
-#                 to_visit.remove(position)
-#                 jumps = adjacent_spaces_not_blocked(state, position)
-#                 for jump in jumps:
-#                     to_visit.append(jump)
-#                     paths[jump] = [jump]
-#             else:
-#                 paths[position] = [position]
-# 
-#         while to_visit:
-#             position = to_visit.popleft()
-#             if position.row == GOAL_ROW[state['on_move']]:
-#                 return (None, paths[position][0])
-# 
-#             visited.add(position)
-#             for new_position in adjacent_spaces_not_blocked(state, position):
-#                 if new_position not in visited:
-#                     to_visit.append(new_position)
-#                 if new_position not in paths:
-#                     paths[new_position] = copy.copy(paths[position])
-#                     paths[new_position].append(new_position)
-# 
-#         raise InvalidMove('Player cannot reach the goal row.')
-# 
-# 
-# class QLPlayer(RandomPlayerWithPath):
-#     def __init__(self, *args, **kwargs):
-#         self.Q = kwargs.pop('Q', {})
-#         super(QLPlayer, self).__init__(*args, **kwargs)
-# 
-#     def play(self, state, path_probability=0.7):
-#         if random.random() < path_probability:
-#             return self._play_pawn(state)
-# 
-#         mq, best_action = self.find_mq_and_action(
-#             state,
-#             PLAYER_UTILITIES[state['on_move']]
-#         )
-#         return best_action
-# 
-#     def reward(self, state):
-#         if self.game.is_terminal(state):
-#             return self.game.utility(state, state['on_move']) * 10000
-#         return 0
-# 
-#     def set_Q(self, state, action, value):
-#         key = self.game.make_key(state)
-#         if key not in self.Q:
-#             self.Q[key] = {}
-#         self.Q[key][action] = value
-# 
-#     def get_Q(self, state, action):
-#         key = self.game.make_key(state)
-#         if key not in self.Q:
-#             return 0.0
-#         return self.Q[key].get(action, 0.0)
-# 
-#     def find_mq_and_action(self, state, multiplier):
-#         mq = multiplier * -MAX_INTEGER
-#         best_action = None
-#         for action in self.game.actions(state):
-#             Q = self.get_Q(state, action)
-#             if (multiplier * mq) < (multiplier * Q):
-#                 mq = Q
-#                 best_action = action
-#         return mq, best_action
-# 
-#     def learn(self, previous_state, last_action, current_state, alpha=0.1,
-#               gamma=0.9):
-#         mq = 0.0
-#         if not self.game.is_terminal(current_state):
-#             mq, best_action = self.find_mq_and_action(
-#                 current_state,
-#                 PLAYER_UTILITIES[current_state['on_move']]
-#             )
-# 
-#         reward = self.reward(current_state)
-#         q_value = self.get_Q(previous_state, last_action)
-#         q_value += alpha * (reward + gamma * mq - q_value)
-#         self.set_Q(previous_state, last_action, q_value)
-# 
-#     def save_Q(self, filename='q_values.txt'):
-#         with open(filename, 'w') as f:
-#             f.write(repr(self.Q))

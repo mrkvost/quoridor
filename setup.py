@@ -60,8 +60,7 @@ def create_setup_info():
         entry_points={
             'console_scripts': [
                 'qc = quoridor.quoridor:main',
-                'train = quoridor.training:run',
-                'build_db = quoridor.db:run',
+                'build_db = quoridor.db.utils:run',
             ],
         },
     )

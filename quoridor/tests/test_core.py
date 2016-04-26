@@ -3,7 +3,7 @@
 from nose.tools import assert_true, assert_false, assert_equal, assert_raises
 from nose.plugins.attrib import attr
 
-from quoridor.core import (
+from quoridor.core.game import (
     YELLOW,
     GREEN,
     VERTICAL,

@@ -4,15 +4,19 @@ import os
 import re
 import sys
 import copy
-# import time
-import random
 import datetime
 import collections
-# import traceback
 
 from optparse import OptionParser
 
-from core import (
+from db.utils import make_db_session
+from ai.players import (
+    HumanPlayer,
+    PathPlayer,
+    HeuristicPlayer,
+    QlearningNetworkPlayer,
+)
+from core.game import (
     YELLOW,
     GREEN,
     PLAYER_COLOR_NAME,
@@ -21,12 +25,8 @@ from core import (
 
     InvalidMove,
     Quoridor2,
-
 )
-
-from players import PathPlayer, HeuristicPlayer, QlearningNetworkPlayer
-from db import make_db_session
-# from players import RandomPlayer, RandomPlayerWithPath, QLPlayer
+from core.context import QuoridorContext
 
 
 REWARD = 100
@@ -51,88 +51,74 @@ Vector = collections.namedtuple('Vector', ['row', 'col'])
 
 MENU_CHOICE = {
     0: {
-        'mode': 'human_human',
+        'mode': 'game',
+        'player_names': {YELLOW: 'human', GREEN: 'human'},
         'text': 'New Game Human only',
     },
     1: {
-        'mode': 'human_heuristic',
+        'mode': 'game',
+        'player_names': {YELLOW: 'human', GREEN: 'heuristic'},
         'text': 'New Game vs Heuristic (Human First)',
     },
     2: {
-        'mode': 'heuristic_human',
+        'mode': 'game',
+        'player_names': {YELLOW: 'heuristic', GREEN: 'human'},
         'text': 'New Game vs Heuristic (Human Second)',
     },
     3: {
-        'mode': 'heuristic_heuristic',
+        'mode': 'game',
+        'player_names': {YELLOW: 'heuristic', GREEN: 'heuristic'},
         'text': 'Watch Game Heuristic vs Heuristic',
     },
     4: {
-        'mode': 'human_qlnn',
-        'text': 'New Game vs QL Neural Network (Human First)',
-    },
-    5: {
-        'mode': 'qlnn_human',
+        'mode': 'game',
+        'player_names': {YELLOW: 'qlnn', GREEN: 'human'},
         'text': 'New Game vs QL Neural Network (Human Second)',
     },
-    6: {
-        'mode': 'qlnn_qlnn',
-        'text': 'Watch QL Neural Network vs QL Neural Network',
-    },
-    7: {
-        'mode': 'qlnn_heuristic',
+    5: {
+        'mode': 'game',
+        'player_names': {YELLOW: 'qlnn', GREEN: 'heuristic'},
         'text': 'Watch QL Neural Network vs Heuristic',
     },
-    8: {
-        'mode': 'heuristic_qlnn',
-        'text': 'Watch Heuristic vs QL Neural Network',
-    },
 
-    9: {
-        'mode': 'train_vs_heuristic',
+    6: {
+        'mode': 'train',
+        'player_names': {YELLOW: 'qlnn', GREEN: 'heuristic'},
         'text': 'Train QLNN vs Heuristic',
     },
 
-    10: {
-        'mode': 'train_vs_path',
+    7: {
+        'mode': 'train',
+        'player_names': {YELLOW: 'qlnn', GREEN: 'path'},
         'text': 'Train QLNN vs Path',
     },
 
-    11: {
+    8: {
         'mode': 'quit',
+        'player_names': None,
         'text': 'Quit',
     },
 
-    # TODO: temporal difference network
+    # TODO: temporal difference player
     #       simple qlearning player
     #       random player with path
     #       random player
-
-    # 8: 'save',
-    # 9: 'load',
-    # 10: 'quit',
+    #       'save',
+    #       'load',
+    #       'quit',
 }
 
-# PLAYERS = {
-#     # -1: {'type': 'rand', 'text': 'Random player'},
-#     0: {'type': 'human', 'text': 'Human player'},
-#     1: {'type': 'path', 'text': 'Path player'},
-#     2: {'type': 'heuristic', 'text': 'Heuristic player'},
-#     3: {'type': 'qlnn', 'text': 'QLearning Neural Network player'},
-#     # 4: {'type': 'tdnn', 'text': 'Temporal Difference Neural Network player'},
-# }
+PLAYERS = {
+    'human': HumanPlayer,
+    'path': PathPlayer,
+    'heuristic': HeuristicPlayer,
+    'qlnn': QlearningNetworkPlayer,
+}
 
-
-def clear_console():
-    os.system(CONSOLE_CLEAR[os.name])
-
-
-def print_context_and_state(context, state):
-    print 'context history:', context['history']
-    print 'context len(crossers):', len(context['crossers'])
-    print 'context crossers:', context['crossers']
-    print 'context yellow:', context[YELLOW]
-    print 'context green:', context[GREEN]
-    print 'state:', state
+OVERALL_FMT = (
+    u'\rgames:{games: 4}| sec.:{seconds: 5}s| sec./game:{pace:.2}s| '
+    u'won/lost: {won: 3} /{lost: 4}|  '
+)
 
 
 def desired_output(player, invalid_actions, activations, last_action,
@@ -153,13 +139,6 @@ def desired_output(player, invalid_actions, activations, last_action,
 
 
 class ConsoleGame(Quoridor2):
-    GAME_INPUT_PATTERN = (
-        r'(?i)'
-        r'(?P<type>menu|undo|quit|[hv]|[urdl]{1,2})?'
-        r'(?P<number>[-+]?\d+)?'
-        r'$'
-    )
-    GAME_INPUT_RE = re.compile(GAME_INPUT_PATTERN)
 
     GAME_CONTROLS = set([
         'quit',
@@ -239,67 +218,6 @@ class ConsoleGame(Quoridor2):
                 if wall not in crossers and wall not in avoid:
                     blockers.add(wall)
         return blockers
-
-    def make_context(self, state, types=None):
-        types = {YELLOW: 'human', GREEN: 'human'} if types is None else types
-        context = {'history': [], 'crossers': self.crossing_actions(state)}
-
-        for color in (YELLOW, GREEN):
-            path = self.shortest_path(state, color)
-            assert path is not None, (
-                'no path to goal for ' + PLAYER_COLOR_NAME[color]
-            )
-            context[color] = {
-                'path': path,
-                'blockers': self.path_blockers(path, context['crossers']),
-                'type': types[color],
-                'goal_cut': set(),  # TODO: consider using ordered set
-            }
-        return context
-
-    def update_context(self, state, context, action=None):
-        """ update context according to last action made. must be specified
-        exclusively in action or as last item context['history'][-1]
-        """
-        if self.is_terminal(state):
-            return  # maybe raise error?
-
-        if action is not None:
-            context['history'].append(action)
-        action = context['history'][-1]
-
-        player = state[0]
-
-        if 0 <= action < self.wall_moves:  # wall
-            new_crossers = self.wall_crossers(action)
-            context['crossers'] = context['crossers'].union(new_crossers)
-            for color in (YELLOW, GREEN):
-                if action in context[color]['blockers']:
-                    context[color]['path'] = self.shortest_path(state, color)
-                    context[color]['blockers'] = self.path_blockers(
-                        context[color]['path'],
-                        context['crossers'],
-                        context[color]['goal_cut']
-                    )
-            return
-
-        next_ = FOLLOWING_PLAYER[player]
-        last_path = context[next_]['path']
-        if last_path[-2] == state[1 + next_]:   # one step along the path
-            context[next_]['path'].pop()
-        elif len(last_path) > 2 and last_path[-3] == state[1 + next_]:  # two
-            context[next_]['path'].pop()
-            context[next_]['path'].pop()
-        else:
-            # TODO: can this be optimized?
-            context[next_]['path'] = self.shortest_path(state, next_)
-
-        context[next_]['goal_cut'].clear()
-        context[next_]['blockers'] = self.path_blockers(
-            context[next_]['path'],
-            context['crossers'],
-            context[next_]['goal_cut']
-        )
 
     def make_output_base(self):
         """Creates positions mapped to characters for further concatenation
@@ -454,13 +372,13 @@ class ConsoleGame(Quoridor2):
                 if offset <= len(name):
                     base[position] = name[offset - 1]
 
-    def display_on_console(self, state, context):
+    def display_on_console(self, context):
         # TODO: menu possibilities
         # TODO: history list
         # TODO: winner info
         base = copy.deepcopy(self.output_base)
-        self.walls_to_base(state, base)
-        self.pawns_to_base(state, base)
+        self.walls_to_base(context.state, base)
+        self.pawns_to_base(context.state, base)
 
         print '\n'.join([
             ''.join([
@@ -472,22 +390,22 @@ class ConsoleGame(Quoridor2):
         ])
 
         print u''.join([
-            '#{moves_made:03d} '.format(moves_made=len(context['history'])),
+            '#{moves_made:03d} '.format(moves_made=len(context.history)),
             self.yellow,
             u'YELLOW({type_}) walls:{walls:2} dist:{dist:2} {moves}'.format(
-                type_=context[YELLOW]['type'][:2].upper(),
-                walls=state[3],
-                dist=len(context[YELLOW]['path']) - 1,
-                moves='moves' if state[0] == YELLOW else '     ',
+                type_=context.yellow['name'][:2].upper(),
+                walls=context.state[3],
+                dist=len(context.yellow['path']) - 1,
+                moves='moves' if context.state[0] == YELLOW else '     ',
             ),
             self.color_end,
             u' | ',
             self.green,
             u'GREEN({type_}) walls:{walls:2} dist:{dist:2} {moves}'.format(
-                type_=context[GREEN]['type'][:2].upper(),
-                walls=state[4],
-                dist=len(context[GREEN]['path']) - 1,
-                moves='moves' if state[0] == GREEN else '     ',
+                type_=context.green['name'][:2].upper(),
+                walls=context.state[4],
+                dist=len(context.green['path']) - 1,
+                moves='moves' if context.state[0] == GREEN else '     ',
             ),
             self.color_end,
         ])
@@ -516,11 +434,8 @@ class ConsoleGame(Quoridor2):
         }
 
     def prompt(self, message):
-        try:
-            user_input = raw_input(message)
-            return user_input.strip()
-        except (EOFError, KeyboardInterrupt, SystemExit):
-            return None
+        user_input = raw_input(message)
+        return user_input.strip()
 
     def get_human_action(self):
         user_input = self.prompt(self.messages['enter_choice'])
@@ -559,145 +474,93 @@ class ConsoleGame(Quoridor2):
             direction_offset = self.wall_board_positions
         return int(data['number']) + direction_offset
 
-    def human_play(self, state, context):
-        assert not self.is_terminal(state)
-
-        wrong_attempts = 0
-        while True:
-            if wrong_attempts % 4 == 3:
-                self.display_on_console(state, context)
-                wrong_attempts = 0
-
-            action = self.get_human_action()
-
-            if action in self.GAME_CONTROLS:
+    def handle_game(self, context, players):
+        context.reset(players=players)
+        while not context.is_terminal:
+            self.display_on_console(context)
+            # print context
+            player = context.state[0]
+            if context[player]['name'] == 'human':
+                action = players[player]['player'](context)
                 if action in ('quit', 'menu'):
-                    return action
-                # TODO: help, undo, save, change_players, hint, ...
-                wrong_attempts += 1
-                print self.messages['unknown_choice']
-                continue
-
-            try:
-                new_state = self.execute_action(state, action)
-            except InvalidMove as e:
-                wrong_attempts += 1
-                print self.red + str(e) + self.color_end
-                continue
-
-            if not self.is_terminal(state):
-                self.update_context(new_state, context, action)
-            return new_state
-
-    def handle_game(self, state, context):
-        assert not self.is_terminal(state)
-        while not self.is_terminal(state):
-            # TODO: avoid endless loop with move counter?
-            #       e.g. assert len(context['history']) < 1000
-            self.display_on_console(state, context)
-            # print_context_and_state(context, state)
-            if 'human' == context[state[0]]['type']:
-                result = self.human_play(state, context)
-                if result in ('quit', 'menu'):
                     # TODO: at least undo, save, load
-                    return result
-                state = result
-            elif 'qlnn' == context[state[0]]['type']:
-                state = context[state[0]]['player'](state, context)
-            elif 'heuristic' == context[state[0]]['type']:
-                state = context[state[0]]['player'](state, context)
-                continue
-            elif 'path' == context[state[0]]['type']:
-                state = context[state[0]]['player'](state, context)
-                continue
+                    return action
+                elif action == 'unknown':
+                    print self.messages['unknown_choice'],
+            elif context[player]['name'] == 'qlnn':
+                action = players[player]['player'](context)
+                context.update(action, checks_on=False)
             else:
-                raise NotImplemented()
+                # these players update context:
+                players[player]['player'](context)
 
-        self.display_on_console(state, context)
+        self.display_on_console(context)
         print self.messages['game_ended']
         return 'menu'
 
-    def train_game(self, players, types, show_and_save):
-        state = self.initial_state()
-        context = self.make_context(state, types)
-        for color, type_ in types.items():
-            context[color]['player'] = players[type_]
-            if type_ == 'qlnn':
-                qlnn_color = color
-        qlnn = players['qlnn']
-        activations = qlnn.activations_from_state(state)
-        if show_and_save:
+    def train_game(self, context, players, display):
+        context.reset(players=players)
+        qlnn = players[YELLOW]['player']    # qlnn is only YELLOW!
+        activations = qlnn.activations_from_state(context.state)
+        if display:
             print
-        is_terminal = False
-        while not is_terminal:
-            if len(context['history']) > 300:
-                print '\nGame too long:', context['history'], '\n'
+        while not context.is_terminal:
+            if len(context.history) > 300:
+                print '\nGame too long:', history, '\n'
                 break
 
-            if show_and_save:
-                self.display_on_console(state, context)
+            if display:
+                self.display_on_console(context)
 
-            invalid_actions = qlnn.invalid_actions(state, context)
-            new_state = context[state[0]]['player'](state, context)
-            is_terminal = self.is_terminal(new_state)
+            invalid_actions = context.invalid_actions
+            player = context.state[0]
+            players[player]['player'](context)
 
-            if context[state[0]]['type'] == 'qlnn':
+            if context[player]['name'] == 'qlnn':
                 new_activations = qlnn.activations
             else:
-                new_activations = qlnn.activations_from_state(new_state)
+                new_activations = qlnn.activations_from_state(context.state)
 
             desired = desired_output(
-                state[0],
+                player,
                 invalid_actions,
                 activations,
-                context['history'][-1],
-                is_terminal,
+                context.last_action,
+                context.is_terminal,
                 new_activations[-1],
             )
             qlnn.perceptron.propagate_backward(activations, desired)
-
             activations = new_activations
-            state = new_state
 
-        if show_and_save:
-            self.display_on_console(state, context)
+        if display:
+            self.display_on_console(context)
 
-        if qlnn_color == state[0]:
+        if YELLOW == context.state[0]:
             return False
         return True
 
-    def handle_training(self, players, show_save_cycle=100,
+    def handle_training(self, context, players, show_save_cycle=100,
                         display_games=False):
         game_counter = qlnn_wins = 0
+        qlnn = players[YELLOW]['player']
         db_session = make_db_session('data.db')
-        start = datetime.datetime.now()
-        type_keys = [type_ for type_ in players]
-        type_base = {
-            0: {YELLOW: type_keys[0], GREEN: type_keys[1]},
-            1: {YELLOW: type_keys[1], GREEN: type_keys[0]},
-        }
-        OVERALL_FMT = (
-            u'\rgames:{games: 4}| sec.:{seconds: 5}s| sec./game:{pace}s| '
-            u'win/loses: {won: 3} /{lost: 4}|  '
-        )
-        qlnn = players['qlnn']
+        start_time = datetime.datetime.now()
         try:
             while True:
-                types = type_base[game_counter % 2]
                 show_and_save = not (game_counter + 1) % show_save_cycle
                 display_game = show_and_save and display_games
-                qlnn_win = self.train_game(players, types, display_game)
-                qlnn_wins += int(qlnn_win)
+                win = int(self.train_game(context, players, display_game))
+                qlnn_wins += win
                 game_counter += 1
                 qlnn.perceptron.exploration_probability = (
                     0.1 * (600000 - game_counter) / 600000
                 )
-                delta = datetime.datetime.now() - start
-                seconds = int(delta.total_seconds())
+                delta_time = datetime.datetime.now() - start_time
+                seconds = int(delta_time.total_seconds())
                 message = OVERALL_FMT.format(
                     seconds=seconds,
                     games=game_counter,
-                    pace=int(0.5 + (float(seconds) / game_counter)),
+                    pace=(float(seconds) / game_counter),
                     won=qlnn_wins,
                     lost=game_counter - qlnn_wins,
                 )
@@ -708,41 +571,49 @@ class ConsoleGame(Quoridor2):
                     sys.stdout.flush()
                     players['qlnn'].update_in_db(db_session)
                     sys.stdout.write('saved\n')
-        except KeyboardInterrupt:
-            pass
-        db_session.close()
+        finally:
+            db_session.close()
         return 'quit'
 
-    def train_path(self, state, context):
-        players = {
-            'qlnn': QlearningNetworkPlayer(self),
-            # 'heuristic': HeuristicPlayer(self),
-            'path': PathPlayer(self),
-        }
-        self.handle_training(players, show_save_cycle=1000)
+    def train(self, context, players):
+        self.handle_training(context, players, show_save_cycle=1000)
         return 'quit'
 
-    def train_heuristic(self, state, context):
-        players = {
-            'qlnn': QlearningNetworkPlayer(self),
-            'heuristic': HeuristicPlayer(self),
-        }
-        self.handle_training(players, display_games=True)
-        return 'quit'
+    def wrong_human_move(self, context, action, error):
+        print self.red + str(error) + self.color_end
+        self.display_on_console(context)
 
     def run(self):
+        context = QuoridorContext(self)
         game_mode = 'menu'
-        handle_mode = {
-            'menu': self.handle_menu,
-            'game': self.handle_game,
-            'train_vs_path': self.train_path,
-            'train_vs_heuristic': self.train_heuristic,
-        }
-        state = self.initial_state()
-        context = self.make_context(state)
-
-        while game_mode != 'quit':
-            game_mode = handle_mode[game_mode](state, context)
+        try:
+            while game_mode != 'quit':
+                if game_mode == 'menu':
+                    choice = self.handle_menu()
+                    game_mode = choice['mode']
+                    player_names = choice['player_names']
+                    if player_names:
+                        players = {}
+                        for color, name in player_names.items():
+                            kwargs = {}
+                            if name == 'human':
+                                kwargs = {
+                                    'messages': self.messages,
+                                    # 'game_controls': self.game_controls,
+                                    'fail_callback': self.wrong_human_move,
+                                }
+                            players[color] = {
+                                'name': name,
+                                'player': PLAYERS[name](self, **kwargs),
+                            }
+                elif game_mode == 'game':
+                    game_mode = self.handle_game(context, players)
+                elif game_mode == 'train':
+                    game_mode = self.train(context, players)
+                else:
+                    raise NotImplementedError()
+        except (EOFError, KeyboardInterrupt, SystemExit):
+            pass
         print
 
     def get_menu_input(self):
@@ -760,58 +631,16 @@ class ConsoleGame(Quoridor2):
         if number not in MENU_CHOICE:
             return 'unknown'
 
-        return MENU_CHOICE[number]['mode']
+        return MENU_CHOICE[number]
 
-    def handle_menu(self, state, context):
-
+    def handle_menu(self):
         while True:
             self.print_menu()
-            mode = self.get_menu_input()
-            if mode == 'unknown':
+            choice = self.get_menu_input()
+            if choice == 'unknown':
                 print self.messages['unknown_choice']
                 continue
-            elif mode == 'quit':
-                return 'quit'
-            elif mode == 'train_vs_path':
-                return 'train_vs_path'
-            elif mode == 'train_vs_heuristic':
-                return 'train_vs_heuristic'
-
-            # new game or watch, or later TODO: load game
-            for key, value in self.make_context(self.initial_state()).items():
-                context[key] = value
-
-            if mode.startswith('human'):
-                context[YELLOW]['type'] = 'human'
-                context[YELLOW]['player'] = None
-            elif mode.startswith('path'):
-                context[YELLOW]['type'] = 'path'
-                context[YELLOW]['player'] = PathPlayer(self)
-            elif mode.startswith('heuristic'):
-                context[YELLOW]['type'] = 'heuristic'
-                context[YELLOW]['player'] = HeuristicPlayer(self)
-            elif mode.startswith('qlnn'):
-                context[YELLOW]['type'] = 'qlnn'
-                context[YELLOW]['player'] = QlearningNetworkPlayer(self)
-            else:
-                raise NotImplementedError('unknown mode %s' % mode)
-
-            if mode.endswith('human'):
-                context[GREEN]['type'] = 'human'
-                context[GREEN]['player'] = None
-            elif mode.endswith('path'):
-                context[GREEN]['type'] = 'path'
-                context[GREEN]['player'] = PathPlayer(self)
-            elif mode.endswith('heuristic'):
-                context[GREEN]['type'] = 'heuristic'
-                context[GREEN]['player'] = HeuristicPlayer(self)
-            elif mode.endswith('qlnn'):
-                context[GREEN]['type'] = 'qlnn'
-                context[GREEN]['player'] = QlearningNetworkPlayer(self)
-            else:
-                raise NotImplementedError('unknown mode %' % mode)
-
-            return 'game'
+            return choice
 
     def print_menu(self):
         print self.messages['menu_choose']

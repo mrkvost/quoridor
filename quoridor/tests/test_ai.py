@@ -4,7 +4,7 @@ import numpy
 from nose.tools import assert_equal, assert_true, assert_false, nottest
 from nose.plugins.attrib import attr
 
-from quoridor.ai import (
+from quoridor.ai.perceptron import (
     MLMCPerceptron
 )
 

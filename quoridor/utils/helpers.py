@@ -5,7 +5,7 @@ import time
 import datetime
 import numpy as np
 
-from quoridor.core import (
+from quoridor.core.game import (
     YELLOW,
     GREEN,
     Quoridor2,
@@ -62,16 +62,6 @@ def print_installed_distributions():
         print ' -'*40
 
 
-def print_context_and_state(context, state):
-    history = context['history']
-    print 'context last_action:', history[-1] if history else None
-    print 'context len(crossers):', len(context['crossers'])
-    print 'context crossers:', context['crossers']
-    print 'context yellow:', context[YELLOW]
-    print 'context green:', context[GREEN]
-    print 'state:', state
-
-
 def print_console_colors():
     for i in range(10):
         color = i + 30
@@ -79,6 +69,3 @@ def print_console_colors():
         print u'  \x1b[1m\x1b[{color}m CONSOLE COLOR \x1b[0m'.format(
             color=str(color)
         )
-
-
-print COMBINED_TABLE_9

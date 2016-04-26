@@ -7,9 +7,11 @@ from contextlib import closing
 from nose.tools import assert_equal, assert_true, assert_false, nottest
 from nose.plugins.attrib import attr
 
-from quoridor.db import (
+from quoridor.db.models import (
     Network,
     Weight,
+)
+from quoridor.db.utils import (
     db_save_network,
     db_load_network,
     db_update_network,
@@ -17,7 +19,7 @@ from quoridor.db import (
     make_db_session,
 )
 
-from quoridor.ai import MLMCPerceptron
+from quoridor.ai.perceptron import MLMCPerceptron
 
 
 LIST_TABLES_SQL = "SELECT name FROM sqlite_master WHERE type='table'"
