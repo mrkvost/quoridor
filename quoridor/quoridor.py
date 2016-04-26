@@ -555,7 +555,15 @@ class ConsoleGame(Quoridor2):
             (0, 67, 13, 10, 10, frozenset()),
             (0, 58, 22, 10, 10, frozenset()),
             (0, 49, 31, 10, 10, frozenset()),
-            (0, 40, 31, 10, 10, frozenset()),
+
+            (0, 58, 13, 9, 9, frozenset([1, 5])),           # need horizontal
+            (0, 67, 14, 9, 9, frozenset([3, 7, 59])),       # need horizontal
+            (0, 58, 23, 9, 9, frozenset([3, 7, 59])),       # need horizontal
+
+            (0, 58, 16, 7, 10, frozenset([2, 4, 6])),       # need vertical
+            (0, 58, 16, 7, 10, frozenset([2, 4, 6, 60])),   # need vertical
+
+            (0, 40, 31, 10, 10, frozenset()),               # hard
         )
         try:
             while True:
