@@ -493,7 +493,6 @@ class ConsoleGame(Quoridor2):
                     print self.messages['unknown_choice'],
             elif context[player]['name'] == 'qlnn':
                 action = players[player]['player'](context)
-                context.update(action, checks_on=False)
             else:
                 # these players update context:
                 players[player]['player'](context)
