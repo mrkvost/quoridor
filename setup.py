@@ -5,6 +5,7 @@ from setuptools import setup, find_packages
 
 
 REQUIREMENTS = {
+    'funcsigs': '0.4',
     'nose': '1.3.7',
     'numpy': '1.10.4',
     'SQLAlchemy': '1.0.12',
