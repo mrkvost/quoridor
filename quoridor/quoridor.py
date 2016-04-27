@@ -525,8 +525,16 @@ class ConsoleGame(Quoridor2):
                     # TODO: save, load
                     return action
                 elif action == 'undo':
+                    next_ = FOLLOWING_PLAYER[player]
+                    repeat = 1
+                    if context[next_]['name'] != 'human':
+                        repeat = 2
+                        if len(context.history) < 2:
+                            print self.red + 'Cannot undo!' + self.color_end
+                            continue
                     try:
-                        context.undo()
+                        for _ in range(repeat):
+                            context.undo()
                     except InvalidMove as e:
                         print self.red + str(e) + self.color_end
                 elif action == 'unknown':

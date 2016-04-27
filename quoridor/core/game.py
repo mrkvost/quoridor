@@ -362,25 +362,23 @@ class Quoridor2(object):
         return tuple(new_state)
 
     def undo(self, state, action):
-        player = state[0]
+        player = FOLLOWING_PLAYER[state[0]]
+        new_state = list(state)
+        new_state[0] = player
         if 0 <= action < self.wall_moves:
             if state[5] and action in state[5]:
-                new_state = list(state)
-                new_state[0] = FOLLOWING_PLAYER[player]
                 new_state[3 + player] += 1
-                new_state[5].remove(action)
+                new_state[5] = new_state[5].difference((action, ))
                 return tuple(new_state)
             raise InvalidMove('Cannot undo!')
         move = action - self.wall_moves
         if move < 12:
-            if self.is_valid_pawn_move(state, anti_move):
-                anti_move = ANTI_MOVE[move]
-                new_state = list(state)
+            anti_move = ANTI_MOVE[move]
+            if self.is_valid_pawn_move(new_state, anti_move):
                 new_state[1 + player] += sum([
                     self.move_deltas[pawn_move]
                     for pawn_move in PAWN_MOVE_PATHS[anti_move][0]
                 ])
-                new_state[0] = FOLLOWING_PLAYER[player]
                 return tuple(new_state)
         raise InvalidMove('Cannot undo!')
 

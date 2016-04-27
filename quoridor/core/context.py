@@ -52,11 +52,12 @@ class QuoridorContext(object):
         new_state = list(self.state)
         current_player = new_state[0]
         previous_player = FOLLOWING_PLAYER[current_player]
+        new_state[0] = previous_player
         if 0 <= action < self.game.wall_moves:
             if not new_state[5] or action not in new_state[5]:
                 raise InvalidMove('Cannot undo!')
             new_state[3 + previous_player] += 1
-            new_state[5].remove(action)
+            new_state[5] = new_state[5].difference((action, ))
             for color in (YELLOW, GREEN):
                 self._data['crossers'] = self.game.crossing_actions(new_state)
                 path = self.game.shortest_path(new_state, color)
@@ -79,7 +80,6 @@ class QuoridorContext(object):
             self._data[previous_player]['path'] = path
             self._data[previous_player]['goal_cut'].clear()
         self._data['history'].pop()
-        new_state[0] = previous_player
         self._data['state'] = tuple(new_state)
 
     def update(self, action, checks_on=True):
