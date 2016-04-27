@@ -44,6 +44,21 @@ PAWN_MOVE_PATHS = {
     11: [[DOWN, LEFT], [LEFT, DOWN]],
 }
 
+ANTI_MOVE = {
+    UP: DOWN,
+    DOWN: UP,
+    LEFT: RIGHT,
+    RIGHT: LEFT,
+    UPUP: DOWNDOWN,
+    DOWNDOWN: UPUP,
+    LEFTLEFT: RIGHTRIGHT,
+    RIGHTRIGHT: LEFTLEFT,
+    UPRIGHT: DOWNLEFT,
+    DOWNLEFT: UPRIGHT,
+    UPLEFT: DOWNRIGHT,
+    DOWNRIGHT: UPLEFT,
+}
+
 BOARD_SIZE_DEFAULT = 9
 
 
@@ -346,24 +361,32 @@ class Quoridor2(object):
         new_state[0] = FOLLOWING_PLAYER[player]
         return tuple(new_state)
 
+    def undo(self, state, action):
+        player = state[0]
+        if 0 <= action < self.wall_moves:
+            if state[5] and action in state[5]:
+                new_state = list(state)
+                new_state[0] = FOLLOWING_PLAYER[player]
+                new_state[3 + player] += 1
+                new_state[5].remove(action)
+                return tuple(new_state)
+            raise InvalidMove('Cannot undo!')
+        move = action - self.wall_moves
+        if move < 12:
+            if self.is_valid_pawn_move(state, anti_move):
+                anti_move = ANTI_MOVE[move]
+                new_state = list(state)
+                new_state[1 + player] += sum([
+                    self.move_deltas[pawn_move]
+                    for pawn_move in PAWN_MOVE_PATHS[anti_move][0]
+                ])
+                new_state[0] = FOLLOWING_PLAYER[player]
+                return tuple(new_state)
+        raise InvalidMove('Cannot undo!')
+
     # def actions(self, state):
     #     for position in pawn_legal_moves(state, current_pawn_position(state)):
     #         yield (None, position)
 
     #     for action in wall_legal_moves(state):
     #         yield action
-
-    # def undo(self, state, action):
-    #     direction, position = action
-    #     last_player = FOLLOWING_PLAYER[state['on_move']]
-    #     if direction is None:
-    #         pawn_position = state['pawns'][last_player]
-    #         if not is_correct_pawn_move(state, pawn_position, position):
-    #             raise InvalidMove('Incorrect undo move.')
-    #         state['pawns'][last_player] = position
-    #     else:
-    #         if position not in state['placed_walls'][direction]:
-    #             raise InvalidMove('Incorrect undo move.')
-    #         state['placed_walls'][direction].remove(position)
-    #         state['walls'][last_player] += 1
-    #     state['on_move'] = last_player

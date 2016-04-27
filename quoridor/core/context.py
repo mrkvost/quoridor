@@ -5,6 +5,9 @@ from quoridor.core.game import (
     GREEN,
     PLAYER_COLOR_NAME,
     FOLLOWING_PLAYER,
+    ANTI_MOVE,
+    PAWN_MOVE_PATHS,
+    InvalidMove,
 )
 
 
@@ -41,6 +44,43 @@ class QuoridorContext(object):
                 'blockers': blockers,
                 'goal_cut': set(),  # TODO: consider using ordered set
             }
+
+    def undo(self):
+        action = self.last_action
+        if action is None or not (0 <= action < self.game.all_moves):
+            raise InvalidMove('Cannot undo!')
+        new_state = list(self.state)
+        current_player = new_state[0]
+        previous_player = FOLLOWING_PLAYER[current_player]
+        if 0 <= action < self.game.wall_moves:
+            if not new_state[5] or action not in new_state[5]:
+                raise InvalidMove('Cannot undo!')
+            new_state[3 + previous_player] += 1
+            new_state[5].remove(action)
+            for color in (YELLOW, GREEN):
+                self._data['crossers'] = self.game.crossing_actions(new_state)
+                path = self.game.shortest_path(new_state, color)
+                blockers = self.game.path_blockers(path, self._data['crossers'])
+                self._data[color]['blockers'] = blockers
+                self._data[color]['path'] = path
+                self._data[color]['goal_cut'].clear()
+        else:
+            move = action - self.game.wall_moves
+            anti_move = ANTI_MOVE[move]
+            if not self.game.is_valid_pawn_move(new_state, anti_move):
+                raise InvalidMove('Cannot undo!')
+            new_state[1 + previous_player] += sum([
+                self.game.move_deltas[pawn_move]
+                for pawn_move in PAWN_MOVE_PATHS[anti_move][0]
+            ])
+            path = self.game.shortest_path(new_state, previous_player)
+            blockers = self.game.path_blockers(path, self._data['crossers'])
+            self._data[previous_player]['blockers'] = blockers
+            self._data[previous_player]['path'] = path
+            self._data[previous_player]['goal_cut'].clear()
+        self._data['history'].pop()
+        new_state[0] = previous_player
+        self._data['state'] = tuple(new_state)
 
     def update(self, action, checks_on=True):
         assert not self.is_terminal

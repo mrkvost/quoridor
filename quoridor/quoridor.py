@@ -182,9 +182,10 @@ class ConsoleGame(Quoridor2):
     GAME_CONTROLS = set([
         'quit',
         'menu',
+        'undo',
         'unknown',
         # TODO:
-        # 'undo', 'next', 'save', 'help', hint_move, change_players
+        # ''next', 'save', 'help', hint_move, change_players
     ])
 
     PAWN_MOVES = {
@@ -521,8 +522,13 @@ class ConsoleGame(Quoridor2):
             if context[player]['name'] == 'human':
                 action = players[player]['player'](context)
                 if action in ('quit', 'menu'):
-                    # TODO: at least undo, save, load
+                    # TODO: save, load
                     return action
+                elif action == 'undo':
+                    try:
+                        context.undo()
+                    except InvalidMove as e:
+                        print self.red + str(e) + self.color_end
                 elif action == 'unknown':
                     print self.messages['unknown_choice'],
             elif context[player]['name'] == 'qlnn':
