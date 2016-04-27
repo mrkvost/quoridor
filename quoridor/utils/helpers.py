@@ -10,6 +10,13 @@ from quoridor.core.game import (
     GREEN,
     Quoridor2,
 )
+from quoridor.core.context import QuoridorContext
+from quoridor.quoridor import (
+    ConsoleGame,
+    BOARD_BORDER_THICKNESS,
+    Vector,
+    TRAINING_STATES,
+)
 
 
 COMBINED_TABLE_9 = """\
@@ -69,3 +76,22 @@ def print_console_colors():
         print u'  \x1b[1m\x1b[{color}m CONSOLE COLOR \x1b[0m'.format(
             color=str(color)
         )
+
+
+def show_state(state):
+    game = ConsoleGame()
+    context = QuoridorContext(game, console_colors=True)
+    players = {YELLOW: {'name': '??'}, GREEN: {'name': '??'}}
+    context.reset(state=state, players=players)
+    for number in range(game.board_positions):
+        row, col = divmod(number, game.board_size)
+        top = row * game.field_height + BOARD_BORDER_THICKNESS
+        bottom = top + game.field_inner_height - 1
+        row = int(round(0.25 + float(top + bottom) / 2))
+        leftmost = col * game.field_width + BOARD_BORDER_THICKNESS
+        rightmost = leftmost + game.field_inner_width - 2
+        name = str(number)
+        for offset in range(1, min(len(name) + 1, rightmost - leftmost)):
+            position = Vector(row=row, col=leftmost + offset + 1)
+            game.output_base[position] = name[offset - 1]
+    game.display_on_console(context)

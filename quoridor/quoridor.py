@@ -123,6 +123,41 @@ OVERALL_FMT = (
     u'won/lost: {won: 3} /{lost: 4}|  '
 )
 
+TRAINING_STATES = (
+    # YELLOW WIN:
+    # simple down
+    (0, 67, 13, 10, 10, frozenset()),
+    (0, 70, 9, 5, 5, frozenset([1, 3, 14, 40, 59, 61, 66, 76, 94, 113])),
+
+    # simple path
+    (0, 31, 49, 0, 0, frozenset([3, 12, 22, 26, 36, 39, 49, 51, 53, 55, 56, 68, 71, 83, 85, 94, 97, 104, 107, 123])),
+
+    # harder
+    (0, 66, 47, 2, 2, frozenset([11, 21, 49, 51, 57, 59, 68, 78, 82, 91, 94, 98, 100, 124])),
+    (0, 66, 47, 1, 1, frozenset([2, 7, 12, 14, 25, 36, 43, 58, 60, 67, 86, 93, 97, 103, 106, 113, 117, 123])),
+
+    # need horizontal
+    (0, 58, 13, 8, 10, frozenset([1, 5])),
+    (0, 67, 14, 8, 9, frozenset([3, 7, 59])),
+    (0, 58, 23, 8, 9, frozenset([3, 7, 59])),
+    (0, 31, 49, 6, 6, frozenset([67, 76, 83, 92, 99, 108, 115, 124])),
+
+    # need vertical
+    (0, 58, 16, 7, 10, frozenset([2, 4, 6])),
+    (0, 58, 16, 7, 9, frozenset([2, 4, 6, 60])),
+
+    # down - very uncommon situation:
+    (0, 58, 22, 10, 10, frozenset()),
+    (0, 49, 31, 10, 10, frozenset()),
+
+    # hard - very common real life situation
+    (0, 40, 31, 10, 10, frozenset()),
+
+    # GREEN WIN:
+    # (0, 31, 41, 3, 6, frozenset([11, 27, 33, 35, 48, 53, 63, 68, 84, 98, 108, 119, 124, 126])),
+    # (0, 30, 41, 0, 1, frozenset([0, 2, 11, 28, 30, 40, 50, 52, 54, 67, 71, 82, 84, 99, 103, 105, 108, 124, 127]))
+)
+
 REWARD = 1000
 
 
@@ -369,9 +404,8 @@ class ConsoleGame(Quoridor2):
 
             # text:
             name = PLAYER_COLOR_NAME[player]
-
+            row = int(round(0.25 + float(top + bottom) / 2))
             for offset in range(1, rightmost - leftmost):
-                row = int(round(0.25 + float(top + bottom) / 2))
                 position = Vector(row=row, col=leftmost + offset)
                 if offset <= len(name):
                     base[position] = name[offset - 1]
@@ -551,27 +585,13 @@ class ConsoleGame(Quoridor2):
         db_session = make_db_session(DB_PATH)
         start_time = datetime.datetime.now()
         status_every = 50
-        states = (
-            (0, 67, 13, 10, 10, frozenset()),
-            (0, 58, 22, 10, 10, frozenset()),
-            (0, 49, 31, 10, 10, frozenset()),
-
-            (0, 58, 13, 9, 9, frozenset([1, 5])),           # need horizontal
-            (0, 67, 14, 9, 9, frozenset([3, 7, 59])),       # need horizontal
-            (0, 58, 23, 9, 9, frozenset([3, 7, 59])),       # need horizontal
-
-            (0, 58, 16, 7, 10, frozenset([2, 4, 6])),       # need vertical
-            (0, 58, 16, 7, 10, frozenset([2, 4, 6, 60])),   # need vertical
-
-            (0, 40, 31, 10, 10, frozenset()),               # hard
-        )
         try:
             while True:
                 show_and_save = not (game_counter + 1) % show_save_cycle
                 display_game = show_and_save and display_games
                 context.reset(
                     players=players,
-                    state=random.choice(states)
+                    state=random.choice(TRAINING_STATES)
                 )
                 # context.reset(players=players)
                 win = int(self.train_game(context, players, display_game))
