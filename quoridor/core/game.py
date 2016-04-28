@@ -214,6 +214,7 @@ class Quoridor2(object):
             if col != self.wall_board_size - 1:
                 actions.add(wall + 1)
         else:
+            actions.add(wall - self.wall_board_positions)
             position = wall - self.wall_board_size
             actions.add(position)
             row = position // self.wall_board_size
