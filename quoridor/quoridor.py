@@ -737,23 +737,26 @@ class ConsoleGame(Quoridor2):
         try:
             while game_mode != 'quit':
                 if game_mode == 'menu':
-                    choice = self.handle_menu()
-                    game_mode = choice['mode']
-                    player_names = choice['player_names']
-                    if player_names:
-                        players = {}
-                        for color, name in player_names.items():
-                            kwargs = {}
-                            if name == 'human':
-                                kwargs = {
-                                    'messages': self.messages,
-                                    'game_controls': self.GAME_CONTROLS,
-                                    'fail_callback': self.wrong_human_move,
-                                }
-                            players[color] = {
-                                'name': name,
-                                'player': PLAYERS[name](self, **kwargs),
+                    choice_or_quit = self.handle_menu()
+                    if choice_or_quit == 'quit':
+                        break
+                    game_mode = choice_or_quit['mode']
+                    player_names = choice_or_quit['player_names']
+                    if not player_names:
+                        continue
+                    players = {}
+                    for color, name in player_names.items():
+                        kwargs = {}
+                        if name == 'human':
+                            kwargs = {
+                                'messages': self.messages,
+                                'game_controls': self.GAME_CONTROLS,
+                                'fail_callback': self.wrong_human_move,
                             }
+                        players[color] = {
+                            'name': name,
+                            'player': PLAYERS[name](self, **kwargs),
+                        }
                 elif game_mode == 'game':
                     game_mode = self.handle_game(context, players)
                 elif game_mode == 'train':
@@ -770,6 +773,9 @@ class ConsoleGame(Quoridor2):
             if user_input is None:
                 return 'quit'
             return 'unknown'
+
+        if user_input in ('quit', 'exit'):
+            return 'quit'
 
         match = re.match(r'(?P<number>\d+)', user_input)
         if match is None:
