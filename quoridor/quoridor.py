@@ -7,7 +7,6 @@ import copy
 import numpy
 import random
 import datetime
-import collections
 
 from optparse import OptionParser
 
@@ -49,8 +48,6 @@ COLOR_START_CONSOLE = {YELLOW: u'\x1b[1m\x1b[33m', GREEN: u'\x1b[1m\x1b[32m'}
 COLOR_END_CONSOLE = u'\x1b[0m'
 CONSOLE_CLEAR = {'nt': 'cls', 'posix': 'clear'}
 CONSOLE_COLORS_DEFALUT = False
-
-Vector = collections.namedtuple('Vector', ['row', 'col'])
 
 MENU_CHOICE = {
     0: {
@@ -220,21 +217,27 @@ class ConsoleGame(Quoridor2):
     }
 
     GAME_MENU = [
-        ' OPTIONS',
-        ' menu    - back to menu',
-        ' quit    - quit game',
-        ' undo    - undo move',
+        ' - menu',
+        ' - quit',
         # ' save - save game',
         # ' load - load game',
-        ' [h]0-63 - horizontal wall',
-        ' v0-63   - vertical wall',
-        ' u       - move up',
-        ' l       - move left',
-        ' d       - move down',
-        ' r       - move right',
-        ' uu      - jump up',
-        ' dl      - jump down left',
-        ' ...     - etc.',
+        ' - undo',
+        '',
+        ' PLACE WALL',
+        ' - [h]0-63',
+        '   (horizontal)',
+        '',
+        ' - v0-63',
+        '   (vertical)',
+        '',
+        ' MOVE PAWN',
+        ' - u (up)',
+        ' - l (left)',
+        ' - d (down)',
+        ' - r (right)',
+        ' - uu (jump up)',
+        ' - dl (jump dl)',
+        ' ...',
     ]
 
     def __init__(self, board_size=BOARD_SIZE_DEFAULT,
@@ -267,22 +270,33 @@ class ConsoleGame(Quoridor2):
         self.board_width = board_inner_width + 2 * BOARD_BORDER_THICKNESS
         self.board_height = board_inner_height + 2 * BOARD_BORDER_THICKNESS
 
-        self.output_base = self.make_output_base()
-
         self.possible_game_actions = frozenset(range(
             ((self.board_size - 1) ** 2) * 2 + 12
         ))
 
         # self.console_colors = console_colors
         self.color_end = self.red = self.green = self.yellow = self.cyan = u''
+        self.white_background = self.bold = u''
         if console_colors:
-            self.red = u'\x1b[1m\x1b[31m'
-            self.green = u'\x1b[1m\x1b[32m'
-            self.yellow = u'\x1b[1m\x1b[33m'
-            self.cyan = u'\x1b[1m\x1b[36m'
+            self.bold = u'\x1b[1m'
+            self.red = self.bold + u'\x1b[31m'
+            self.green = self.bold + u'\x1b[32m'
+            self.yellow = self.bold + u'\x1b[33m'
+            self.cyan = self.bold + u'\x1b[36m'
+            self.white_background = u'\x1b[47m\x1b[1m\x1b[30m'
             self.color_end = COLOR_END_CONSOLE
         self.pawn_colors = {YELLOW: self.yellow, GREEN: self.green}
         self.messages = self.make_output_messages()
+        options = [''.join([
+            ' ',
+            self.bold,
+            'OPTIONS',
+            self.color_end
+        ])]
+        self.game_menu = options + self.GAME_MENU
+
+        self.console_colors = console_colors
+        self.output_base = self.make_output_base()
 
     def path_blockers(self, path, crossers, avoid=None):
         avoid = set() if avoid is None else avoid
@@ -317,94 +331,93 @@ class ConsoleGame(Quoridor2):
 
         # corners:
         base = {
-            Vector(row=0, col=0): u'\u2554',
-            Vector(row=0, col=self.board_width - 1): u'\u2557',
-            Vector(row=self.board_height - 1, col=0): u'\u255a',
-            Vector(
-                row=self.board_height - 1,
-                col=self.board_width - 1
-            ): u'\u255d',
+            (0, 0): u'\u2554',
+            (0, self.board_width - 1): u'\u2557',
+            (self.board_height - 1, 0): u'\u255a',
+            (self.board_height - 1, self.board_width - 1): u'\u255d',
         }
 
         # top and bottom:
+        row = self.board_height - 1
         for col in range(BOARD_BORDER_THICKNESS, self.board_width - 1):
-            base[Vector(row=0, col=col)] = u'\u2550'
-            base[Vector(row=self.board_height - 1, col=col)] = u'\u2550'
+            base[(0, col)] = u'\u2550'
+            base[(row, col)] = u'\u2550'
 
         # left and right:
+        col = self.board_width - 1
         for row in range(BOARD_BORDER_THICKNESS, self.board_height - 1):
-            base[Vector(row=row, col=0)] = u'\u2551'
-            base[Vector(row=row, col=self.board_width - 1)] = u'\u2551'
+            base[(row, 0)] = u'\u2551'
+            base[(row, col)] = u'\u2551'
 
-        fw2 = (self.field_width // 2)
-        for col in range(self.board_size):
-            # position = Vector(row=0, col=(1 + col) * self.field_width)
-            position = Vector(row=0, col=col * self.field_width + fw2)
-            base[position] = ''.join([
-                u'\x1b[47m\x1b[1m\x1b[30m',
-                u'ABCDEFGHIJ'[col],
-                COLOR_END_CONSOLE
+        fw2 = self.field_width // 2
+        counter = 0
+        for col in range(fw2, self.board_width, self.field_width):
+            base[(0, col)] = ''.join([
+                self.white_background,
+                u'ABCDEFGHIJ'[counter],
+                self.color_end
             ])
+            counter += 1
 
         fh2 = (self.field_height // 2)
-        for row in range(self.board_size):
-            base[Vector(row=row * self.field_height + fh2, col=0)] = ''.join([
+        counter = 0
+        for row in range(fh2, self.board_height, self.field_height):
+            base[(row, 0)] = ''.join([
+                self.white_background,
                 u'\x1b[47m\x1b[1m\x1b[30m',
-                u'0123456789'[row],
-                COLOR_END_CONSOLE
+                u'0123456789'[counter],
+                self.color_end
             ])
+            counter += 1
 
         for row in range(BOARD_BORDER_THICKNESS, self.board_height - 1):
             for col in range(BOARD_BORDER_THICKNESS, self.board_width - 1):
-                col_mod = (
-                    col % (self.field_inner_width + self.wall_thickness) == 0
-                )
-                if row % (self.field_inner_height + self.wall_thickness) == 0:
+                col_mod = col % (self.field_width) == 0
+                if row % (self.field_height) == 0:
                     if col % 2 == 0 and not col_mod:
-                        base[Vector(row=row, col=col)] = '-'
+                        base[(row, col)] = '-'
                     else:
-                        base[Vector(row=row, col=col)] = ' '
+                        base[(row, col)] = ' '
                 else:
                     if row % 2 != 0 and col_mod:
-                        base[Vector(row=row, col=col)] = '|'
+                        base[(row, col)] = '|'
                     else:
-                        base[Vector(row=row, col=col)] = ' '
+                        base[(row, col)] = ' '
         return base
 
-    def walls_to_base(self, state, base):
-        row_offset = self.field_height
-        col_offset = self.field_width
-        for row in range(self.wall_board_size):
-            for col in range(self.wall_board_size):
-                num = str(row * self.wall_board_size + col)
-                for i in range(len(num)):
-                    position = Vector(
-                        row=row_offset + row * self.field_height,
-                        col=col_offset + col * self.field_width - i,
-                    )
-                    base[position] = num[-i - 1]
+    def wall_numbers_to_base(self, state, base):
+        row_start = self.field_height
+        row_stop = row_start + self.wall_board_size * self.field_height
+        col_start = self.field_width
+        col_stop = col_start + self.wall_board_size * self.field_width
+        number = 0
+        for row in range(row_start, row_stop, self.field_height):
+            for col in range(col_start, col_stop, self.field_width):
+                num = str(number)
+                for i, digit in enumerate(num, start=1):
+                    base[(row, col - len(num) + i)] = digit
+                number += 1
 
+    def walls_to_base(self, state, base):
         for wall in state[5]:
             if wall < self.wall_board_positions:
                 row, col = divmod(wall, self.wall_board_size)
-                row_offset = (row + 1) * self.field_height
-                col_offset = col * self.field_width + 1
-                for col_delta in range(self.wall_length_horizontal):
-                    position = Vector(
-                        row=row_offset, col=col_offset + col_delta
-                    )
-                    base[position] = u'\u2550'
+                row = (row + 1) * self.field_height
+                start = col * self.field_width + 1
+                stop = start + self.wall_length_horizontal
+                for col in range(start, stop):
+                    base[(row, col)] = u'\u2550'
                 continue
 
             row, col = divmod(
                 wall - self.wall_board_positions,
                 self.wall_board_size
             )
-            row_offset = row * self.field_height + 1
-            col_offset = (col + 1) * self.field_width
-            for row_delta in range(self.wall_length_vertical):
-                position = Vector(row=row_offset + row_delta, col=col_offset)
-                base[position] = u'\u2551'
+            col = (col + 1) * self.field_width
+            start = row * self.field_height + 1
+            stop = start + self.wall_length_vertical
+            for row in range(start, stop):
+                base[(row, col)] = u'\u2551'
 
     def pawns_to_base(self, state, base):
         for player in (YELLOW, GREEN):
@@ -418,33 +431,28 @@ class ConsoleGame(Quoridor2):
 
             # top and bottom sides:
             for column in range(leftmost, rightmost + 1):
-                base[Vector(row=top, col=column)] = u'\u203e'
-                base[Vector(row=bottom, col=column)] = u'_'
+                base[(top, column)] = u'\u203e'
+                base[(bottom, column)] = u'_'
 
             # left and right sides:
             for row in range(top, bottom + 1):
-                base[Vector(row=row, col=leftmost)] = (
-                    color_start + u'\u23b8'
-                )
-                base[Vector(row=row, col=rightmost)] = (
-                    u'\u23b9' + self.color_end
-                )
+                base[(row, leftmost)] = color_start + u'\u23b8'
+                base[(row, rightmost)] = u'\u23b9' + self.color_end
 
             # corners:
             base.update({
-                Vector(row=top, col=leftmost): color_start + u'\u27cb',
-                Vector(row=top, col=rightmost): u'\u27cd' + self.color_end,
-                Vector(row=bottom, col=leftmost): color_start + u'\u27cd',
-                Vector(row=bottom, col=rightmost): u'\u27cb' + self.color_end,
+                (top, leftmost): color_start + u'\u27cb',
+                (top, rightmost): u'\u27cd' + self.color_end,
+                (bottom, leftmost): color_start + u'\u27cd',
+                (bottom, rightmost): u'\u27cb' + self.color_end,
             })
 
             # text:
             name = PLAYER_COLOR_NAME[player]
             row = int(round(0.25 + float(top + bottom) / 2))
             for offset in range(1, rightmost - leftmost):
-                position = Vector(row=row, col=leftmost + offset)
                 if offset <= len(name):
-                    base[position] = name[offset - 1]
+                    base[(row, leftmost + offset)] = name[offset - 1]
 
     def action_to_human(self, action):
         type_ =''
@@ -460,8 +468,14 @@ class ConsoleGame(Quoridor2):
 
     def history_to_base(self, history, base, start_row):
         start_col = self.board_width + 1
-        for col, letter in enumerate(' HISTORY', start=start_col):
-            base[Vector(row=start_row, col=col)] = letter
+        first_line = ''.join([
+            ' ',
+            self.bold,
+            'HISTORY',
+            self.color_end
+        ])
+        for col, letter in enumerate(first_line, start=start_col):
+            base[(start_row, col)] = letter
 
         if not history:
             return
@@ -471,34 +485,33 @@ class ConsoleGame(Quoridor2):
         for row, action_number in enumerate(displayed, start=start_row + 1):
             action = ' ' + self.action_to_human(action_number)
             for col, letter in enumerate(action, start=start_col):
-                base[Vector(row=row, col=col)] = letter
+                base[(row, col)] = letter
 
     def menu_to_base(self, base):
         start_col = self.board_width + 1
-        for row, item in enumerate(self.GAME_MENU, start=0):
+        for row, item in enumerate(self.game_menu, start=0):
             for col, letter in enumerate(item, start=start_col):
-                base[Vector(row=row, col=col)] = letter
-
-        # base[Vector(row=half_board_height + 1, col=start_col + col_offset)] = letter
+                base[(row, col)] = letter
 
     def display_on_console(self, context):
         # TODO: menu possibilities
         # TODO: history list
         # TODO: winner info
         base = copy.deepcopy(self.output_base)
+        self.wall_numbers_to_base(context.state, base)
         self.walls_to_base(context.state, base)
         self.pawns_to_base(context.state, base)
         history_start_row = 0
         if context.current['name'] == 'human':
             self.menu_to_base(base)
-            history_start_row = len(self.GAME_MENU) + 1
+            history_start_row = len(self.game_menu) + 1
         self.history_to_base(context.history, base, history_start_row)
 
         print '\n'.join([
             ''.join([
-                base[Vector(row=row, col=col)]
+                base[(row, col)]
                 for col in range(self.board_width + 100)
-                if Vector(row=row, col=col) in base
+                if (row, col) in base
             ])
             for row in range(self.board_height)
         ])
