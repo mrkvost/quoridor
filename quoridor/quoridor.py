@@ -202,6 +202,41 @@ class ConsoleGame(Quoridor2):
         'dl': 11, 'ld': 11,
     }
 
+    HUMAN_MOVES = {
+        0: 'u',
+        1: 'r',
+        2: 'd',
+        3: 'l',
+
+        4: 'uu',
+        5: 'rr',
+        6: 'dd',
+        7: 'll',
+
+        8: 'ur',
+        9: 'ul',
+        10: 'dr',
+        11: 'dl',
+    }
+
+    GAME_MENU = [
+        ' OPTIONS',
+        ' menu    - back to menu',
+        ' quit    - quit game',
+        ' undo    - undo move',
+        # ' save - save game',
+        # ' load - load game',
+        ' [h]0-63 - horizontal wall',
+        ' v0-63   - vertical wall',
+        ' u       - move up',
+        ' l       - move left',
+        ' d       - move down',
+        ' r       - move right',
+        ' uu      - jump up',
+        ' dl      - jump down left',
+        ' ...     - etc.',
+    ]
+
     def __init__(self, board_size=BOARD_SIZE_DEFAULT,
                  wall_thickness=WALL_THICKNESS_DEFAULT,
                  field_inner_width=FIELD_INNER_WIDTH_DEFAULT,
@@ -411,6 +446,41 @@ class ConsoleGame(Quoridor2):
                 if offset <= len(name):
                     base[position] = name[offset - 1]
 
+    def action_to_human(self, action):
+        type_ =''
+        number = action
+        if action < self.wall_board_positions:
+            type_ ='h'
+        elif action < self.wall_moves:
+            type_ ='v'
+            number -= self.wall_board_positions
+        else:
+            number = self.HUMAN_MOVES[action - self.wall_moves]
+        return '[{type_}{number}]'.format(type_=type_, number=number)
+
+    def history_to_base(self, history, base, start_row):
+        start_col = self.board_width + 1
+        for col, letter in enumerate(' HISTORY', start=start_col):
+            base[Vector(row=start_row, col=col)] = letter
+
+        if not history:
+            return
+        max_ = self.board_height - start_row
+        hist_start = 0 if len(history) <= max_ else len(history) - max_
+        displayed = history[hist_start:]
+        for row, action_number in enumerate(displayed, start=start_row + 1):
+            action = ' ' + self.action_to_human(action_number)
+            for col, letter in enumerate(action, start=start_col):
+                base[Vector(row=row, col=col)] = letter
+
+    def menu_to_base(self, base):
+        start_col = self.board_width + 1
+        for row, item in enumerate(self.GAME_MENU, start=0):
+            for col, letter in enumerate(item, start=start_col):
+                base[Vector(row=row, col=col)] = letter
+
+        # base[Vector(row=half_board_height + 1, col=start_col + col_offset)] = letter
+
     def display_on_console(self, context):
         # TODO: menu possibilities
         # TODO: history list
@@ -418,6 +488,11 @@ class ConsoleGame(Quoridor2):
         base = copy.deepcopy(self.output_base)
         self.walls_to_base(context.state, base)
         self.pawns_to_base(context.state, base)
+        history_start_row = 0
+        if context.current['name'] == 'human':
+            self.menu_to_base(base)
+            history_start_row = len(self.GAME_MENU) + 1
+        self.history_to_base(context.history, base, history_start_row)
 
         print '\n'.join([
             ''.join([
@@ -659,7 +734,7 @@ class ConsoleGame(Quoridor2):
                             if name == 'human':
                                 kwargs = {
                                     'messages': self.messages,
-                                    # 'game_controls': self.game_controls,
+                                    'game_controls': self.GAME_CONTROLS,
                                     'fail_callback': self.wrong_human_move,
                                 }
                             players[color] = {

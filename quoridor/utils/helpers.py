@@ -51,7 +51,6 @@ def print_number_table(size):
             print
 
 
-# TODO: def print_combined_table(size):
 def print_installed_distributions():
     import pip
     for p in pip.get_installed_distributions():

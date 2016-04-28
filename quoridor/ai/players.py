@@ -56,7 +56,7 @@ class HumanPlayer(Player):
             messages if messages else {'enter_choice': 'enter choice:'}
         )
         self.controls = (
-            game_controls if game_controls else set(['quit', 'unknown', 'undo'])
+            game_controls if game_controls else set(['quit', 'unknown'])
         )
         self.fail_callback = fail_callback
 
@@ -245,7 +245,7 @@ class NetworkPlayer(Player):
         super(NetworkPlayer, self).__init__(game)
 
         self.db_name = db_name
-        db_session = make_db_session(DB_PATH)     # TODO: fixed/variable?
+        db_session = make_db_session(DB_PATH)
         self.load_from_db(db_session)
 
     def load_from_db(self, db_session):

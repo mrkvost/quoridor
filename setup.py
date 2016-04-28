@@ -18,7 +18,6 @@ def get_setup_requirements():
         for package in pip.get_installed_distributions()
         if str(package.project_name) in REQUIREMENTS
     ])
-    # ...TODO...
 
     setup_requirements = []
     for package_name, required_version in REQUIREMENTS.items():

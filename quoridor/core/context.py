@@ -156,6 +156,10 @@ class QuoridorContext(object):
         self._data[key] = value
 
     @property
+    def current(self):
+        return self._data[self._data['state'][0]]
+
+    @property
     def yellow(self):
         return self._data[YELLOW]
 
