@@ -181,6 +181,7 @@ class Quoridor2(object):
         self.goal_positions = _make_goal_positions(self.board_size)
         self.move_deltas = _make_move_deltas(self.board_size)
         self.delta_moves = _make_delta_moves(self.board_size)
+        self.all_actions = frozenset(range(self.all_moves))
 
     def is_wall_crossing(self, walls, wall):
         if wall in walls:

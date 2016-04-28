@@ -1,6 +1,7 @@
 import re
 import abc
 import random
+import operator
 import itertools
 
 from sqlalchemy.orm.exc import NoResultFound
@@ -295,36 +296,41 @@ class QlearningNetworkPlayer(NetworkPlayer):
         if len(args) < 2:
             args += (kwargs.pop('db_name', '133_200_140'), )
         super(QlearningNetworkPlayer, self).__init__(*args, **kwargs)
+        self.explore = False
+        self.random_choose_from = frozenset()
 
     def activations_from_state(self, state):
         input_vector = tuple(self.input_vector_from_game_state(state))
         activations = tuple(self.perceptron.propagate_forward(input_vector))
         return activations
 
+    def _choose_random(self):
+        choices = self.random_choose_from
+        for action in random.sample(choices, len(choices)):
+            yield action
+
+    def _choose_from_activations(self):
+        q_values = self.activations[-1]
+        q_values_to_action = sorted(
+            enumerate(q_values),
+            key=operator.itemgetter(1),
+            reverse=True,
+        )
+        for action, value in q_values_to_action:
+            yield action
+
     def play(self, context):
         # TODO: when learning, should it be here any randomness? e.g. first few
         #       q_values have similar probability to be chosend to play?
         self.activations = self.activations_from_state(context.state)
-        q_values = self.activations[-1]
-        q_values_to_action = list(sorted([
-            (value, action) for action, value in enumerate(q_values)
-        ], reverse=True))
-        explore = self.perceptron.exploration_probability
-        if explore and explore > random.random():
-            while True:
-                action = random.choice(range(self.game.all_moves))
-                try:
-                    context.update(action)
-                    break
-                except InvalidMove:
-                    # TODO: add to desired output vector with bad reward?
-                    pass
-
+        if self.explore:
+            choose_from = self._choose_random()
         else:
-            for value, action in q_values_to_action:
-                try:
-                    context.update(action)
-                    break
-                except InvalidMove:
-                    # TODO: add to desired output vector with bad reward?
-                    pass
+            choose_from = self._choose_from_activations()
+        for action in choose_from:
+            try:
+                context.update(action)
+                break
+            except InvalidMove:
+                # TODO: add to desired output vector with bad reward?
+                pass

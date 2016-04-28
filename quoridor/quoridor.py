@@ -158,12 +158,10 @@ TRAINING_STATES = (
 REWARD = 1000
 
 
-def desired_output(player, invalid_actions, activations, last_action,
-                   is_terminal, new_values):
-    reward = (1 - player * 2) * REWARD
+def desired_output(player, activations, last_action, is_terminal, new_values):
+    # reward = (1 - player * 2) * REWARD
+    reward = 1 - player
     output = copy.deepcopy(activations[-1])
-    # for action in invalid_actions:
-    #     output[action] -= reward
 
     # update qvalue for current action
     best_value = max(new_values) if player else min(new_values)
@@ -658,20 +656,27 @@ class ConsoleGame(Quoridor2):
 
             player = context.state[0]
             if context[player]['name'] == 'qlnn':
-                invalid_actions = context.invalid_actions
-                activations = qlnn.activations_from_state(context.state)
+                explore = qlnn.perceptron.exploration_probability
+                if explore and explore > random.random():
+                    invalid_actions = set(context.invalid_actions)
+                    qlnn.explore = True
+                    qlnn.random_choose_from = (
+                        self.all_actions - invalid_actions
+                    )
                 players[player]['player'](context)
-                new_activations = qlnn.activations
+                activations = qlnn.activations
+                new_activations = qlnn.activations_from_state(context.state)
                 last_qlnn_action = context.last_action
                 desired = desired_output(
                     player,
-                    invalid_actions,
+                    # invalid_actions,
                     activations,
                     last_qlnn_action,
                     context.is_terminal,
                     new_activations[-1],
                 )
                 qlnn.perceptron.propagate_backward(activations, desired)
+                qlnn.explore = False
             else:
                 players[player]['player'](context)
 
@@ -682,7 +687,7 @@ class ConsoleGame(Quoridor2):
             assert context.is_terminal
             new_activations = qlnn.activations_from_state(context.state)
             desired = copy.deepcopy(activations[-1])
-            desired[last_qlnn_action] -= REWARD
+            desired[last_qlnn_action] -= 1
             qlnn.perceptron.propagate_backward(activations, desired)
             return False
         return True
@@ -694,6 +699,8 @@ class ConsoleGame(Quoridor2):
         db_session = make_db_session(DB_PATH)
         start_time = datetime.datetime.now()
         status_every = 50
+        random_base = qlnn.perceptron.exploration_probability
+        games_goal = 100000
         try:
             while True:
                 show_and_save = not (game_counter + 1) % show_save_cycle
@@ -702,12 +709,11 @@ class ConsoleGame(Quoridor2):
                     players=players,
                     state=random.choice(TRAINING_STATES)
                 )
-                # context.reset(players=players)
                 win = int(self.train_game(context, players, display_game))
                 qlnn_wins += win
                 game_counter += 1
                 qlnn.perceptron.exploration_probability = (
-                    0.1 * (600000 - game_counter) / 600000
+                    random_base * (1 - game_counter / games_goal)
                 )
                 delta_time = datetime.datetime.now() - start_time
                 seconds = int(delta_time.total_seconds())
