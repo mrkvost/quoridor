@@ -26,6 +26,10 @@
 
 INSTALLATION
 ============
+program needs gcc to compile numpy upon installation::
+
+    $ sudo apt-get install gcc
+
 clone the quoridor repository::
 
     $ git clone https://github.com/mrkvost/quoridor
