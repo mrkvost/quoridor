@@ -494,9 +494,6 @@ class ConsoleGame(Quoridor2):
                 base[(row, col)] = letter
 
     def display_on_console(self, context):
-        # TODO: menu possibilities
-        # TODO: history list
-        # TODO: winner info
         base = copy.deepcopy(self.output_base)
         self.wall_numbers_to_base(context.state, base)
         self.walls_to_base(context.state, base)
@@ -536,6 +533,20 @@ class ConsoleGame(Quoridor2):
             ),
             self.color_end,
         ])
+        if context.is_terminal:
+            player = FOLLOWING_PLAYER[context.state[0]]
+            print ''.join([
+                self.red,
+                'Game ended! ',
+                self.cyan,
+                PLAYER_COLOR_NAME[player],
+                ' player (',
+                context.current['name'][:2].upper(),
+                ')',
+                ' is the winner!',
+                '\n',
+                self.color_end,
+            ]),
 
     def make_output_messages(self):
         return {
@@ -554,9 +565,6 @@ class ConsoleGame(Quoridor2):
                 u'Unknown choice. Please, try again.',
                 self.color_end,
                 '\n',
-            ]),
-            'game_ended': ''.join([
-                self.cyan, ' - GAME ENDED -', self.color_end
             ]),
         }
 
@@ -634,7 +642,6 @@ class ConsoleGame(Quoridor2):
                 players[player]['player'](context)
 
         self.display_on_console(context)
-        print self.messages['game_ended']
         return 'menu'
 
     def train_game(self, context, players, display):
