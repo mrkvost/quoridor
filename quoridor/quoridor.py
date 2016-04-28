@@ -835,12 +835,12 @@ class ConsoleGame(Quoridor2):
         new_state = [0, 0, 0, 0, 0, set()]
         board_positions = frozenset(range(self.board_positions))
         new_state[0] = random.choice((YELLOW, GREEN))
-        for color in (YELLOW, GREEN):
-            new_state[1 + color] = random.choice(
-                tuple(board_positions - self.goal_positions[color])
-            )
-        all_wall_positions = tuple(range(self.wall_moves))
+        exclude = self.goal_positions[YELLOW]
+        new_state[1] = random.choice(tuple(board_positions - exclude))
+        exclude = self.goal_positions[GREEN] | set([new_state[1]])
+        new_state[2] = random.choice(tuple(board_positions - exclude))
 
+        all_wall_positions = tuple(range(self.wall_moves))
         place_walls = random.randint(0, 2 * STARTING_WALL_COUNT)
         # place_walls = 20
         walls_used = random.randint(
@@ -853,9 +853,10 @@ class ConsoleGame(Quoridor2):
             action = random.choice(all_wall_positions)
             if self.is_wall_crossing(new_state[5], action):
                 continue
-            elif not self.players_can_reach_goal(new_state):
-                continue
             new_state[5].add(action)
+            if not self.players_can_reach_goal(new_state):
+                new_state[5].remove(action)
+                continue
             place_walls -= 1
         new_state[5] = frozenset(new_state[5])
 
