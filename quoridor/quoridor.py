@@ -24,6 +24,7 @@ from core.game import (
     PLAYER_COLOR_NAME,
     FOLLOWING_PLAYER,
     BOARD_SIZE_DEFAULT,
+    STARTING_WALL_COUNT,
 
     InvalidMove,
     Quoridor2,
@@ -94,9 +95,15 @@ MENU_CHOICE = {
     },
 
     8: {
+        'mode': 'random_state',
+        'player_names': None,
+        'text': 'Generate random state',
+    },
+
+    9: {
         'mode': 'quit',
         'player_names': None,
-        'text': 'Quit',
+        'text': 'Quit (q, quit, exit)',
     },
 
     # TODO: temporal difference player
@@ -128,6 +135,7 @@ TRAINING_STATES = (
 
     # simple path
     (0, 31, 49, 0, 0, frozenset([3, 12, 22, 26, 36, 39, 49, 51, 53, 55, 56, 68, 71, 83, 85, 94, 97, 104, 107, 123])),
+    (1, 35, 52, 0, 0, frozenset([1, 66, 68, 69, 11, 78, 25, 91, 30, 35, 100, 37, 104, 44, 47, 49, 115, 118, 55, 59])),
 
     # harder
     (0, 66, 47, 2, 2, frozenset([11, 21, 49, 51, 57, 59, 68, 78, 82, 91, 94, 98, 100, 124])),
@@ -175,9 +183,9 @@ def desired_output(player, activations, last_action, is_terminal, new_values):
 class ConsoleGame(Quoridor2):
 
     GAME_CONTROLS = set([
-        'quit',
+        'quit',     # 'q', 'exit', 'end'
         'menu',
-        'undo',
+        'undo',     # 'back'
         'unknown',
         # TODO:
         # ''next', 'save', 'help', hint_move, change_players
@@ -787,7 +795,7 @@ class ConsoleGame(Quoridor2):
                 return 'quit'
             return 'unknown'
 
-        if user_input in ('quit', 'exit'):
+        if user_input in ('q', 'quit', 'exit'):
             return 'quit'
 
         match = re.match(r'(?P<number>\d+)', user_input)
@@ -807,6 +815,11 @@ class ConsoleGame(Quoridor2):
             if choice == 'unknown':
                 print self.messages['unknown_choice']
                 continue
+            elif choice == 'quit':
+                return choice
+            elif choice['mode'] == 'random_state':
+                self.generate_random_state()
+                continue
             return choice
 
     def print_menu(self):
@@ -818,81 +831,40 @@ class ConsoleGame(Quoridor2):
             )
         print
 
+    def generate_random_state(self):
+        new_state = [0, 0, 0, 0, 0, set()]
+        board_positions = frozenset(range(self.board_positions))
+        new_state[0] = random.choice((YELLOW, GREEN))
+        for color in (YELLOW, GREEN):
+            new_state[1 + color] = random.choice(
+                tuple(board_positions - self.goal_positions[color])
+            )
+        all_wall_positions = tuple(range(self.wall_moves))
 
-# def random_walls(game, state):
-#     for i in range(random.randint(10, 30)):
-#         position = Vector(
-#             row=random.randint(WALL_POS_MIN, WALL_POS_MAX),
-#             col=random.randint(WALL_POS_MIN, WALL_POS_MAX),
-#         )
-#         direction = random.choice(DIRECTIONS)
-#         try:
-#             game.execute_action(state, (direction, position))
-#         except InvalidMove:
-#             pass
-#
-#
-# def random_pawn_positions(game, state):
-#     state['pawns'] = {}
-#     for color, goal_row in GOAL_ROW.items():
-#         position = Vector(
-#             row=random.randint(PAWN_POS_MIN, PAWN_POS_MAX),
-#             col=random.randint(PAWN_POS_MIN, PAWN_POS_MAX),
-#         )
-#         while position in state['pawns'] or position.row == goal_row:
-#             position = Vector(
-#                 row=random.randint(PAWN_POS_MIN, PAWN_POS_MAX),
-#                 col=random.randint(PAWN_POS_MIN, PAWN_POS_MAX),
-#             )
-#
-#         state['pawns'][color] = position
-#
-#
-# def status_line_to_base(row, line, base):
-#     for offset, char in enumerate(u' ' + line):
-#         base[Vector(row=row, col=BOARD_WIDTH + offset)] = char
-#
-#
-#
-# def history_to_base(base, history):
-#     status_line_to_base(12, 'HISTORY:', base)
-#     for n, action in enumerate(history[-10:]):
-#         row = 13 + n
-#         action_type, position = action
-#         move = ACTION_TYPE[action_type](row=position.row, col=position.col)
-#         status_line_to_base(row, ' ' + repr(move), base)
-#
-#
-# COLUMN_LETTERS = u'abcdefghi'
-# WALL_INPUT_PATTERN = (
-#     ur'(?:wall|w|)\s*'
-#     ur'(?P<direction>h|v)\s*'
-#     ur'(?P<row>\d+)\s*'
-#     ur'(?P<col>[{column_letters}])'
-# ).format(column_letters=COLUMN_LETTERS)
-# WALL_INPUT_RE = re.compile(WALL_INPUT_PATTERN, re.I)
-# INPUT_DIRECTIONS = {'h': HORIZONTAL, 'v': VERTICAL}
-#
-# MOVE_INPUT_PATTERN = (
-#     ur'(?:pawn|p|)\s*'
-#     ur'(?P<row>\d+)\s*'
-#     ur'(?P<col>[{column_letters}])'
-# ).format(column_letters=COLUMN_LETTERS)
-# MOVE_INPUT_RE = re.compile(MOVE_INPUT_PATTERN, re.I)
-#
-# QUIT_INPUT_PATTERN = u'quit|q|exit|end'
-# QUIT_INPUT_RE = re.compile(QUIT_INPUT_PATTERN, re.I)
-#
-# UNDO_INPUT_PATTERN = u'u|undo|back'
-# UNDO_INPUT_RE = re.compile(UNDO_INPUT_PATTERN, re.I)
-#
-# ACTION_UNKNOWN = 'unknown'
-# ACTION_END = 'end'
-# ACTION_MOVE = 'move'
-# ACTION_UNDO = 'undo'
-#
-#
-#
+        place_walls = random.randint(0, 2 * STARTING_WALL_COUNT)
+        # place_walls = 20
+        walls_used = random.randint(
+            max(0, place_walls - STARTING_WALL_COUNT),
+            min(STARTING_WALL_COUNT, place_walls)
+        )
+        new_state[3] = STARTING_WALL_COUNT - walls_used
+        new_state[4] = STARTING_WALL_COUNT - place_walls + walls_used
+        while place_walls:
+            action = random.choice(all_wall_positions)
+            if self.is_wall_crossing(new_state[5], action):
+                continue
+            elif not self.players_can_reach_goal(new_state):
+                continue
+            new_state[5].add(action)
+            place_walls -= 1
+        new_state[5] = frozenset(new_state[5])
+
+        context = QuoridorContext(self)
+        context.reset(state=tuple(new_state))
+        self.display_on_console(context)
+        print context
+
+
 # def qlearn(with_clear=True):
 #     game = Quoridor2()
 #     rpwp = RandomPlayerWithPath(game)
@@ -932,44 +904,6 @@ class ConsoleGame(Quoridor2):
 #         games_played += 1
 #         print 'games_played:', games_played
 #     ql_player.save_Q()
-#
-#
-# def random_players(moves=None, with_clear=True):
-#     game = Quoridor2()
-#     state = game.initial_state()
-#     # rp = RandomPlayer(game)
-#     rpwp = RandomPlayerWithPath(game)
-#     if moves is None:
-#         moves = 1000
-#     history = []
-#     while moves > 0:
-#         action = rpwp.play(state)
-#         action_type, position = action
-#         game.execute_action(state, action)
-#         history.append(action)
-#         display_on_console(state, True, history=history, with_clear=with_clear)
-#         # print ACTION_TYPE[action_type](row=position.row, col=position.col)
-#         if game.is_terminal(state):
-#             break
-#         time.sleep(0.1)
-#         moves -= 1
-#
-#
-# def console_run(options):
-#
-#     try:
-#         if options.random:
-#             random_players(with_clear=options.with_clear)
-#             return
-#         elif options.qlearn:
-#             qlearn(with_clear=options.with_clear)
-#             return
-#     except (EOFError, KeyboardInterrupt, SystemExit):
-#         pass
-#     finally:
-#         # TODO: look:
-#         if traceback.format_exc() != 'None\n':
-#             traceback.print_exc()
 
 
 def main():
