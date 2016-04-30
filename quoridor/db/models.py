@@ -1,9 +1,10 @@
 from sqlalchemy import (
     Column, String, Integer, Float, ForeignKey, MetaData,
-    Boolean,
+    Boolean, Index, DateTime,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.sql import func
 
 
 metadata = MetaData()
@@ -46,7 +47,7 @@ class Weight(Base):
     input = Column(Integer, nullable=False)
     output = Column(Integer, nullable=False)
     weight = Column(Float, nullable=False)
-    network = relationship("Network", backref="weights")
+    network = relationship('Network', backref='weights')
 
     def __str__(self):
         return (
@@ -60,13 +61,51 @@ class Weight(Base):
         )
 
 
+class GameState(Base):
+    __tablename__ = 'game_state'
+    __table_args__ = (
+        Index(
+            'game_state_hash_idx',
+            'on_move',
+            'yellow_position',
+            'yellow_walls',
+            'green_position',
+            'green_walls',
+            'placed_walls',
+            unique=True,
+        ),
+    )
+
+    id = Column(Integer, primary_key=True)
+
+    on_move = Column(Integer, nullable=False, index=True)
+    placed_walls = Column(String, nullable=False)
+
+    yellow_position = Column(Integer, nullable=False)
+    yellow_walls = Column(Integer, nullable=False)
+
+    green_position = Column(Integer, nullable=False)
+    green_walls = Column(Integer, nullable=False)
+
+    slug = Column(String(50), index=True)
+    description = Column(String)
+
+
 class Game(Base):
     __tablename__ = 'game'
 
     id = Column(Integer, primary_key=True)
-    yellow_played = Column(String)
-    green_played = Column(String)
+
+    start_state_id = Column(Integer, ForeignKey('game_state.id'))
+    start_state = relationship('GameState', backref='games')
+
+    yellow_played = Column(String, index=True)
+    green_played = Column(String, index=True)
+    winner = Column(Integer, index=True)
+
     description = Column(String)
+    moves_made = Column(Integer)
+    created = Column(DateTime, server_default=func.current_timestamp())
 
 
 class Move(Base):
@@ -74,5 +113,6 @@ class Move(Base):
 
     id = Column(Integer, primary_key=True)
     game_id = Column(Integer, ForeignKey('game.id'), nullable=False)
+    game = relationship('Game', backref='moves')
     number = Column(Integer, nullable=False)
     action = Column(Integer, nullable=False)

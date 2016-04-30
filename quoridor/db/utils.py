@@ -4,13 +4,22 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from quoridor.commonsettings import DB_PATH
-from quoridor.db.models import Base, Network, Weight, Game, Move
+from quoridor.db.models import Base, Network, Weight, GameState, Game, Move
+
+
+GAME_STATE_DEFAULT = (0, 4, 76, 10, 10, tuple())
+GAME_STATE_SLUG_DEFAULT = 'default'
+GAME_STATE_DESC_DEFAULT = 'Standard starting state for 2 player version in 9x9'
+
+
+def _make_engine(db_path):
+    db_url = 'sqlite:///{relative_db_path}'.format(relative_db_path=db_path)
+    engine = create_engine(db_url)
+    return engine
 
 
 def make_db_session(db_path):
-    engine = create_engine(
-        'sqlite:///{relative_db_path}'.format(relative_db_path=db_path)
-    )
+    engine = _make_engine(db_path)
     Session = sessionmaker(bind=engine)
     return Session()
     # with closing(make_db_session(db_path)) as db_session:
@@ -91,12 +100,86 @@ def db_load_network(db_session, network_name):
     return network_attribues
 
 
+def db_save_game_state(db_session, state, slug=None, description=None):
+    game_state = GameState()
+    game_state.on_move = state[0]
+    game_state.yellow_position = state[1]
+    game_state.yellow_walls = state[3]
+    game_state.green_position = state[2]
+    game_state.green_walls = state[4]
+    game_state.placed_walls = ','.join([
+        str(wall) for wall in sorted(state[5])
+    ])
+
+    game_state.slug = slug
+    game_state.description = description
+
+    db_session.add(game_state)
+    return game_state
+
+
+def db_save_game(db_session, state_slug=None, start_state=None, yellow=None,
+                 green=None, winner=None, actions=None, moves_made=None,
+                 description=None):
+    game_state = None
+    if state_slug:
+        query = db_session.query(GameState).filter_by(slug=state_slug)
+        game_state = query.one()   # slug provided, game state has to exist!
+    elif start_state:
+        query = db_session.query(GameState).filter_by(
+            on_move=start_state[0],
+            yellow_position=start_state[1],
+            yellow_walls=start_state[3],
+            green_position=start_state[2],
+            green_walls=start_state[4],
+            placed_walls=','.join([
+                str(wall) for wall in sorted(start_state[5])
+            ]),
+        )
+        game_state = query.first()
+        if game_state is None:
+            game_state = db_save_game_state(db_session, start_state)
+
+    if actions:
+        moves_made = len(actions)
+
+    game = Game()
+    game.yellow_played = yellow
+    game.green_played = green
+    game.winner = winner
+    game.moves_made = moves_made
+    game.description = description
+
+    if game_state is not None:
+        if actions:
+            moves_made = len(actions)
+            for number, action in enumerate(actions, start=1):
+                move = Move()
+                move.number = number
+                move.action = action
+                move.game_id = game.id
+                game.moves.append(move)
+        game_state.games.append(game)
+    else:
+        db_session.add(game)
+
+
 # LIST_TABLES = """ SELECT name FROM sqlite_master WHERE type='table'"""
 def build_db(db_path):
-    engine = create_engine(
-        'sqlite:///{relative_db_path}'.format(relative_db_path=db_path)
-    )
+    engine = _make_engine(db_path)
     Base.metadata.create_all(engine)
+
+    db_session = make_db_session(db_path)
+    query = db_session.query(GameState).filter_by(slug=GAME_STATE_SLUG_DEFAULT)
+    default_game_state = query.first()
+    if default_game_state is None:
+        default_game_state = db_save_game_state(
+            db_session,
+            GAME_STATE_DEFAULT,
+            GAME_STATE_SLUG_DEFAULT,
+            GAME_STATE_DESC_DEFAULT,
+        )
+        db_session.commit()
 
 
 def run():

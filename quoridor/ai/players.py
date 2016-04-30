@@ -44,7 +44,7 @@ class Player(object):
 class HumanPlayer(Player):
     GAME_INPUT_PATTERN = (
         r'(?i)'
-        r'(?P<type>menu|undo|quit|[hv]|[urdl]{1,2})?'
+        r'(?P<type>menu|save|undo|quit|[hv]|[urdl]{1,2})?'
         r'(?P<number>[-+]?\d+)?'
         r'$'
     )

@@ -43,6 +43,7 @@ class QuoridorContext(object):
                 'path': path,
                 'blockers': blockers,
                 'goal_cut': set(),  # TODO: consider using ordered set
+                'color': color,
             }
 
     def undo(self):
@@ -156,6 +157,15 @@ class QuoridorContext(object):
         self._data[key] = value
 
     @property
+    def winner(self):
+        if self.is_terminal:
+            return self.following['color']
+
+    @property
+    def following(self):
+        return self._data[FOLLOWING_PLAYER[self._data['state'][0]]]
+
+    @property
     def current(self):
         return self._data[self._data['state'][0]]
 
@@ -173,12 +183,12 @@ class QuoridorContext(object):
 
     @property
     def history(self):
-        return self._data['history']
+        return self._data.get('history', [])
 
     @property
     def last_action(self):
-        if self._data['history']:
-            return self._data['history'][-1]
+        if self.history:
+            return self.history[-1]
 
     def __str__(self):
         return CONTEXT_FMT.format(
