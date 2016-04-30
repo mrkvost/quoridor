@@ -11,7 +11,7 @@ import datetime
 from optparse import OptionParser
 
 from commonsettings import DB_PATH
-from db.utils import make_db_session
+from db.utils import make_db_session, db_save_game
 from ai.players import (
     HumanPlayer,
     PathPlayer,
@@ -93,14 +93,19 @@ MENU_CHOICE = {
         'player_names': {YELLOW: 'qlnn', GREEN: 'path'},
         'text': 'Train QLNN vs Path',
     },
-
     8: {
         'mode': 'random_state',
         'player_names': None,
         'text': 'Generate random state',
     },
-
     9: {
+        'mode': 'save',
+        'player_names': None,
+        'text': 'Save last game',
+    },
+
+
+    10: {
         'mode': 'quit',
         'player_names': None,
         'text': 'Quit (q, quit, exit)',
@@ -110,7 +115,6 @@ MENU_CHOICE = {
     #       simple qlearning player
     #       random player with path
     #       random player
-    #       'save',
     #       'load',
     #       'quit',
 }
@@ -187,8 +191,9 @@ class ConsoleGame(Quoridor2):
         'menu',
         'undo',     # 'back'
         'unknown',
+        'save',
         # TODO:
-        # ''next', 'save', 'help', hint_move, change_players
+        # ''next', 'help', hint_move, change_players
     ])
 
     PAWN_MOVES = {
@@ -223,27 +228,29 @@ class ConsoleGame(Quoridor2):
     }
 
     GAME_MENU = [
-        ' - menu',
-        ' - quit',
-        # ' save - save game',
+        ' menu',
+        ' quit',
+        ' save',
         # ' load - load game',
-        ' - undo',
+        ' undo',
         '',
         ' PLACE WALL',
-        ' - [h]0-63',
-        '   (horizontal)',
+        ' [h]0-63',
+        ' (horizontal)',
         '',
-        ' - v0-63',
-        '   (vertical)',
+        ' v0-63',
+        ' (vertical)',
         '',
         ' MOVE PAWN',
-        ' - u (up)',
-        ' - l (left)',
-        ' - d (down)',
-        ' - r (right)',
-        ' - uu (jump up)',
-        ' - dl (jump dl)',
-        ' ...',
+        ' u (up)',
+        ' l (left)',
+        ' d (down)',
+        ' r (right)',
+        '',
+        ' JUMP PAWN',
+        ' uu, ur, rr,',
+        ' rd, dd, dl,',
+        ' ll, lu',
     ]
 
     def __init__(self, board_size=BOARD_SIZE_DEFAULT,
@@ -572,6 +579,15 @@ class ConsoleGame(Quoridor2):
                 self.color_end,
                 '\n',
             ]),
+            'cannot_undo': ''.join([
+                self.red, 'Cannot undo!', self.color_end,
+            ]),
+            'cannot_save': ''.join([
+                self.red, 'No move played, cannot save!', self.color_end,
+            ]),
+            'save_success': ''.join([
+                self.green, 'Successfully saved!', self.color_end,
+            ]),
         }
 
     def prompt(self, message):
@@ -624,7 +640,7 @@ class ConsoleGame(Quoridor2):
             if context[player]['name'] == 'human':
                 action = players[player]['player'](context)
                 if action in ('quit', 'menu'):
-                    # TODO: save, load
+                    # TODO: load game
                     return action
                 elif action == 'undo':
                     next_ = FOLLOWING_PLAYER[player]
@@ -632,7 +648,7 @@ class ConsoleGame(Quoridor2):
                     if context[next_]['name'] != 'human':
                         repeat = 2
                         if len(context.history) < 2:
-                            print self.red + 'Cannot undo!' + self.color_end
+                            print self.messages['cannot_undo']
                             continue
                     try:
                         for _ in range(repeat):
@@ -641,6 +657,8 @@ class ConsoleGame(Quoridor2):
                         print self.red + str(e) + self.color_end
                 elif action == 'unknown':
                     print self.messages['unknown_choice'],
+                elif action == 'save':
+                    self.save_menu(context)
             elif context[player]['name'] == 'qlnn':
                 action = players[player]['player'](context)
             else:
@@ -778,6 +796,12 @@ class ConsoleGame(Quoridor2):
                             'name': name,
                             'player': PLAYERS[name](self, **kwargs),
                         }
+                elif game_mode == 'save':
+                    if not context.history:
+                        game_mode = 'menu'
+                        print self.messages['cannot_save']
+                        continue
+                    game_mode = self.save_menu(context)
                 elif game_mode == 'game':
                     game_mode = self.handle_game(context, players)
                 elif game_mode == 'train':
@@ -864,6 +888,93 @@ class ConsoleGame(Quoridor2):
         context.reset(state=tuple(new_state))
         self.display_on_console(context)
         print context
+
+    def save_menu(self, context):
+        if not context.history:
+            print self.messages['cannot_save']
+            return 'menu'
+
+        input_re = re.compile(r'[0123]|db|file|b|back|menu|q|quit|exit', re.I)
+        success = False
+        while True:
+            print self.messages['menu_choose']
+            print '0 - save in database (db)'
+            print '1 - save in the file (file)'
+            print '2 - back (b, back, menu)'
+            print '3 - Quit (q, quit, exit)'
+
+            user_input = self.prompt(self.messages['enter_choice'])
+            match = input_re.match(user_input)
+            if match is None:
+                print self.messages['unknown_choice']
+                continue
+
+            if user_input in ('0', 'db'):
+                success = self.save_db_menu(context)
+            elif user_input in ('1', 'file'):
+                success = self.save_file_menu(context)
+            elif user_input in ('2', 'b', 'back', 'menu'):
+                return 'menu'
+            elif user_input in ('3', 'q', 'quit', 'exit'):
+                return 'quit'
+
+            if success:
+                print self.messages['save_success']
+                return 'menu'
+            continue
+
+    def save_db_menu(self, context):
+        message = ''.join([
+            self.yellow,
+            'Please, enter game name or type \'back\' to go back: ',
+            self.color_end
+        ])
+        user_input = self.prompt(message)
+        if user_input == 'back':
+            return False
+
+        db_session = make_db_session(DB_PATH)
+        try:
+            db_save_game(
+                db_session,
+                start_state=context['start_state'],
+                yellow=context.yellow['name'],
+                green=context.green['name'],
+                winner=context.winner,
+                actions=context.history,
+                description=user_input,
+            )
+            db_session.commit()
+            return True
+        finally:
+            db_session.close()
+
+
+    def save_file_menu(self, context):
+        message = ''.join([
+            self.yellow,
+            '(note: this rewrites existing files!)\n',
+            'Please, enter file name or type \'back\' to go back: ',
+            self.color_end
+        ])
+
+        while True:
+            user_input = self.prompt(message)
+            if user_input == 'back':
+                return False
+
+            try:
+                with open(user_input, 'w') as f:
+                    f.write(
+                        '\n'.join([
+                            str(context['start_state']),
+                            str(context.history),
+                        ])
+                    )
+            except EnvironmentError as e:
+                print self.red + str(e) + self.color_end
+                continue
+            return True
 
 
 # def qlearn(with_clear=True):
