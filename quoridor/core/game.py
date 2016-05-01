@@ -216,7 +216,7 @@ class Quoridor2(object):
                 actions.add(wall + 1)
         else:
             actions.add(wall - self.wall_board_positions)
-            position = wall - self.wall_board_size
+            position = wall - self.wall_board_positions
             actions.add(position)
             row = position // self.wall_board_size
             if row:
@@ -338,7 +338,7 @@ class Quoridor2(object):
             if check_crossing:
                 if self.is_wall_crossing(state[5], action):
                     raise InvalidMove('Wall crosses already placed walls!')
-                new_state[5] = state[5].union((action, ))
+            new_state[5] = state[5].union((action, ))
 
             if check_paths_to_goal:
                 if not self.players_can_reach_goal(new_state):

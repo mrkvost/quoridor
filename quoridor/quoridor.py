@@ -11,6 +11,7 @@ import datetime
 from optparse import OptionParser
 
 from commonsettings import DB_PATH
+from db.models import Game
 from db.utils import make_db_session, db_save_game
 from ai.players import (
     HumanPlayer,
@@ -50,10 +51,11 @@ COLOR_END_CONSOLE = u'\x1b[0m'
 CONSOLE_CLEAR = {'nt': 'cls', 'posix': 'clear'}
 CONSOLE_COLORS_DEFALUT = False
 
+PLAYERS_DEFAULT = {YELLOW: 'human', GREEN: 'human'}
 MENU_CHOICE = {
     0: {
         'mode': 'game',
-        'player_names': {YELLOW: 'human', GREEN: 'human'},
+        'player_names': PLAYERS_DEFAULT,
         'text': 'New Game Human only',
     },
     1: {
@@ -93,6 +95,7 @@ MENU_CHOICE = {
         'player_names': {YELLOW: 'qlnn', GREEN: 'path'},
         'text': 'Train QLNN vs Path',
     },
+
     8: {
         'mode': 'random_state',
         'player_names': None,
@@ -103,9 +106,12 @@ MENU_CHOICE = {
         'player_names': None,
         'text': 'Save last game',
     },
-
-
     10: {
+        'mode': 'load',
+        'player_names': None,
+        'text': 'Load game',
+    },
+    11: {
         'mode': 'quit',
         'player_names': None,
         'text': 'Quit (q, quit, exit)',
@@ -115,7 +121,6 @@ MENU_CHOICE = {
     #       simple qlearning player
     #       random player with path
     #       random player
-    #       'load',
     #       'quit',
 }
 
@@ -187,11 +192,12 @@ def desired_output(player, activations, last_action, is_terminal, new_values):
 class ConsoleGame(Quoridor2):
 
     GAME_CONTROLS = set([
-        'quit',     # 'q', 'exit', 'end'
+        'quit',
         'menu',
-        'undo',     # 'back'
+        'undo',
         'unknown',
         'save',
+        'load',
         # TODO:
         # ''next', 'help', hint_move, change_players
     ])
@@ -231,7 +237,7 @@ class ConsoleGame(Quoridor2):
         ' menu',
         ' quit',
         ' save',
-        # ' load - load game',
+        ' load',
         ' undo',
         '',
         ' PLACE WALL',
@@ -492,7 +498,7 @@ class ConsoleGame(Quoridor2):
 
         if not history:
             return
-        max_ = self.board_height - start_row
+        max_ = self.board_height - start_row - 1
         hist_start = 0 if len(history) <= max_ else len(history) - max_
         displayed = history[hist_start:]
         for row, action_number in enumerate(displayed, start=start_row + 1):
@@ -588,6 +594,27 @@ class ConsoleGame(Quoridor2):
             'save_success': ''.join([
                 self.green, 'Successfully saved!', self.color_end,
             ]),
+            'sure_load': ''.join([
+                self.yellow,
+                'Are you sure you want to leave this game and load another',
+                ' one? (y/N): ',
+                self.color_end,
+            ]),
+            'game_not_found': ''.join([
+                self.red,
+                'No such game found in database. Please, try again!',
+                self.color_end,
+            ]),
+            'load_success': ''.join([
+                self.green,
+                'Game succesfully loaded!',
+                self.color_end,
+            ]),
+            'cancelled': ''.join([
+                self.yellow,
+                'Cancelled!',
+                self.color_end,
+            ]),
         }
 
     def prompt(self, message):
@@ -631,16 +658,14 @@ class ConsoleGame(Quoridor2):
             direction_offset = self.wall_board_positions
         return int(data['number']) + direction_offset
 
-    def handle_game(self, context, players):
-        context.reset(players=players)
+    def handle_game(self, context):
         while not context.is_terminal:
             self.display_on_console(context)
             # print context
             player = context.state[0]
             if context[player]['name'] == 'human':
-                action = players[player]['player'](context)
+                action = context[player]['player'](context)
                 if action in ('quit', 'menu'):
-                    # TODO: load game
                     return action
                 elif action == 'undo':
                     next_ = FOLLOWING_PLAYER[player]
@@ -659,17 +684,33 @@ class ConsoleGame(Quoridor2):
                     print self.messages['unknown_choice'],
                 elif action == 'save':
                     self.save_menu(context)
+                elif action == 'load':
+                    while True:
+                        user_input = self.prompt(self.messages['sure_load'])
+                        user_input = user_input.lower()
+                        if user_input in ('y', 'yes', 'ok'):
+                            # TODO: ...
+                            game_mode = self.load_menu(context)
+                            if game_mode == 'game':
+                                break
+                            elif game_mode == 'quit':
+                                return 'quit'
+                            elif game_mode == 'menu':
+                                break
+                        elif user_input in ('', 'n', 'no'):
+                            print self.messages['cancelled']
+                            break
+                        print self.messages['unknown_choice'],
             elif context[player]['name'] == 'qlnn':
-                action = players[player]['player'](context)
+                action = context[player]['player'](context)
             else:
-                # these players update context:
-                players[player]['player'](context)
+                context[player]['player'](context)
 
         self.display_on_console(context)
         return 'menu'
 
-    def train_game(self, context, players, display):
-        qlnn = players[YELLOW]['player']    # qlnn is only YELLOW!
+    def train_game(self, context, display):
+        qlnn = context[YELLOW]['player']    # qlnn is only YELLOW!
         if display:
             print
         while not context.is_terminal:
@@ -689,7 +730,7 @@ class ConsoleGame(Quoridor2):
                     qlnn.random_choose_from = (
                         self.all_actions - invalid_actions
                     )
-                players[player]['player'](context)
+                context[player]['player'](context)
                 activations = qlnn.activations
                 new_activations = qlnn.activations_from_state(context.state)
                 last_qlnn_action = context.last_action
@@ -704,7 +745,7 @@ class ConsoleGame(Quoridor2):
                 qlnn.perceptron.propagate_backward(activations, desired)
                 qlnn.explore = False
             else:
-                players[player]['player'](context)
+                context[player]['player'](context)
 
         if display:
             self.display_on_console(context)
@@ -718,9 +759,10 @@ class ConsoleGame(Quoridor2):
             return False
         return True
 
-    def handle_training(self, context, players, show_save_cycle=100,
+    def handle_training(self, context, show_save_cycle=100,
                         display_games=False):
         game_counter = qlnn_wins = 0
+        players = context.players_dict
         qlnn = players[YELLOW]['player']
         db_session = make_db_session(DB_PATH)
         start_time = datetime.datetime.now()
@@ -735,7 +777,7 @@ class ConsoleGame(Quoridor2):
                     players=players,
                     state=random.choice(TRAINING_STATES)
                 )
-                win = int(self.train_game(context, players, display_game))
+                win = int(self.train_game(context, display_game))
                 qlnn_wins += win
                 game_counter += 1
                 qlnn.perceptron.exploration_probability = (
@@ -762,52 +804,33 @@ class ConsoleGame(Quoridor2):
             db_session.close()
         return 'quit'
 
-    def train(self, context, players):
-        self.handle_training(context, players, show_save_cycle=1000)
+    def train(self, context):
+        self.handle_training(context, show_save_cycle=1000)
         return 'quit'
 
     def wrong_human_move(self, context, action, error):
         print self.red + str(error) + self.color_end
         self.display_on_console(context)
 
+    def get_players(self, player_names):
+        players = {}
+        for color, name in player_names.items():
+            kwargs = {}
+            if name == 'human':
+                kwargs = {
+                    'messages': self.messages,
+                    'game_controls': self.GAME_CONTROLS,
+                    'fail_callback': self.wrong_human_move,
+                }
+            players[color] = {
+                'name': name,
+                'player': PLAYERS[name](self, **kwargs),
+            }
+        return players
+
     def run(self):
-        context = QuoridorContext(self)
-        game_mode = 'menu'
         try:
-            while game_mode != 'quit':
-                if game_mode == 'menu':
-                    choice_or_quit = self.handle_menu()
-                    if choice_or_quit == 'quit':
-                        break
-                    game_mode = choice_or_quit['mode']
-                    player_names = choice_or_quit['player_names']
-                    if not player_names:
-                        continue
-                    players = {}
-                    for color, name in player_names.items():
-                        kwargs = {}
-                        if name == 'human':
-                            kwargs = {
-                                'messages': self.messages,
-                                'game_controls': self.GAME_CONTROLS,
-                                'fail_callback': self.wrong_human_move,
-                            }
-                        players[color] = {
-                            'name': name,
-                            'player': PLAYERS[name](self, **kwargs),
-                        }
-                elif game_mode == 'save':
-                    if not context.history:
-                        game_mode = 'menu'
-                        print self.messages['cannot_save']
-                        continue
-                    game_mode = self.save_menu(context)
-                elif game_mode == 'game':
-                    game_mode = self.handle_game(context, players)
-                elif game_mode == 'train':
-                    game_mode = self.train(context, players)
-                else:
-                    raise NotImplementedError()
+            self.handle_menu()
         except (EOFError, KeyboardInterrupt, SystemExit):
             pass
         print
@@ -833,18 +856,46 @@ class ConsoleGame(Quoridor2):
         return MENU_CHOICE[number]
 
     def handle_menu(self):
-        while True:
+        context = QuoridorContext(self)
+        game_mode = 'menu'
+        while game_mode != 'quit':
             self.print_menu()
             choice = self.get_menu_input()
-            if choice == 'unknown':
-                print self.messages['unknown_choice']
-                continue
-            elif choice == 'quit':
-                return choice
-            elif choice['mode'] == 'random_state':
+            if isinstance(choice, basestring):
+                if choice == 'unknown':
+                    print self.messages['unknown_choice']
+                    continue
+                elif choice == 'quit':
+                    return
+
+            game_mode = choice['mode']
+
+            if game_mode == 'quit':
+                return
+            elif game_mode == 'random_state':
                 self.generate_random_state()
                 continue
-            return choice
+            elif game_mode == 'save':
+                if not context.history:
+                    print self.messages['cannot_save']
+                    continue
+                game_mode = self.save_menu(context)
+                continue
+
+            if game_mode == 'load':
+                game_mode = self.load_menu(context)
+                if game_mode == 'game':
+                    game_mode = self.handle_game(context)
+                continue
+
+            players = self.get_players(choice['player_names'])
+            context.reset(players=players)
+            if game_mode == 'game':
+                game_mode = self.handle_game(context)
+                continue
+            elif game_mode == 'train':
+                game_mode = self.train(context)
+                continue
 
     def print_menu(self):
         print self.messages['menu_choose']
@@ -903,7 +954,7 @@ class ConsoleGame(Quoridor2):
             print '2 - back (b, back, menu)'
             print '3 - Quit (q, quit, exit)'
 
-            user_input = self.prompt(self.messages['enter_choice'])
+            user_input = self.prompt(self.messages['enter_choice']).lower()
             match = input_re.match(user_input)
             if match is None:
                 print self.messages['unknown_choice']
@@ -930,7 +981,7 @@ class ConsoleGame(Quoridor2):
             self.color_end
         ])
         user_input = self.prompt(message)
-        if user_input == 'back':
+        if user_input.lower() == 'back':
             return False
 
         db_session = make_db_session(DB_PATH)
@@ -949,7 +1000,6 @@ class ConsoleGame(Quoridor2):
         finally:
             db_session.close()
 
-
     def save_file_menu(self, context):
         message = ''.join([
             self.yellow,
@@ -960,7 +1010,9 @@ class ConsoleGame(Quoridor2):
 
         while True:
             user_input = self.prompt(message)
-            if user_input == 'back':
+            if not user_input:
+                continue
+            elif user_input.lower() == 'back':
                 return False
 
             try:
@@ -975,6 +1027,159 @@ class ConsoleGame(Quoridor2):
                 print self.red + str(e) + self.color_end
                 continue
             return True
+
+    def load_menu(self, context):
+        input_re = re.compile(r'[0123]|db|file|b|back|menu|q|quit|exit', re.I)
+        success = False
+        while True:
+            print self.messages['menu_choose']
+            print '0 - load from database (db)'
+            print '1 - load from the file (file)'
+            print '2 - back (b, back, menu)'
+            print '3 - Quit (q, quit, exit)'
+
+            user_input = self.prompt(self.messages['enter_choice']).lower()
+            match = input_re.match(user_input)
+            if match is None:
+                print self.messages['unknown_choice']
+                continue
+
+            if user_input in ('0', 'db'):
+                success = self.load_db_menu(context)
+            elif user_input in ('1', 'file'):
+                success = self.load_file_menu(context)
+            elif user_input in ('2', 'b', 'back', 'menu'):
+                return 'menu'
+            elif user_input in ('3', 'q', 'quit', 'exit'):
+                return 'quit'
+
+            if success:
+                print self.messages['load_success']
+                return 'game'
+
+    def load_db_menu(self, context):
+        message = ''.join([
+            self.yellow,
+            'Please, enter game name or type \'back\' to go back: ',
+            self.color_end
+        ])
+        players = self.get_players(PLAYERS_DEFAULT)     # TODO
+        db_session = make_db_session(DB_PATH)
+        try:
+            while True:
+                user_input = self.prompt(message)
+                if not user_input:
+                    continue
+                elif user_input.lower() == 'back':
+                    return False
+
+                query = db_session.query(Game)
+                game = query.filter_by(description=user_input).first()
+                if not game:
+                    print self.messages['game_not_found']
+                    continue
+                placed_walls = []
+                if game.start_state.placed_walls:
+                    placed_walls = game.start_state.placed_walls.split(',')
+                state = (
+                    game.start_state.on_move,
+                    game.start_state.yellow_position,
+                    game.start_state.green_position,
+                    game.start_state.yellow_walls,
+                    game.start_state.green_walls,
+                    frozenset([int(wall) for wall in placed_walls])
+                )
+                context.reset(state=state, players=players)
+                for move in game.moves:
+                    context.update(move.action, checks_on=False)
+                return True
+        finally:
+            db_session.close()
+
+    def load_file_menu(self, context):
+        LIST_PATTERN = (
+            r'\[\s*(?:\d+(?:\s*,\s*\d+)*\s*,?)?\s*\]'
+        )
+        FILE_STATE_PATTERN = (
+            r'\('
+            r'(?P<on_move>[01])'
+            r'\s*,\s*'
+            r'(?P<yellow_position>\d+)'
+            r'\s*,\s*'
+            r'(?P<green_position>\d+)'
+            r'\s*,\s*'
+            r'(?P<yellow_walls>\d+)'
+            r'\s*,\s*'
+            r'(?P<green_walls>\d+)'
+            r'\s*,\s*'
+            r'(?:frozen)?set\((?P<placed_walls>\[.*\])\)'
+            r'\)'
+        )
+        FILE_STATE_RE = re.compile(FILE_STATE_PATTERN)
+        LIST_RE = re.compile(LIST_PATTERN)
+        message = self.yellow + 'Please, write file name or type \'back\' to go back: ' + self.color_end
+        players = self.get_players(PLAYERS_DEFAULT)     # TODO
+        incorrect_msg_fmt = self.red + 'Incorrect file! {exp}' + self.color_end
+
+        while True:
+            user_input = self.prompt(message)
+            if not user_input:
+                continue
+            elif user_input.lower() == 'back':
+                return False
+            try:
+                with open(user_input, 'r') as f:
+                    state_line = f.readline()
+                    history_line = f.readline().strip()
+            except Exception as e:
+                print self.red + str(e) + self.color_end
+                continue
+
+            state_match = FILE_STATE_RE.match(state_line)
+            if not state_match:
+                print incorrect_msg_fmt.format(exp='State not correct.')
+                continue
+            placed_walls = state_match.group('placed_walls')
+            placed_walls_match = LIST_RE.match(placed_walls)
+            if not placed_walls_match:
+                print incorrect_msg_fmt.format(exp='Placed walls not correct.')
+                continue
+            history_match = LIST_RE.match(history_line)
+            if not history_match:
+                print incorrect_msg_fmt.format(exp='History not correct.')
+                continue
+
+            state = (
+                int(state_match.group('on_move')),
+                int(state_match.group('yellow_position')),
+                int(state_match.group('green_position')),
+                int(state_match.group('yellow_walls')),
+                int(state_match.group('green_walls')),
+                frozenset([
+                    int(wall) for wall in placed_walls[1:-1].split(',') if wall
+                ])
+            )
+            history = [
+                int(action)
+                for action in history_line[1:-1].split(',') if action
+            ]
+            context.reset(state=state, players=players)
+            for i, action in enumerate(history):
+                try:
+                    context.update(action)
+                except InvalidMove as e:
+                    explanation = ''.join([
+                        'Impossible move (',
+                        str(i),
+                        ': ',
+                        str(action),
+                        '). ',
+                        str(e),
+                    ])
+                    print incorrect_msg_fmt.format(exp=explanation)
+                    break
+            else:
+                return True
 
 
 # def qlearn(with_clear=True):

@@ -39,7 +39,7 @@ class QuoridorContext(object):
             blockers = self.game.path_blockers(path, self._data['crossers'])
             self._data[color] = {
                 'name': players[color].get('name', ''),
-                # 'player': players[color].get('player', None),
+                'player': players[color].get('player', None),
                 'path': path,
                 'blockers': blockers,
                 'goal_cut': set(),  # TODO: consider using ordered set
@@ -145,6 +145,16 @@ class QuoridorContext(object):
     @property
     def state(self):
         return self._data['state']
+
+    @property
+    def players_dict(self):
+        players = {}
+        for color in (YELLOW, GREEN):
+            players[color] = {
+                'name': self._data[color]['name'],
+                'player': self._data[color]['player'],
+            }
+        return players
 
     @property
     def player(self):
