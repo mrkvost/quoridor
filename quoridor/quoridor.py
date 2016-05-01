@@ -175,13 +175,12 @@ TRAINING_STATES = (
 REWARD = 1000
 
 
-def desired_output(player, activations, last_action, is_terminal, new_values):
-    # reward = (1 - player * 2) * REWARD
-    reward = 1 - player
+def desired_output(activations, last_action, is_terminal, new_values):
+    # reward = 1 - player
     output = copy.deepcopy(activations[-1])
 
     # update qvalue for current action
-    best_value = max(new_values) if player else min(new_values)
+    best_value = min(new_values)
     if is_terminal:
         best_value += reward
     output[last_action] = best_value
@@ -714,7 +713,7 @@ class ConsoleGame(Quoridor2):
         if display:
             print
         while not context.is_terminal:
-            if len(context.history) > 300:
+            if len(context.history) > 400:
                 print '\nGame too long:', history, '\n'
                 break
 
@@ -723,6 +722,14 @@ class ConsoleGame(Quoridor2):
 
             player = context.state[0]
             if context[player]['name'] == 'qlnn':
+                if context.history:
+                    desired = desired_output(
+                        activations,
+                        last_qlnn_action,
+                        False,
+                        qlnn.activations_from_state(context.state)[-1],
+                    )
+                    qlnn.perceptron.propagate_backward(activations, desired)
                 explore = qlnn.perceptron.exploration_probability
                 if explore and explore > random.random():
                     invalid_actions = set(context.invalid_actions)
@@ -732,17 +739,7 @@ class ConsoleGame(Quoridor2):
                     )
                 context[player]['player'](context)
                 activations = qlnn.activations
-                new_activations = qlnn.activations_from_state(context.state)
                 last_qlnn_action = context.last_action
-                desired = desired_output(
-                    player,
-                    # invalid_actions,
-                    activations,
-                    last_qlnn_action,
-                    context.is_terminal,
-                    new_activations[-1],
-                )
-                qlnn.perceptron.propagate_backward(activations, desired)
                 qlnn.explore = False
             else:
                 context[player]['player'](context)
@@ -750,14 +747,15 @@ class ConsoleGame(Quoridor2):
         if display:
             self.display_on_console(context)
 
-        if YELLOW == context.state[0]:
-            assert context.is_terminal
-            new_activations = qlnn.activations_from_state(context.state)
-            desired = copy.deepcopy(activations[-1])
-            desired[last_qlnn_action] -= 1
-            qlnn.perceptron.propagate_backward(activations, desired)
-            return False
-        return True
+        # assert context.is_terminal
+        desired = copy.deepcopy(activations[-1])
+        desired[last_qlnn_action] = 1       # positive reward
+        win = True
+        if context[player]['name'] == 'qlnn':
+            desired[last_qlnn_action] = 0   # negative reward
+            win = False
+        qlnn.perceptron.propagate_backward(activations, desired)
+        return win
 
     def handle_training(self, context, show_save_cycle=100,
                         display_games=False):
