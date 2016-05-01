@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, String, Integer, Float, ForeignKey, MetaData,
-    Boolean, Index, DateTime,
+    Boolean, Index, DateTime, text,
 )
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
@@ -106,6 +106,7 @@ class Game(Base):
     description = Column(String)
     moves_made = Column(Integer)
     created = Column(DateTime, server_default=func.current_timestamp())
+    is_training = Column(Boolean, server_default=text('0'), nullable=False)
 
 
 class Move(Base):

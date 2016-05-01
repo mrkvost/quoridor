@@ -120,7 +120,7 @@ def db_save_game_state(db_session, state, slug=None, description=None):
 
 def db_save_game(db_session, state_slug=None, start_state=None, yellow=None,
                  green=None, winner=None, actions=None, moves_made=None,
-                 description=None):
+                 description=None, is_training=False):
     game_state = None
     if state_slug:
         query = db_session.query(GameState).filter_by(slug=state_slug)
@@ -149,6 +149,7 @@ def db_save_game(db_session, state_slug=None, start_state=None, yellow=None,
     game.winner = winner
     game.moves_made = moves_made
     game.description = description
+    game.is_training = is_training
 
     if game_state is not None:
         if actions:

@@ -1,0 +1,71 @@
+#!/usr/bin/env python2
+from optparse import OptionParser
+
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
+
+from sqlalchemy import create_engine, and_, or_
+from sqlalchemy.orm import sessionmaker
+
+from quoridor.commonsettings import DB_PATH
+from quoridor.db.models import Base, Game
+
+
+def parse_args():
+    parser = OptionParser()
+    parser.add_option(
+        '-o', '--opponent', dest='opponent_name', default='heuristic',
+        help=(
+            'Specify opponent name against which the plot will be created. '
+            'Default is heuristic.'
+        ),
+    )
+    options, args = parser.parse_args()
+    return options, args
+
+
+def get_db_data(opponent_name):
+    db_url = 'sqlite:///{relative_db_path}'.format(relative_db_path=DB_PATH)
+    engine = create_engine(db_url)
+    Session = sessionmaker(bind=engine)
+    db_session = Session()
+    query = db_session.query(Game).filter_by(is_training=True)
+    condition = or_(
+        and_(Game.yellow_played=='qlnn', Game.green_played==opponent_name),
+        and_(Game.yellow_played==opponent_name, Game.green_played=='qlnn'),
+    )
+    query = query.filter(condition).order_by(Game.created.asc())
+
+    xs = []
+    ys = []
+    last = 0.0
+    for i, game in enumerate(query, start=1):
+        xs.append(i)
+        last += float(not game.winner)
+        ys.append(last)
+    ys = [y / xs[i] for i, y in enumerate(ys)]
+
+    db_session.close()
+    return xs, ys
+
+
+def create_plot(xs, ys, opponent_name):
+    formatter = FuncFormatter(lambda y, _: '{:.0%}'.format(y))
+    plt.gca().set_ylabel('Win percentage')
+    plt.gca().set_ylim([0.0, 1.0])
+    plt.gca().yaxis.set_major_formatter(formatter)
+    plt.gca().set_xlabel('Game count')
+    plt.title('qlnn vs. ' + opponent_name)
+
+    plt.plot(xs, ys)
+    plt.savefig('graph.png')
+
+
+def main():
+    options, args = parse_args()
+    xs, ys = get_db_data(options.opponent_name)
+    create_plot(xs, ys, options.opponent_name)
+
+
+if __name__ == '__main__':
+    main()

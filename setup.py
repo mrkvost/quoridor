@@ -74,10 +74,12 @@ def create_setup_info():
 
     if 'develop' in sys.argv:
         setup_info['install_requires'].append('latex==0.6.1')
+        setup_info['install_requires'].append('matplotlib==1.5.1')
 
         if 'scripts' not in setup_info:
             setup_info['scripts'] = []
         setup_info['scripts'].append('bin/docmake')
+        setup_info['scripts'].append('bin/plot')
     return setup_info
 
 setup(**create_setup_info())

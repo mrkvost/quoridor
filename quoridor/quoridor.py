@@ -165,6 +165,7 @@ TRAINING_STATES = (
     (0, 49, 31, 10, 10, frozenset()),
 
     # hard - very common real life situation
+    None,   # this means default starting state will be chosen
     (0, 40, 31, 10, 10, frozenset()),
 
     # GREEN WIN:
@@ -722,7 +723,7 @@ class ConsoleGame(Quoridor2):
 
             player = context.state[0]
             if context[player]['name'] == 'qlnn':
-                if context.history:
+                if len(context.history) > 1:
                     desired = desired_output(
                         activations,
                         last_qlnn_action,
@@ -751,7 +752,7 @@ class ConsoleGame(Quoridor2):
         desired = copy.deepcopy(activations[-1])
         desired[last_qlnn_action] = 1       # positive reward
         win = True
-        if context[player]['name'] == 'qlnn':
+        if context.state[0] == YELLOW:
             desired[last_qlnn_action] = 0   # negative reward
             win = False
         qlnn.perceptron.propagate_backward(activations, desired)
@@ -767,6 +768,7 @@ class ConsoleGame(Quoridor2):
         status_every = 50
         random_base = qlnn.perceptron.exploration_probability
         games_goal = 100000
+        results = []
         try:
             while True:
                 show_and_save = not (game_counter + 1) % show_save_cycle
@@ -776,6 +778,7 @@ class ConsoleGame(Quoridor2):
                     state=random.choice(TRAINING_STATES)
                 )
                 win = int(self.train_game(context, display_game))
+                results.append(win)
                 qlnn_wins += win
                 game_counter += 1
                 qlnn.perceptron.exploration_probability = (
@@ -797,13 +800,32 @@ class ConsoleGame(Quoridor2):
                     sys.stdout.write('saving weights into database... ')
                     sys.stdout.flush()
                     qlnn.update_in_db(db_session)
+                    for result in results[:-1]:
+                        db_save_game(
+                            db_session,
+                            yellow='qlnn',
+                            green=context[GREEN]['name'],
+                            winner=int(not result),
+                            is_training=True,
+                        )
+                    db_save_game(
+                        db_session,
+                        start_state=context['start_state'],
+                        yellow='qlnn',
+                        green=context[GREEN]['name'],
+                        winner=int(not results[-1]),
+                        actions=context.history,
+                        is_training=True,
+                    )
+                    results = []
+                    db_session.commit()
                     sys.stdout.write('saved\n')
         finally:
             db_session.close()
         return 'quit'
 
     def train(self, context):
-        self.handle_training(context, show_save_cycle=1000)
+        self.handle_training(context, show_save_cycle=2000)
         return 'quit'
 
     def wrong_human_move(self, context, action, error):
