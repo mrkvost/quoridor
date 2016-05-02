@@ -173,7 +173,7 @@ TRAINING_STATES = (
     # (0, 30, 41, 0, 1, frozenset([0, 2, 11, 28, 30, 40, 50, 52, 54, 67, 71, 82, 84, 99, 103, 105, 108, 124, 127]))
 )
 
-REWARD = 1000
+MINIMUM_EXPLORATION_PROBABILITY = 0.5 / 100
 
 
 def desired_output(activations, last_action, is_terminal, new_values):
@@ -767,7 +767,7 @@ class ConsoleGame(Quoridor2):
         start_time = datetime.datetime.now()
         status_every = 50
         random_base = qlnn.perceptron.exploration_probability
-        games_goal = 100000
+        games_goal = 200000
         results = []
         try:
             while True:
@@ -781,9 +781,10 @@ class ConsoleGame(Quoridor2):
                 results.append(win)
                 qlnn_wins += win
                 game_counter += 1
-                qlnn.perceptron.exploration_probability = (
-                    random_base * (1 - game_counter / games_goal)
-                )
+                probability = random_base * (1 - game_counter / games_goal)
+                if probability < MINIMUM_EXPLORATION_PROBABILITY:
+                    probability = MINIMUM_EXPLORATION_PROBABILITY
+                qlnn.perceptron.exploration_probability = probability
                 delta_time = datetime.datetime.now() - start_time
                 seconds = int(delta_time.total_seconds())
                 if not game_counter % status_every:
