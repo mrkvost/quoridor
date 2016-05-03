@@ -1,5 +1,7 @@
 import numpy
 
+from contextlib import closing
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -27,7 +29,7 @@ def make_db_session(db_path):
     # return connection
 
 
-def db_update_network(db_session, name, perceptron):
+def db_update_network(db_session, perceptron, name):
     network = db_session.query(Network).filter_by(name=name).one()
     network.alpha = perceptron.alpha
     network.momentum = perceptron.momentum
@@ -53,7 +55,6 @@ def db_save_network(db_session, perceptron, name):
         exploration_probability=perceptron.exploration_probability,
     )
     db_session.add(network)
-    db_session.commit()
 
     for i, layer_weights in enumerate(perceptron.weights):
         for j, neuron_weights in enumerate(layer_weights):
@@ -65,8 +66,8 @@ def db_save_network(db_session, perceptron, name):
                     output=j,
                     weight=weight,
                 )
-                db_session.add(new_weight)
-    db_session.commit()
+                network.weights.append(new_weight)
+    return network
 
 
 def db_load_network(db_session, network_name):
@@ -170,17 +171,18 @@ def build_db(db_path):
     engine = _make_engine(db_path)
     Base.metadata.create_all(engine)
 
-    db_session = make_db_session(db_path)
-    query = db_session.query(GameState).filter_by(slug=GAME_STATE_SLUG_DEFAULT)
-    default_game_state = query.first()
-    if default_game_state is None:
-        default_game_state = db_save_game_state(
-            db_session,
-            GAME_STATE_DEFAULT,
-            GAME_STATE_SLUG_DEFAULT,
-            GAME_STATE_DESC_DEFAULT,
-        )
-        db_session.commit()
+    with closing(make_db_session(DB_PATH)) as db_session:
+        query = db_session.query(GameState)
+        query = query.filter_by(slug=GAME_STATE_SLUG_DEFAULT)
+        default_game_state = query.first()
+        if default_game_state is None:
+            default_game_state = db_save_game_state(
+                db_session,
+                GAME_STATE_DEFAULT,
+                GAME_STATE_SLUG_DEFAULT,
+                GAME_STATE_DESC_DEFAULT,
+            )
+            db_session.commit()
 
 
 def run():

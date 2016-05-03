@@ -4,6 +4,7 @@ import random
 import operator
 import itertools
 
+from contextlib import closing
 from sqlalchemy.orm.exc import NoResultFound
 
 from quoridor.commonsettings import DB_PATH
@@ -89,7 +90,7 @@ class HumanPlayer(Player):
             if data['number'] is None:
                 return 'unknown'
             action = int(data['number'])
-            if action in self.game.possible_game_actions:
+            if action in self.game.all_actions:
                 return action
             return 'unknown'
 
@@ -246,8 +247,8 @@ class NetworkPlayer(Player):
         super(NetworkPlayer, self).__init__(game)
 
         self.db_name = db_name
-        db_session = make_db_session(DB_PATH)
-        self.load_from_db(db_session)
+        with closing(make_db_session(DB_PATH)) as db_session:
+            self.load_from_db(db_session)
 
     def load_from_db(self, db_session):
         try:
@@ -263,11 +264,13 @@ class NetworkPlayer(Player):
                 alpha=0.01,
                 exploration_probability=0.1,
             )
-            db_save_network(db_session, self.perceptron, name=self.db_name)
+            name = self.db_name
+            network = db_save_network(db_session, self.perceptron, name)
+            db_session.commit()
             print 'created'
 
     def update_in_db(self, db_session):
-        db_update_network(db_session, self.db_name, self.perceptron)
+        db_update_network(db_session, self.perceptron, self.db_name)
 
     def input_vector_from_game_state(self, state):
         """

@@ -2,13 +2,11 @@
 
 import os
 import re
-import sys
 import copy
-import numpy
 import random
-import datetime
 
 from optparse import OptionParser
+from contextlib import closing
 
 from commonsettings import DB_PATH
 from db.models import Game
@@ -19,6 +17,7 @@ from ai.players import (
     HeuristicPlayer,
     QlearningNetworkPlayer,
 )
+from ai.training import handle_training
 from core.game import (
     YELLOW,
     GREEN,
@@ -32,8 +31,6 @@ from core.game import (
 )
 from core.context import QuoridorContext
 
-
-numpy.set_printoptions(suppress=True)
 
 BOARD_BORDER_THICKNESS = 1
 
@@ -130,63 +127,6 @@ PLAYERS = {
     'heuristic': HeuristicPlayer,
     'qlnn': QlearningNetworkPlayer,
 }
-
-OVERALL_FMT = (
-    u'\rgames:{games: 4}| sec.:{seconds: 5}s| sec./game:{pace:.2}s| '
-    u'won/lost: {won: 3} /{lost: 4}|  '
-)
-
-TRAINING_STATES = (
-    # YELLOW WIN:
-    # simple down
-    (0, 67, 13, 10, 10, frozenset()),
-    (0, 70, 9, 5, 5, frozenset([1, 3, 14, 40, 59, 61, 66, 76, 94, 113])),
-
-    # simple path
-    (0, 31, 49, 0, 0, frozenset([3, 12, 22, 26, 36, 39, 49, 51, 53, 55, 56, 68, 71, 83, 85, 94, 97, 104, 107, 123])),
-    (1, 35, 52, 0, 0, frozenset([1, 66, 68, 69, 11, 78, 25, 91, 30, 35, 100, 37, 104, 44, 47, 49, 115, 118, 55, 59])),
-
-    # harder
-    (0, 66, 47, 2, 2, frozenset([11, 21, 49, 51, 57, 59, 68, 78, 82, 91, 94, 98, 100, 124])),
-    (0, 66, 47, 1, 1, frozenset([2, 7, 12, 14, 25, 36, 43, 58, 60, 67, 86, 93, 97, 103, 106, 113, 117, 123])),
-
-    # need horizontal
-    (0, 58, 13, 8, 10, frozenset([1, 5])),
-    (0, 67, 14, 8, 9, frozenset([3, 7, 59])),
-    (0, 58, 23, 8, 9, frozenset([3, 7, 59])),
-    (0, 31, 49, 6, 6, frozenset([67, 76, 83, 92, 99, 108, 115, 124])),
-
-    # need vertical
-    (0, 58, 16, 7, 10, frozenset([2, 4, 6])),
-    (0, 58, 16, 7, 9, frozenset([2, 4, 6, 60])),
-
-    # down - very uncommon situation:
-    (0, 58, 22, 10, 10, frozenset()),
-    (0, 49, 31, 10, 10, frozenset()),
-
-    # hard - very common real life situation
-    None,   # this means default starting state will be chosen
-    (0, 40, 31, 10, 10, frozenset()),
-
-    # GREEN WIN:
-    # (0, 31, 41, 3, 6, frozenset([11, 27, 33, 35, 48, 53, 63, 68, 84, 98, 108, 119, 124, 126])),
-    # (0, 30, 41, 0, 1, frozenset([0, 2, 11, 28, 30, 40, 50, 52, 54, 67, 71, 82, 84, 99, 103, 105, 108, 124, 127]))
-)
-
-MINIMUM_EXPLORATION_PROBABILITY = 0.5 / 100
-
-
-def desired_output(activations, last_action, is_terminal, new_values):
-    # reward = 1 - player
-    output = copy.deepcopy(activations[-1])
-
-    # update qvalue for current action
-    best_value = min(new_values)
-    if is_terminal:
-        best_value += reward
-    output[last_action] = best_value
-
-    return output
 
 
 class ConsoleGame(Quoridor2):
@@ -289,10 +229,6 @@ class ConsoleGame(Quoridor2):
         self.board_width = board_inner_width + 2 * BOARD_BORDER_THICKNESS
         self.board_height = board_inner_height + 2 * BOARD_BORDER_THICKNESS
 
-        self.possible_game_actions = frozenset(range(
-            ((self.board_size - 1) ** 2) * 2 + 12
-        ))
-
         # self.console_colors = console_colors
         self.color_end = self.red = self.green = self.yellow = self.cyan = u''
         self.white_background = self.bold = u''
@@ -316,16 +252,6 @@ class ConsoleGame(Quoridor2):
 
         self.console_colors = console_colors
         self.output_base = self.make_output_base()
-
-    def path_blockers(self, path, crossers, avoid=None):
-        avoid = set() if avoid is None else avoid
-        blockers = set()
-        for i in range(len(path) - 1):
-            move = self.delta_moves[path[i + 1] - path[i]]
-            for wall in self.blocker_positions[path[i]][move]:
-                if wall not in crossers and wall not in avoid:
-                    blockers.add(wall)
-        return blockers
 
     def make_output_base(self):
         """Creates positions mapped to characters for further concatenation
@@ -383,7 +309,6 @@ class ConsoleGame(Quoridor2):
         for row in range(fh2, self.board_height, self.field_height):
             base[(row, 0)] = ''.join([
                 self.white_background,
-                u'\x1b[47m\x1b[1m\x1b[30m',
                 u'0123456789'[counter],
                 self.color_end
             ])
@@ -621,43 +546,6 @@ class ConsoleGame(Quoridor2):
         user_input = raw_input(message)
         return user_input.strip()
 
-    def get_human_action(self):
-        user_input = self.prompt(self.messages['enter_choice'])
-        if not user_input:
-            if user_input is None:
-                return 'quit'
-            return 'unknown'
-
-        match = self.GAME_INPUT_RE.match(user_input)
-        if match is None:
-            return 'unknown'
-
-        data = match.groupdict()
-        # if not any([data.values()]):
-        #     return self._unknown('human_human')
-
-        if data['type'] is None:
-            if data['number'] is None:
-                return 'unknown'
-            action = int(data['number'])
-            if action in self.possible_game_actions:
-                return action
-            return 'unknown'
-
-        data['type'] = data['type'].lower()
-        if data['type'] in self.GAME_CONTROLS:
-            return data['type']
-        elif data['type'] in self.PAWN_MOVES:
-            return self.PAWN_MOVES[data['type']] + self.wall_moves
-        elif data['type'] not in ('h', 'v'):
-            return 'unknown'
-        elif data['number'] is None:
-            return 'unknown'
-        direction_offset = 0
-        if data['type'] == 'v':
-            direction_offset = self.wall_board_positions
-        return int(data['number']) + direction_offset
-
     def handle_game(self, context):
         while not context.is_terminal:
             self.display_on_console(context)
@@ -709,124 +597,8 @@ class ConsoleGame(Quoridor2):
         self.display_on_console(context)
         return 'menu'
 
-    def train_game(self, context, display):
-        qlnn = context[YELLOW]['player']    # qlnn is only YELLOW!
-        if display:
-            print
-        while not context.is_terminal:
-            if len(context.history) > 400:
-                print '\nGame too long:', history, '\n'
-                break
-
-            if display:
-                self.display_on_console(context)
-
-            player = context.state[0]
-            if context[player]['name'] == 'qlnn':
-                if len(context.history) > 1:
-                    desired = desired_output(
-                        activations,
-                        last_qlnn_action,
-                        False,
-                        qlnn.activations_from_state(context.state)[-1],
-                    )
-                    qlnn.perceptron.propagate_backward(activations, desired)
-                explore = qlnn.perceptron.exploration_probability
-                if explore and explore > random.random():
-                    invalid_actions = set(context.invalid_actions)
-                    qlnn.explore = True
-                    qlnn.random_choose_from = (
-                        self.all_actions - invalid_actions
-                    )
-                context[player]['player'](context)
-                activations = qlnn.activations
-                last_qlnn_action = context.last_action
-                qlnn.explore = False
-            else:
-                context[player]['player'](context)
-
-        if display:
-            self.display_on_console(context)
-
-        # assert context.is_terminal
-        desired = copy.deepcopy(activations[-1])
-        desired[last_qlnn_action] = 1       # positive reward
-        win = True
-        if context.state[0] == YELLOW:
-            desired[last_qlnn_action] = 0   # negative reward
-            win = False
-        qlnn.perceptron.propagate_backward(activations, desired)
-        return win
-
-    def handle_training(self, context, show_save_cycle=100,
-                        display_games=False):
-        game_counter = qlnn_wins = 0
-        players = context.players_dict
-        qlnn = players[YELLOW]['player']
-        db_session = make_db_session(DB_PATH)
-        start_time = datetime.datetime.now()
-        status_every = 50
-        random_base = qlnn.perceptron.exploration_probability
-        games_goal = 200000
-        results = []
-        try:
-            while True:
-                show_and_save = not (game_counter + 1) % show_save_cycle
-                display_game = show_and_save and display_games
-                context.reset(
-                    players=players,
-                    state=random.choice(TRAINING_STATES)
-                )
-                win = int(self.train_game(context, display_game))
-                results.append(win)
-                qlnn_wins += win
-                game_counter += 1
-                probability = random_base * (1 - game_counter / games_goal)
-                if probability < MINIMUM_EXPLORATION_PROBABILITY:
-                    probability = MINIMUM_EXPLORATION_PROBABILITY
-                qlnn.perceptron.exploration_probability = probability
-                delta_time = datetime.datetime.now() - start_time
-                seconds = int(delta_time.total_seconds())
-                if not game_counter % status_every:
-                    message = OVERALL_FMT.format(
-                        seconds=seconds,
-                        games=game_counter,
-                        pace=(float(seconds) / game_counter),
-                        won=qlnn_wins,
-                        lost=game_counter - qlnn_wins,
-                    )
-                    sys.stdout.write(message)
-                    sys.stdout.flush()
-                if show_and_save:
-                    sys.stdout.write('saving weights into database... ')
-                    sys.stdout.flush()
-                    qlnn.update_in_db(db_session)
-                    for result in results[:-1]:
-                        db_save_game(
-                            db_session,
-                            yellow='qlnn',
-                            green=context[GREEN]['name'],
-                            winner=int(not result),
-                            is_training=True,
-                        )
-                    db_save_game(
-                        db_session,
-                        start_state=context['start_state'],
-                        yellow='qlnn',
-                        green=context[GREEN]['name'],
-                        winner=int(not results[-1]),
-                        actions=context.history,
-                        is_training=True,
-                    )
-                    results = []
-                    db_session.commit()
-                    sys.stdout.write('saved\n')
-        finally:
-            db_session.close()
-        return 'quit'
-
     def train(self, context):
-        self.handle_training(context, show_save_cycle=2000)
+        handle_training(context, save_cycle=1000)
         return 'quit'
 
     def wrong_human_move(self, context, action, error):
@@ -933,8 +705,10 @@ class ConsoleGame(Quoridor2):
         new_state[0] = random.choice((YELLOW, GREEN))
         exclude = self.goal_positions[YELLOW]
         new_state[1] = random.choice(tuple(board_positions - exclude))
+        # new_state[1] = random.choice(range(72, 81))   # goal line
         exclude = self.goal_positions[GREEN] | set([new_state[1]])
         new_state[2] = random.choice(tuple(board_positions - exclude))
+        # new_state[2] = new_state[1] + 9
 
         all_wall_positions = tuple(range(self.wall_moves))
         place_walls = random.randint(0, 2 * STARTING_WALL_COUNT)
@@ -1005,8 +779,7 @@ class ConsoleGame(Quoridor2):
         if user_input.lower() == 'back':
             return False
 
-        db_session = make_db_session(DB_PATH)
-        try:
+        with closing(make_db_session(DB_PATH)) as db_session:
             db_save_game(
                 db_session,
                 start_state=context['start_state'],
@@ -1018,8 +791,6 @@ class ConsoleGame(Quoridor2):
             )
             db_session.commit()
             return True
-        finally:
-            db_session.close()
 
     def save_file_menu(self, context):
         message = ''.join([
@@ -1085,8 +856,7 @@ class ConsoleGame(Quoridor2):
             self.color_end
         ])
         players = self.get_players(PLAYERS_DEFAULT)     # TODO
-        db_session = make_db_session(DB_PATH)
-        try:
+        with closing(make_db_session(DB_PATH)) as db_session:
             while True:
                 user_input = self.prompt(message)
                 if not user_input:
@@ -1114,8 +884,6 @@ class ConsoleGame(Quoridor2):
                 for move in game.moves:
                     context.update(move.action, checks_on=False)
                 return True
-        finally:
-            db_session.close()
 
     def load_file_menu(self, context):
         LIST_PATTERN = (

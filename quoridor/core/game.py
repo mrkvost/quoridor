@@ -161,7 +161,11 @@ def _make_delta_moves(board_size):
     }
 
 
-class InvalidMove(Exception):
+class GameException(Exception):
+    pass
+
+
+class InvalidMove(GameException):
     pass
 
 
@@ -382,6 +386,16 @@ class Quoridor2(object):
                 ])
                 return tuple(new_state)
         raise InvalidMove('Cannot undo!')
+
+    def path_blockers(self, path, crossers, avoid=None):
+        avoid = set() if avoid is None else avoid
+        blockers = set()
+        for i in range(len(path) - 1):
+            move = self.delta_moves[path[i + 1] - path[i]]
+            for wall in self.blocker_positions[path[i]][move]:
+                if wall not in crossers and wall not in avoid:
+                    blockers.add(wall)
+        return blockers
 
     # def actions(self, state):
     #     for position in pawn_legal_moves(state, current_pawn_position(state)):

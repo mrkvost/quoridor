@@ -66,7 +66,7 @@ def get_all_table_names(db_session):
 def test_build_db(db_session):
     assert_equal(
         get_all_table_names(db_session),
-        ['game', 'move', 'network', 'weight']
+        ['game', 'game_state', 'move', 'network', 'weight']
     )
     assert_equal(len(db_session.query(Network).all()), 0)
     assert_equal(len(db_session.query(Weight).all()), 0)
@@ -147,7 +147,7 @@ def test_save_network_5_4_3_2_1(db_session):
 
     network_name = '5_4_3_2_1'
     perceptron = MLMCPerceptron(**expected_attributes)
-    db_save_network(db_session, perceptron, name=network_name)
+    db_save_network(db_session, perceptron, network_name)
     network = db_session.query(Network).filter_by(name=network_name).one()
     assert_network_equal(network, expected_attributes)
 
@@ -247,7 +247,7 @@ def test_update_network_2_2(db_session):
         ]
     }
     perceptron = MLMCPerceptron(**old_network_attributes)
-    db_save_network(db_session, perceptron, name=network_name)
+    db_save_network(db_session, perceptron, network_name)
     network = db_session.query(Network).filter_by(name=network_name).one()
     assert_network_equal(network, old_network_attributes)
 
@@ -263,7 +263,7 @@ def test_update_network_2_2(db_session):
         ],
     }
     perceptron = MLMCPerceptron(**new_network_attributes)
-    db_update_network(db_session, network_name, perceptron)
+    db_update_network(db_session, perceptron, network_name)
 
     after_update_attributes = db_load_network(db_session, network_name)
     perceptron = MLMCPerceptron(**after_update_attributes)
