@@ -60,6 +60,7 @@ def create_setup_info():
             'console_scripts': [
                 'qc = quoridor.quoridor:main',
                 'build_db = quoridor.db.utils:run',
+                'peto = quoridor.peto:run',
             ],
         },
     )
