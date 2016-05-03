@@ -262,7 +262,7 @@ class NetworkPlayer(Player):
             self.perceptron = MLMCPerceptron(
                 sizes,
                 alpha=0.01,
-                exploration_probability=0.1,
+                exploration_probability=0.5,
             )
             name = self.db_name
             network = db_save_network(db_session, self.perceptron, name)
