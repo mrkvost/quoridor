@@ -99,3 +99,8 @@ NOTES:
  - curses - buildin library
  - urwid - console application framework
  - termcolor, colorama - colors
+
+DEPLOY SHORTCUTS::
+    $ sudo apt-get update
+    $ sudo apt-get install gcc libfreetype6-dev libxft-dev git python-dev python-virtualenv sqlite3
+    $ echo '.mode column\n.headers on' > ~/.sqliterc
