@@ -1,3 +1,12 @@
+4th May 2016
+===============
+ - save game to file or database
+ - load game from file or database
+ - training states generator
+ - save training game results into database, script creating plot from training
+   games
+ - massive refactoring and multiple bug fixes
+
 20th April 2016
 ===============
  - fixed computation with momentum
