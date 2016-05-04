@@ -485,7 +485,7 @@ class ConsoleGame(Quoridor2):
                 self.cyan,
                 PLAYER_COLOR_NAME[player],
                 ' player (',
-                context.current['name'][:2].upper(),
+                context.following['name'][:2].upper(),
                 ')',
                 ' is the winner!',
                 '\n',
