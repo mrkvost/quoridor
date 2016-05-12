@@ -207,6 +207,7 @@ def count_valid_states(placed, yrange=None, grange=None, show_each=1048576):
     except KeyboardInterrupt, EOFError:
         return
     _print_valid_states_status(start_time, counter, placed, verified, valid)
+    return valid
 
 
 def comb(N,k): # from scipy.comb(), but MODIFIED!
