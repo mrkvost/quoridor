@@ -3,18 +3,25 @@ import os
 import sys
 import time
 import datetime
+import itertools
 import numpy as np
 
 from quoridor.core.game import (
     YELLOW,
     GREEN,
+    STARTING_WALL_COUNT,
+    DOWN,
+    DOWNDOWN,
+    DOWNRIGHT,
+    DOWNLEFT,
+    UP,
+    UPUP,
+    UPRIGHT,
+    UPLEFT,
     Quoridor2,
 )
 from quoridor.core.context import QuoridorContext
-from quoridor.quoridor import (
-    ConsoleGame,
-    BOARD_BORDER_THICKNESS,
-)
+from quoridor.quoridor import ConsoleGame
 from quoridor.ai.training import TRAINING_STATES
 
 
@@ -91,3 +98,128 @@ def lapse_training_states():
             print 'state:', state
             show_state(state)
             yield
+
+
+def is_state_valid_trivial(game, state):
+    max_walls = STARTING_WALL_COUNT
+    if state[3] + state[4] != 2 * max_walls - len(state[5]):
+        return False        # number of walls in stocks and placed walls differ
+    elif 0 > state[1] or game.board_positions - 1 < state[1]:
+        return False        # yellow outside the board
+    elif 0 > state[2] or game.board_positions - 1 < state[2]:
+        return False        # green outside the board
+    elif state[3] < 0 or state[3] > max_walls:
+        return False        # wrong number of walls in yellow stock
+    elif state[4] < 0 or state[4] > max_walls:
+        return False        # wrong number of walls in green stock
+    elif state[0] not in (YELLOW, GREEN):
+        return False        # unknown player moving
+    elif len(state) != 6:
+        return False        # unrecognized state
+    return True
+
+
+def is_state_valid(game, state, check_trivial=False):
+    if state[1] == state[2]:
+        return False
+    elif state[1] in game.goal_positions[YELLOW]:
+        if state[0] == YELLOW:
+            return False    # player, which is winning cannot be moving
+        elif state[2] in game.goal_positions[GREEN]:
+            return False    # both cannot be in the winning position
+
+        for pawn_move in (UP, UPUP, UPLEFT, UPRIGHT):
+            if game.is_valid_pawn_move((YELLOW, ) + state[1:], pawn_move):
+                break
+        else:
+            return False    # pawn could not get to this winning position
+
+        if not game.shortest_path(state, GREEN):
+            return False    # GREEN cannot reach goal
+    elif state[2] in game.goal_positions[GREEN]:
+        if state[0] == GREEN:
+            return False    # player, which is winning cannot be moving
+
+        for pawn_move in (DOWN, DOWNDOWN, DOWNLEFT, DOWNRIGHT):
+            if game.is_valid_pawn_move((GREEN, ) + state[1:], pawn_move):
+                break
+        else:
+            return False    # pawn could not get to this winning position
+
+        if not game.shortest_path(state, YELLOW):
+            return False    # YELLOW cannot reach goal
+    elif not game.players_can_reach_goal(state):
+        return False        # at least one player cannot reach goal
+
+    temp_walls = set(state[5])
+    while temp_walls:
+        wall = temp_walls.pop()
+        if temp_walls & game.wall_crossers(wall):
+            return False    # there are crossing walls on the board
+
+    return (not check_trivial) or is_state_valid_trivial(game, state)
+
+
+_VALID_STATE_STATUS_FMT = '''\
+sec.:{s:>5}s |count:{c:>8} |c/s.:{cs:>5} |pl:{p:>2} |verified:{v:>8} \
+|valid: {val:>7}\
+'''
+
+
+def _print_valid_states_status(start_time, counter, placed, verified, valid):
+    delta_time = datetime.datetime.now() - start_time
+    seconds = int(delta_time.total_seconds())
+    print _VALID_STATE_STATUS_FMT.format(
+        s=seconds, c=counter, v=verified, p=placed, val=valid,
+        cs=counter//seconds,
+    )
+
+
+def count_valid_states(placed, yrange=None, grange=None, show_each=1048576):
+    game = Quoridor2()
+    wall_moves = range(game.wall_moves)
+    yrange = yrange or range(game.board_positions)
+    grange = grange or range(game.board_positions)
+    valid = counter = verified = 0
+    stock_distributions = 11 - abs(placed - 10)
+
+    start_time = datetime.datetime.now()
+    try:
+        for comb in itertools.combinations(wall_moves, placed):
+            combination = frozenset(comb)
+            for ypawn in yrange:
+                for gpawn in grange:
+                    for color in (YELLOW, GREEN):
+                        counter += 1
+                        verified += stock_distributions
+                        # no need to validate number of walls in stock
+                        state = (color, ypawn, gpawn, 10, 10, combination)
+                        if is_state_valid(game, state):
+                            valid += stock_distributions
+                        if counter % 16384 == 0:
+                            _print_valid_states_status(
+                                start_time,
+                                counter,
+                                placed,
+                                verified,
+                                valid,
+                            )
+    except KeyboardInterrupt, EOFError:
+        return
+    _print_valid_states_status(start_time, counter, placed, verified, valid)
+
+
+def comb(N,k): # from scipy.comb(), but MODIFIED!
+    if (k > N) or (N < 0) or (k < 0):
+        return 0L
+    N,k = map(long,(N,k))
+    top = N
+    val = 1L
+    while (top > (N-k)):
+        val *= top
+        top -= 1
+    n = 1L
+    while (n < k+1L):
+        val /= n
+        n += 1
+    return val

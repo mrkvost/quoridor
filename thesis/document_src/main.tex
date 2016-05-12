@@ -3,6 +3,8 @@
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 %                                   IMPORTS
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+\renewcommand\figurename{Fig.}
+
 \usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=3.5cm, right=2cm]{geometry}
 \usepackage[utf8]{inputenc}
 \usepackage[slovak]{babel}
@@ -10,15 +12,32 @@
 
 % enable including .pdf files, e.g. comenius logo (komlogo-new) and images
 \usepackage{graphicx}
+\usepackage{wrapfig}
+\usepackage{natbib}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\hypersetup{
+    colorlinks = true,
+    linkbordercolor = black,
+    linkcolor = red,
+    citecolor = gray,
+    urlcolor = blue,
+}
 
 % value 1.25 should correspond to 1.5 line spacing
 \linespread{1.25}
+
+\addto\captionsslovak{\renewcommand{\figurename}{fig.}}
+\graphicspath{{pictures/}}
+\bibpunct{(}{)}{;}{a}{,}{,}
 
 % TODO:
 % what are these used for?
 % - \usepackage[hang, flushmargin]{footmisc}
 % - \usepackage{pdfpages}
 % - \usepackage{lmodern} % should be nicer font, but nothing changed...
+
 
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 %                             VARIABLE DEFINITIONS
@@ -60,27 +79,115 @@
 %                                   CONTENTS
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 %                                 INTRODUCTION
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   \section{Introduction}
-    Quoridor is abstract board strategy game...
-    This thesis covers only 2 player version of this game.
-    \subsection{Rules}
-    Each player starts with a single pawn and 10 fences (or walls). Board is
-    square of 9x9 (81) squares. In the beginning, pawns are placed on the
-    opposite sides of the board in the center spaces of the edges. The goal is
-    to get pawn to opposite side of the board first. Walls are wide two spaces
-    and can be placed in the groove between 9x9 spaces, so there are 8x8
-    vertical and 8x8 horizontal possibilities to place walls. When player is
-    on turn, he must place wall, if he has left some, or move his pawn
-    to adjacent space not blocked by a wall. Diagonal are not considered
-    adjacent. If opponent's pawn stands on adjacent space, current player can
-    move (jump) with his pawn to all the places where the opponent pawn can
-    move.
-    \begin{figure}
-      \includegraphics[width=0.25\textwidth]{basic_board_01.jpg}
-    \end{figure}
+    \subsection{Quoridor Rules}
+
+    \begin{wrapfigure}{R}{0.4\textwidth}
+      \vspace*{-0.48cm}
+      \centering
+      \includegraphics[width=0.35\textwidth]{real_board.jpg}
+      \vspace*{-0.60cm}
+      \caption{real board}
+      \label{fig:real_board}
+      \vspace*{-0.60cm}
+    \end{wrapfigure}
+
+    Quoridor is abstract board strategy game for 2 or 4 players with size of
+    9x9 (81) squares. This thesis covers 2 player version of this game.
+
+    \begin{wrapfigure}{R}{0.4\textwidth}
+      \vspace*{-0.98cm}
+      \centering
+      \includegraphics[width=0.35\textwidth]{start.png}
+      \vspace*{-0.60cm}
+      \caption{game start}
+      \label{fig:game_start}
+      \vspace*{-1.40cm}
+    \end{wrapfigure}
+
+    Each player starts with a single pawn in the center of the edge on the
+    opposite side as the opponent.
+    The goal for each player is to reach the opposite edge.
+
+    Player also starts with 10 walls (fences) in the stock.
+    Walls are two space wide and can be placed in the groove that runs between
+    the spaces.
+    Placed wall blocks pawns paths forcing them to go arount it.
+    Walls once placed can not be moved nor removed.
+    Wall can not be placed to the position already occupied or crossing by
+    other wall.
+    Also, wall can not cut off the only remaining path of any pawn to his goal.
+
+    When player is on turn, he must place wall, if he has left some, or move
+    his pawn to adjacent (not diagonal and unoccupied) space.
+    If opponent's pawn stands on an adjacent space, current player can jump
+    with his pawn to all the places where the opponent pawn can move.
+
+  \subsection{Q-Learning}
+
+  \subsection{Quoridor complexity}
+    \begin{wrapfigure}{r}{0.5\textwidth}
+      \vspace*{-1.45cm}
+      \begin{equation}
+        \label{eqn:mertensestimate}
+        \begin{aligned}
+          S_p &= 81 \cdot 80 = 6480
+          \\
+          S_f &= \sum_{i=0}^{20}\prod_{j=0}^{i}(128 - 4i) = 6.1582\cdot10^{38}
+          \\
+          S &= S_p \cdot S_f = \mathbf{3.9905 \cdot 10 ^{42}}
+        \end{aligned}
+      \end{equation}
+      \vspace*{-2.45cm}
+    \end{wrapfigure}
+
+    Estimated state complexity was $3.9905\cdot10^{42}$ [\cite{mertens}],
+    however, this is very rough estimate, since it includes impossible states
+    such as:
+    \begin{enumerate}[topsep=0pt,itemsep=-1ex,partopsep=1ex,parsep=1ex]
+      \setlength\itemsep{0em}
+      \item both pawns in the winning positions
+      \item pawn in the winning position where he could not get due to wall
+      \item pawns not having the path to winning position
+    \end{enumerate}
+
+    Moreover, this estimate does includ which player is on move and also how
+    many walls have players in their stock. Both of these could make the game
+    very different in the outcome. At least, $S_p$ could be corrected to not
+    include both pawns in the winning positions to
+    $S_p = 81\cdot80 - 9\cdot9 = 6399$
+
+  \subsection{Perceptron}
+
+    \begin{wrapfigure}{l}{0.4\textwidth}
+      \vspace*{-0.45cm}
+      \centering
+      \includegraphics[width=0.4\textwidth]{neural-net1.png}
+      \vspace*{-1.45cm}
+      \caption{ANN}
+      \label{fig:network}
+      \vspace*{-1.30cm}
+    \end{wrapfigure}
+
+    Artifitial neural network (ANN) is a family of models inspired by biological
+    neural networks used in computer science to approximate functions with
+    large number of inputs. Generally, artifitial neural network is presented
+    as a system of interconnected neurons exchanging messages between each
+    other. These connections have weights that can be adjusted based on
+    experience which makes the network capable of learning.
+
+    Perceptron is an algorithm for supervised learning of binary classifiers
+    where one neuron has multiple weighted inputs and single output. Single
+    perceptron can learn to decide between two linearly separable
+    classes. Multiple perceptrons in multiple layers (MLP) use arbitrary
+    activation function which makes it able to perform classification or
+    regression based on the activation function chosen.
+
+
+\bibliographystyle{plainnat}
+\bibliography{references}
 
 \end{document}

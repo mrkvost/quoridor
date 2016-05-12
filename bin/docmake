@@ -14,9 +14,9 @@ from optparse import OptionParser
 from latex import build_pdf
 
 
-DOCUMENT_SOURCE_DIR = 'thesis/document_src'
+SOURCES_DIR = 'thesis/document_src'
 DOCUMENT_SOURCE_NAME = 'main.tex'
-DOCUMENT_SOURCE_PATH = os.path.join(DOCUMENT_SOURCE_DIR, DOCUMENT_SOURCE_NAME)
+DOCUMENT_SOURCE_PATH = os.path.join(SOURCES_DIR, DOCUMENT_SOURCE_NAME)
 
 DOCUMENT_DESTINATION = 'thesis/thesis.pdf'
 
@@ -34,11 +34,32 @@ def parse_args():
 def make_document():
     # texinputs needs absolute path (http://pythonhosted.org/latex/#id2)
     current_dir = os.path.abspath(os.path.dirname(__file__))
-    source_dir = os.path.join(current_dir, '..', DOCUMENT_SOURCE_DIR)
+    source_dir = os.path.join(current_dir, '..', SOURCES_DIR)
 
     with open(DOCUMENT_SOURCE_PATH, 'r') as document:
         pdf = build_pdf(document, texinputs=[source_dir])
     pdf.save_to(DOCUMENT_DESTINATION)
+
+
+def make_document_with_bibliography():
+    current_dir = os.path.abspath(os.path.dirname(__file__))
+    base_dir = os.path.join(current_dir, '..')
+    source_dir = os.path.join(current_dir, '..', SOURCES_DIR)
+    cwd = os.getcwd()
+    os.chdir(source_dir)
+    kwargs = {}
+    # kwargs['environ'] = os.environ.copy()
+    # kwargs['environ']['TEXINPUTS'] = '/home/michal/skola/2q/thesis/document_src/:'
+    # kwargs['environ']['BIBINPUTS'] = '/home/michal/skola/2q/thesis/document_src/:'
+    args = ['pdflatex', 'main.tex']
+    subprocess.check_call(args, **kwargs)
+    subprocess.check_call(['/usr/bin/bibtex', 'main.aux'], **kwargs)
+    subprocess.check_call(args, **kwargs)
+    subprocess.check_call(args, **kwargs)
+    os.rename('main.pdf', '../thesis.pdf')
+    for filename in ('main.aux', 'main.bbl', 'main.blg', 'main.log', 'main.out'):
+        os.remove(filename)
+    os.chdir(cwd)
 
 
 def open_viewer():
@@ -50,7 +71,8 @@ def open_viewer():
 
 def main():
     options, args = parse_args()
-    make_document()
+    make_document_with_bibliography()
+    # make_document()
     if options.view:
         open_viewer()
 
