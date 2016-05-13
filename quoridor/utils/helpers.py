@@ -2,7 +2,10 @@ import re
 import os
 import sys
 import time
+import math
 import datetime
+import operator
+import functools
 import itertools
 import numpy as np
 
@@ -224,3 +227,9 @@ def comb(N,k): # from scipy.comb(), but MODIFIED!
         val /= n
         n += 1
     return val
+
+
+mertens_Sf = sum([
+    reduce(operator.mul, [j for j in range(128, 124 - 4 * i, -4)], 1)
+    for i in range(20)
+])
