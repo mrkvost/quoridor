@@ -43,7 +43,7 @@ def get_setup_requirements():
 
 
 def create_setup_info():
-    setup_requirements = get_setup_requirements()
+    # setup_requirements = get_setup_requirements()
     setup_info = dict(
         name="quoridor",
         version="0.1.0",
@@ -55,7 +55,7 @@ def create_setup_info():
         ),
 
         packages=find_packages(),
-        setup_requires=setup_requirements,
+        # setup_requires=setup_requirements,
         entry_points={
             'console_scripts': [
                 'qc = quoridor.quoridor:main',
@@ -65,22 +65,22 @@ def create_setup_info():
         },
     )
 
-    if 'install_requires' not in setup_info:
-        setup_info['install_requires'] = []
+    # if 'install_requires' not in setup_info:
+    #     setup_info['install_requires'] = []
 
-    if 'develop' in sys.argv or 'install' in sys.argv:
-        setup_info['install_requires'] = list(set(
-            setup_info['install_requires'] + setup_requirements
-        ))
+    # if 'develop' in sys.argv or 'install' in sys.argv:
+    #     setup_info['install_requires'] = list(set(
+    #         setup_info['install_requires'] + setup_requirements
+    #     ))
 
-    if 'develop' in sys.argv:
-        setup_info['install_requires'].append('latex==0.6.1')
-        setup_info['install_requires'].append('matplotlib==1.5.1')
+    # if 'develop' in sys.argv:
+    #     setup_info['install_requires'].append('latex==0.6.1')
+    #     setup_info['install_requires'].append('matplotlib==1.5.1')
 
-        if 'scripts' not in setup_info:
-            setup_info['scripts'] = []
-        setup_info['scripts'].append('bin/docmake')
-        setup_info['scripts'].append('bin/plot')
+    if 'scripts' not in setup_info:
+        setup_info['scripts'] = []
+    setup_info['scripts'].append('bin/docmake')
+    setup_info['scripts'].append('bin/plot')
     return setup_info
 
 setup(**create_setup_info())
