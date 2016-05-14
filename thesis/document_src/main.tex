@@ -127,6 +127,21 @@
     with his pawn to all the places where the opponent pawn can move.
 
   \subsection{Q-Learning}
+    Q-Learning is reinforcement learning method. It learns an action-value
+    (q-value) function for any finite Markov decision process used to find
+    optimal policy for the agent. After it has learned the q-value function,
+    it can follow the optimal strategy by choosing best q-value. ?citation?
+    Algorithm is value iteration update for every observed state ?citation?:
+    \begin{equation}
+    Q_{t+1} \leftarrow Q_t(s_t, a_t) + \alpha \cdot (
+        R_{t+1} + \gamma\cdot {\max_a}\,Q_t(s_{t+1}, a) - Q_t(s_t, a_t)
+    )
+    \end{equation}
+    where $Q_t(s_t, a_t)$ is old value, $\alpha$ is learning rate, $R_{t+1}$ is
+    reward after performing action $a_t$ in state $s_t$, $\gamma$ is discount
+    factor and $\underset{a}{\max}\,Q_t(s_{t+1}, a)$ is maximum optimal future
+    value.
+    \newpage
 
   \subsection{Quoridor complexity}
     \begin{wrapfigure}{r}{0.5\textwidth}
@@ -144,21 +159,28 @@
       \vspace*{-2.45cm}
     \end{wrapfigure}
 
-    Estimated state complexity was $3.9905\cdot10^{42}$ [\cite{mertens}],
+    Estimated game state complexity was $3.9905\cdot10^{42}$ [\cite{mertens}],
     however, this is very rough estimate, since it includes impossible states
     such as:
     \begin{enumerate}[topsep=0pt,itemsep=-1ex,partopsep=1ex,parsep=1ex]
       \setlength\itemsep{0em}
       \item both pawns in the winning positions
-      \item pawn in the winning position where he could not get due to wall
+      \item pawn in the winning position where it could not end due to walls
       \item pawns not having the path to winning position
     \end{enumerate}
 
-    Moreover, this estimate does includ which player is on move and also how
+    Moreover, this estimate does include which player is on move and also how
     many walls have players in their stock. Both of these could make the game
     very different in the outcome. At least, $S_p$ could be corrected to not
     include both pawns in the winning positions to
-    $S_p = 81\cdot80 - 9\cdot9 = 6399$
+    $S_p = 81\cdot80 - 9\cdot9 = 6399$, but this does not make significant
+    difference with the former estimate ($3.9406\cdot10^{42}$).\\
+    Lets assume, this estimate is precise enough and assume that we can
+    evaluate $10^{6}$ states in one second. Then it would take around $10^{29}$
+    years to evaluate every state.\\
+    Also, lets assume it takes on average 50B of memory per state. Then we
+    would need approximately $1.19703\cdot10^{44}$ bytes of memory to store all
+    states in the computer.
 
   \subsection{Perceptron}
 
@@ -169,7 +191,7 @@
       \vspace*{-1.45cm}
       \caption{ANN}
       \label{fig:network}
-      \vspace*{-1.30cm}
+      \vspace*{-1.00cm}
     \end{wrapfigure}
 
     Artifitial neural network (ANN) is a family of models inspired by biological
@@ -186,7 +208,7 @@
     activation function which makes it able to perform classification or
     regression based on the activation function chosen.
 
-
+\renewcommand\bibname{References}
 \bibliographystyle{plainnat}
 \bibliography{references}
 
