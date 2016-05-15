@@ -233,3 +233,5 @@ mertens_Sf = sum([
     reduce(operator.mul, [j for j in range(128, 124 - 4 * i, -4)], 1)
     for i in range(20)
 ])
+
+my_S = 2*6399*sum([(i+1 - (i>10)*2*(i-10))*comb(128, i) for i in range(21)])
