@@ -151,7 +151,7 @@
         \begin{aligned}
           S_p &= 81 \cdot 80 = 6480
           \\
-          S_f &= \sum_{i=0}^{20}\prod_{j=0}^{i}(128 - 4i) = 6.1582\cdot10^{38}
+          S_f &= \sum_{i=0}^{20}\prod_{j=0}^{i}(128 - 4i)= 6.1582{\cdot}10^{38}
           \\
           S &= S_p \cdot S_f = \mathbf{3.9905 \cdot 10 ^{42}}
         \end{aligned}
@@ -161,7 +161,7 @@
 
     Estimated game state complexity was $3.9905\cdot10^{42}$
     [\cite{mertens} (2)], however, this is very rough estimate, since it
-    includes many states multiple times, since it counts with permutations
+    includes many states multiple times where it counts with permutations
     instead of combinations of walls.
     % of walls which should be corrected to $
         % $\underset{j=0}{\overset{i}{\prod}}{128 \choose {128 - 4i}}$
@@ -170,8 +170,13 @@
         % {128 \choose {128 - 4i}}
     % $.
 
-    My approach with estimate will be similar. I will estimate maximum states
-    of this game, which will include impossible states such as:
+    Average branging factor of the game has been calculated to be 60.4 and
+    average game length to be 91.1 [\cite{glendenning}]. This Mertens used to
+    compute game-tree size $G = 60.4^{91.1} = 1.7884{\cdot}10^{162}$.
+
+    My approach with estimating state complexity will be similar. I will
+    estimate maximum states of this game, which will include impossible states
+    such as:
     \begin{enumerate}[topsep=0pt,itemsep=-1ex,partopsep=1ex,parsep=1ex]
       \setlength\itemsep{0em}
       % \item both pawns in the winning positions
@@ -180,12 +185,12 @@
       \item walls crossing each other
       \item pawn in the winning position and on turn
     \end{enumerate}
-    Moreover, this estimate will it count as a different state when different
-    player is on the move and also different number of walls in players stocks.
-    Both of these could make the game very different in the outcome.
+    Moreover, this estimate will count as a different state when different
+    player is on the move, and also, different number of walls in players
+    stocks. Both of these could make the game very different in the outcome.
 
     \begin{wrapfigure}{r}{0.5\textwidth}
-      \vspace*{-1.45cm}
+      \vspace*{-1.70cm}
       \begin{equation}
         \label{eqn:correctsp}
         \begin{aligned}
@@ -197,22 +202,23 @@
           \end{cases} \\
           S_f &= \sum_{i=0}^{20} f(i){128 \choose i} = 1.7796 {\cdot} 10^{23}
           \\
-          S &= 2 {\cdot} S_p {\cdot} S_f = \mathbf{2.2775866 {\cdot} 10^{27}}
+          S &= 2 {\cdot} S_p {\cdot} S_f = \mathbf{2.2775 {\cdot} 10^{27}}
         \end{aligned}
       \end{equation}
-      \vspace*{-0.45cm}
+      \vspace*{-1.30cm}
     \end{wrapfigure}
     $S_p$ was corrected to not include both pawns in the winning positions.
     $f(i)$ % is from sequence $\{1, 2, ..., 9, 10, 11, 10, 9, ..., 2, 1\}$ and
     stands for different wall counts in the stocks.
     $2$ in $2{\cdot} S_p {\cdot} S_f$ counts different players on turn.
 
-    Result is maximum number of states, which is significantly less then former
-    estimate. However, even if I could evaluate $10^{6}$ states in one second,
-    it would take around $7.2172{\cdot}10^{13}$ years to evaluate this many
-    states. Also, lets assume it takes on average 50B of memory per state. Then
-    I would need approximately $1.138793{\cdot}10^{29}$ bytes of memory to
-    store all states in the computer.
+    The result is maximum number of possible states, which is significantly
+    less then former estimate. However, even if I could evaluate $10^{6}$
+    states in one second, it would take around $7.2172{\cdot}10^{13}$ years to
+    evaluate this many states. Also, lets assume it takes on average 50B
+    of memory per state. Then I would need approximately
+    $1.1387{\cdot}10^{29}$ bytes of memory to store all states in the
+    computer. This is why simple Q-learning is not feasible.
 
   \subsection{Perceptron}
 
@@ -239,6 +245,25 @@
     classes. Multiple perceptrons in multiple layers (MLP) use arbitrary
     activation function which makes it able to perform classification or
     regression based on the activation function chosen.
+
+  \subsection{Perceptron estimating Q-learning}
+    \begin{wrapfigure}{r}{0.39\textwidth}
+      \vspace*{-1.15cm}
+      \begin{equation}
+        \label{eqn:mertensestimate}
+        \hat{Q}^{new}
+        \leftarrow r_t + {\gamma}{\max_a}\,\hat{Q}(s_{t+1}, a)
+        % \hat{Q}_t^{new}
+        % \leftarrow r_t + {\gamma}{\max_a}\,\hat{Q}_{t+1}(s_{t+1}, a)
+      \end{equation}
+      \vspace*{-0.95cm}
+    \end{wrapfigure}
+
+    Main advantage of ANN is its ability to generalize. This is has been used
+    in game othello [\cite{othello}] with combining Q-learning so that network
+    has learned to estimate q-values for each state. Iteration update (4) did
+    not include learning rate $\alpha$ since ANN has also learning rate so it
+    can be adjusted there.
 
 \renewcommand\bibname{References}
 \bibliographystyle{plainnat}
