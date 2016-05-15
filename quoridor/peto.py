@@ -4,6 +4,7 @@ start = clock()
 from core.game import YELLOW, GREEN, Quoridor2
 from core.context import QuoridorContext
 from ai.players import HeuristicPlayer
+from ai.utils import input_vector_from_game_state
 
 
 OUTPUT_FMT = """\
