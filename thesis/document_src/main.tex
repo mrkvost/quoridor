@@ -156,31 +156,63 @@
           S &= S_p \cdot S_f = \mathbf{3.9905 \cdot 10 ^{42}}
         \end{aligned}
       \end{equation}
-      \vspace*{-2.45cm}
+      \vspace*{-1.45cm}
     \end{wrapfigure}
 
-    Estimated game state complexity was $3.9905\cdot10^{42}$ [\cite{mertens}],
-    however, this is very rough estimate, since it includes impossible states
-    such as:
+    Estimated game state complexity was $3.9905\cdot10^{42}$
+    [\cite{mertens} (2)], however, this is very rough estimate, since it
+    includes many states multiple times, since it counts with permutations
+    instead of combinations of walls.
+    % of walls which should be corrected to $
+        % $\underset{j=0}{\overset{i}{\prod}}{128 \choose {128 - 4i}}$
+        % S_f\!=\!\underset{i=0}{\overset{20}{\sum}}
+        % \underset{j=0}{\overset{i}{\prod}}
+        % {128 \choose {128 - 4i}}
+    % $.
+
+    My approach with estimate will be similar. I will estimate maximum states
+    of this game, which will include impossible states such as:
     \begin{enumerate}[topsep=0pt,itemsep=-1ex,partopsep=1ex,parsep=1ex]
       \setlength\itemsep{0em}
-      \item both pawns in the winning positions
+      % \item both pawns in the winning positions
       \item pawn in the winning position where it could not end due to walls
-      \item pawns not having the path to winning position
+      \item pawns not having the path to the winning position
+      \item walls crossing each other
+      \item pawn in the winning position and on turn
     \end{enumerate}
+    Moreover, this estimate will it count as a different state when different
+    player is on the move and also different number of walls in players stocks.
+    Both of these could make the game very different in the outcome.
 
-    Moreover, this estimate does include which player is on move and also how
-    many walls have players in their stock. Both of these could make the game
-    very different in the outcome. At least, $S_p$ could be corrected to not
-    include both pawns in the winning positions to
-    $S_p = 81\cdot80 - 9\cdot9 = 6399$, but this does not make significant
-    difference with the former estimate ($3.9406\cdot10^{42}$).\\
-    Lets assume, this estimate is precise enough and assume that we can
-    evaluate $10^{6}$ states in one second. Then it would take around $10^{29}$
-    years to evaluate every state.\\
-    Also, lets assume it takes on average 50B of memory per state. Then we
-    would need approximately $1.19703\cdot10^{44}$ bytes of memory to store all
-    states in the computer.
+    \begin{wrapfigure}{r}{0.5\textwidth}
+      \vspace*{-1.45cm}
+      \begin{equation}
+        \label{eqn:correctsp}
+        \begin{aligned}
+          S_p &= 81 {\cdot} 80 - 9 {\cdot} 9 = 6399
+          \\
+          f(i)&= \begin{cases}
+            i + 1  & \quad \text{if } i <= 10 \\
+            21 - i & \quad \text{if } i > 10
+          \end{cases} \\
+          S_f &= \sum_{i=0}^{20} f(i){128 \choose i} = 1.7796 {\cdot} 10^{23}
+          \\
+          S &= 2 {\cdot} S_p {\cdot} S_f = \mathbf{2.2775866 {\cdot} 10^{27}}
+        \end{aligned}
+      \end{equation}
+      \vspace*{-0.45cm}
+    \end{wrapfigure}
+    $S_p$ was corrected to not include both pawns in the winning positions.
+    $f(i)$ % is from sequence $\{1, 2, ..., 9, 10, 11, 10, 9, ..., 2, 1\}$ and
+    stands for different wall counts in the stocks.
+    $2$ in $2{\cdot} S_p {\cdot} S_f$ counts different players on turn.
+
+    Result is maximum number of states, which is significantly less then former
+    estimate. However, even if I could evaluate $10^{6}$ states in one second,
+    it would take around $7.2172{\cdot}10^{13}$ years to evaluate this many
+    states. Also, lets assume it takes on average 50B of memory per state. Then
+    I would need approximately $1.138793{\cdot}10^{29}$ bytes of memory to
+    store all states in the computer.
 
   \subsection{Perceptron}
 
