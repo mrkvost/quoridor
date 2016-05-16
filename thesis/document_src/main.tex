@@ -20,6 +20,7 @@
 \usepackage{listings}
 
 \usepackage{mathtools}
+\usepackage{hyphenat}
 
 % \usepackage[T1]{fontenc}
 % \usepackage[hang, flushmargin]{footmisc}
@@ -89,6 +90,8 @@
     keywordstyle=\color{black}\bfseries
 }
 
+\hyphenpenalty 10000
+\exhyphenpenalty 10000
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 %                                DOCUMENT BODY
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -107,7 +110,9 @@
 
   \mainmatter
 
+  \nohyphens{
   \input 00_introduction.tex
+  }
 
   \fancyhf{}
   \fancyhead{}
