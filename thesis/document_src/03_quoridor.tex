@@ -1,99 +1,13 @@
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-%                                 INTRODUCTION
+%                                 QUORIDOR
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-\chapter{Introduction}\label{chap:1}
-  \lhead{Chapter 1. \emph{Introduction}}
-  In this chapter, there will be introduced existing approaches in solving
-board games with agent based model, Quoridor game rules, chosen opponent model
-to implement and Python programming langue.
+\chapter{Quoridor}\label{chap:3}
+  \lhead{Chapter 3. \emph{Quoridor}}
 
-\section{Agent based model}
-Agent based model (ABM) is a paradigm in modeling systems comprised
-of autonomous agents. Also, it is a class of computational models for
-simulations of the actions and interactions between agents. Althought, there
-are multiple definitions of what is considered agent [\cite{abm}], often, agent
-is an identifiable component with reaction rules able to make independent
-decisions (or behaviours) and sometimes with ability to learn and adapt to
-the environment.
-
-\section{Game theory}
+\section{History}
 TODO
 
-\section{Markov decission process}
-TODO
-
-\section{A star}
-TODO
-
-\section{Alfa-beta pruning}
-TODO
-
-\section{Reinforcement Learning}
-TODO
-
-\section{Evolution methods and genetic algorithms}
-TODO
-
-\section{Q-Learning}
-Q-Learning is reinforcement learning method. It learns an action-value
-(q-value) function for any finite Markov decision process used to find
-optimal policy for the agent. After it has learned the q-value function,
-it can follow the optimal strategy by choosing best q-value. ?citation?
-Algorithm is value iteration update for every observed state ?citation?:
-\begin{equation}
-Q_{t+1} \leftarrow Q_t(s_t, a_t) + \alpha \cdot (
-    R_{t+1} + \gamma\cdot {\max_a}\,Q_t(s_{t+1}, a) - Q_t(s_t, a_t)
-)
-\end{equation}
-where $Q_t(s_t, a_t)$ is old value, $\alpha$ is learning rate, $R_{t+1}$ is
-reward after performing action $a_t$ in state $s_t$, $\gamma$ is discount
-factor and $\underset{a}{\max}\,Q_t(s_{t+1}, a)$ is maximum optimal future
-value.
-
-\section{Perceptron}
-\begin{wrapfigure}{l}{0.4\textwidth}
-  \vspace*{-0.45cm}
-  \centering
-  \includegraphics[width=0.4\textwidth]{neural-net1.png}
-  \vspace*{-1.45cm}
-  \caption{ANN}
-  \label{fig:network}
-  \vspace*{-1.00cm}
-\end{wrapfigure}
-
-Artifitial neural network (ANN) is a family of models inspired by biological
-neural networks used in computer science to approximate functions with
-large number of inputs. Generally, artifitial neural network is presented
-as a system of interconnected neurons exchanging messages between each
-other. These connections have weights that can be adjusted based on
-experience which makes the network capable of learning.
-
-Perceptron is an algorithm for supervised learning of binary classifiers
-where one neuron has multiple weighted inputs and single output. Single
-perceptron can learn to decide between two linearly separable
-classes. Multiple perceptrons in multiple layers (MLP) use arbitrary
-activation function which makes it able to perform classification or
-regression based on the activation function chosen.
-
-\section{Perceptron estimating Q-learning}
-\begin{wrapfigure}{r}{0.42\textwidth}
-  \vspace*{-1.15cm}
-  \begin{equation}
-    \label{eqn:otheloqupdate}
-    \hat{Q}^{new}\!\leftarrow\!r_t\!+\!{\gamma}{\max_a}\,\hat{Q}(s_{t+1},\!a)
-    % \hat{Q}_t^{new}
-    % \leftarrow r_t + {\gamma}{\max_a}\,\hat{Q}_{t+1}(s_{t+1}, a)
-  \end{equation}
-  \vspace*{-0.95cm}
-\end{wrapfigure}
-
-Main advantage of ANN is its ability to generalize. This is has been used
-in game othello [\cite{othello}] with combining Q-learning so that network
-has learned to estimate q-values for each state. Learning rate $\alpha$ has
-not been directly used in iteration update (\ref{eqn:otheloqupdate}) since
-ANN has also learning rate so it can be adjusted there.
-
-\section{Quoridor Rules}
+\section{Rules}
 \begin{wrapfigure}{R}{0.4\textwidth}
   \vspace*{-2.80cm}
   \centering
@@ -135,7 +49,7 @@ his pawn to adjacent (not diagonal and unoccupied) space.
 If opponent's pawn stands on an adjacent space, current player can jump
 with his pawn to all the places where the opponent pawn can move.
 
-\section{Quoridor complexity}
+\section{Complexity}
 \begin{wrapfigure}{r}{0.52\textwidth}
   \vspace*{-2.35cm}
   \begin{equation}
