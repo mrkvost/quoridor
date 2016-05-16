@@ -3,17 +3,26 @@
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Background}\label{chap:2}
   \lhead{Chapter 2. \emph{Background}}
-  In this chapter, there will be introduced python programming language and
+  In this chapter, there will be introduced Python programming language and
 different existing approaches in solving board games with agent based model.
 
 \section{Python}
-TODO
+According to TiobeIndex \cite{tiobeIndex}, Python is widely used and popular
+programming language. It is an interpreted, high-level, dynamic programming
+language supporting multiple programming paradigms, including functional,
+object-oriented and procedural style. It has been designed with regard to
+readability, easy adoption for novices and scalability of programs. Python
+offers a lot of utilities as part of its comprehensive standard library. It is
+possible to work in Python under multiple operating systems and it is often
+standard component among many linux distributions. Main reasons why I chose
+Python was that I had four years of experience with it and for its
+maintainability.
 
 \section{Agent based model}
 Agent based model (ABM) is a paradigm in modeling systems comprised
 of autonomous agents. Also, it is a class of computational models for
 simulations of the actions and interactions between agents. Althought, there
-are multiple definitions of what is considered agent [\cite{abm}], often, agent
+are multiple definitions of what is considered agent \cite{abm}, often, agent
 is an identifiable component with reaction rules able to make independent
 decisions (or behaviours) and sometimes with ability to learn and adapt to
 the environment.
@@ -90,7 +99,7 @@ regression based on the activation function chosen.
 \end{wrapfigure}
 
 Main advantage of ANN is its ability to generalize. This is has been used
-in game othello [\cite{othello}] with combining Q-learning so that network
+in game othello \cite{othello} with combining Q-learning so that network
 has learned to estimate q-values for each state. Learning rate $\alpha$ has
 not been directly used in iteration update (\ref{eqn:otheloqupdate}) since
 ANN has also learning rate so it can be adjusted there.
