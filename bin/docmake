@@ -20,6 +20,15 @@ DOCUMENT_SOURCE_PATH = os.path.join(SOURCES_DIR, DOCUMENT_SOURCE_NAME)
 
 DOCUMENT_DESTINATION = 'thesis/thesis.pdf'
 
+REMOVE_AFTER_RUN = (
+    'main.aux',
+    'main.bbl',
+    'main.blg',
+    'main.log',
+    'main.out',
+    'main.toc',
+)
+
 
 def parse_args():
     parser = OptionParser()
@@ -57,7 +66,7 @@ def make_document_with_bibliography():
     subprocess.check_call(args, **kwargs)
     subprocess.check_call(args, **kwargs)
     os.rename('main.pdf', '../thesis.pdf')
-    for filename in ('main.aux', 'main.bbl', 'main.blg', 'main.log', 'main.out'):
+    for filename in REMOVE_AFTER_RUN:
         os.remove(filename)
     os.chdir(cwd)
 

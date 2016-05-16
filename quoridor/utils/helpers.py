@@ -234,4 +234,5 @@ mertens_Sf = sum([
     for i in range(20)
 ])
 
+# print [i+1 - (i>10)*(2*(i-10)) for i in range(21)]
 my_S = 2*6399*sum([(i+1 - (i>10)*2*(i-10))*comb(128, i) for i in range(21)])
