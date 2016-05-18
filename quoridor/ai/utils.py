@@ -1,13 +1,12 @@
 import itertools
+import copy
 
 
 def binarify(number, length):
     return [int(digit) for digit in bin(number)[2:].zfill(length)]
-    # binary = []
-    # for i in range(length):
-    #     number, mod = divmod(number, 2)
 
-def input_vector_from_game_state(context):
+
+def old_input_vector_from_game_state(context):
     """
     WARNING: works properly for maximum board size 11
 
@@ -27,6 +26,39 @@ def input_vector_from_game_state(context):
         (state[0], ),
         binarify(state[1], 7),
         binarify(state[2], 7),
+        binarify(state[3], 4),
+        binarify(state[4], 4),
+        [int(i in state[5]) for i in range(context.game.wall_moves)],
+    )
+
+
+POSITIONS = [0] * 81
+
+
+def input_vector_from_game_state_fast(context):
+    state = context.state
+    positions = copy.copy(POSITIONS)
+    positions[state[1]] = 1
+    positions[state[2]] = -1
+    return itertools.chain(
+        (state[0], ),
+        positions,
+        binarify(state[3], 4),
+        binarify(state[4], 4),
+        [int(i in state[5]) for i in range(context.game.wall_moves)],
+    )
+
+
+def input_vector_from_game_state(context, repeat=1):
+    state = context.state
+    positions = POSITIONS * repeat
+    for i in range(repeat):
+        positions[state[1] * repeat + i] = 1
+        positions[state[2] * repeat + i] = -1
+
+    return itertools.chain(
+        (state[0], ),
+        positions,
         binarify(state[3], 4),
         binarify(state[4], 4),
         [int(i in state[5]) for i in range(context.game.wall_moves)],
