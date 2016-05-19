@@ -1,3 +1,9 @@
+19th May 2016
+===============
+ - calculating game complexity
+ - work on thesis text
+ - testing with tensorflow
+
 4th May 2016
 ===============
  - save game to file or database
