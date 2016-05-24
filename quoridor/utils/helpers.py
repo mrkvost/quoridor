@@ -236,3 +236,39 @@ mertens_Sf = sum([
 
 # print [i+1 - (i>10)*(2*(i-10)) for i in range(21)]
 my_S = 2*6399*sum([(i+1 - (i>10)*2*(i-10))*comb(128, i) for i in range(21)])
+
+
+def print_wrongs_pairs():
+    for i in range(8):
+        print '| '.join([
+            '({0:>3}, {1:>3})'.format(i*8 + j, i*8 + j + 64) for j in range(8)
+        ])
+    print '<-- 8 * 8 = 64   ...   176   ...   112 = 16 * 7 -->'
+    for i in range(16):
+        print '| '.join([
+            '({0:>3}, {1:>3})'.format(i*8 + j, i*8 + j + 1) for j in range(7)
+        ])
+
+
+# def wd(a, b):
+#     return {'all': a, 'bad': b, 'good': a - b}
+#
+#
+# zero = wd(comb(128, 0), 0)
+# one = wd(comb(128, 1), 0)
+# two = wd(comb(128, 2), 176)
+# three_x = wd(comb(128, 3), 64*126)
+
+delta = [
+    0, 3, 5, 8, 10, 13, 15, 17, 19, 21, 23, 25, 27, 30, 32, 34, 36, 38, 40, 42,
+    128,
+]
+b = [128 - x for x in delta]                            # wall possibilities
+st_f = [(i+1 - (i>10)*2*(i-10)) for i in range(21)]     # stock factors
+
+states = sum([3168*st_f[i]*comb(128, i) for i in range(21)])
+possibilities = sum([
+    (12141*st_f[i] + 3168*b[i]*(st_f[i] - (i>9)))*comb(128, i)
+    for i in range(21)
+])
+branching_factor = float(possibilities) / states
