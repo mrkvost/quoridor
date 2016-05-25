@@ -159,45 +159,97 @@ decision and possible decisions are counted.
   \centering
   \includegraphics[width=0.95\textwidth]{decisions.png}
   \vspace*{-0.25cm}
-  \caption{decission patterns}
+  \caption{decision patterns}
   \label{fig:decisions}
   \vspace*{-0.60cm}
 \end{wrapfigure}
 
 \vspace{11.70cm}
-.
+\nobreakspace
 
-\begin{wraptable}{r}{0.55\textwidth}
-  \centering
-  \begin{tabular}{| l | r | r |}
-    \hline
-    & Possitions & Decisions \\ \hline
-    $AB_{1}$ & $2$ & $2\cdot3=6$ \\ \hline
-    $AB_{2}$ & $7$ & $7\cdot5=35$ \\ \hline
-    $AB_{3}$ & $7\cdot62=434$ & $434\cdot3=1302$ \\ \hline
-    $AB_{4}$ & $2\cdot62=124$ & $124\cdot2=248$ \\ \hline \hline
+\newcommand{\m}[2]{\multicolumn{1}{|#1}{#2}}
+\newcommand{\rr}[6]{
+  \m{l}{#1} & \m{r}{#2} & \m{r|}{#3} & & \m{l}{#4} & \m{r}{#5} & \m{r|}{#6} \\
+}
 
-    $AC_{1}$ & $2\cdot9=18$ & $18\cdot2=36$ \\ \hline
-    $AC_{2}$ & $7\cdot9=63$ & $63\cdot3=189$ \\ \hline \hline
+\begin{wraptable}{h}{0.99\textwidth}
+  \vspace*{0.2cm}
+  \begin{tabular}{ l r r c l r r }
+      \cline{2-3} \cline{6-7}
+      & \m{c}{Positions} & \m{c|}{Decisions} & &
+      & \m{c}{Positions} & \m{c|}{Decisions}
+      \\ \cline{1-3} \cline{5-7}
 
-    $BB_{1}$ & $7\cdot2\cdot2=28$ & $28\cdot5=140$ \\ \hline
-    $BB_{2}$ & $6\cdot2\cdot2=24$ & $24\cdot4=96$ \\ \hline
-    $BB_{3}$ & $6\cdot2\cdot7=84$ & $84\cdot6=504$ \\ \hline
-    $BB_{4}$ & $6\cdot2\cdot7=84$ & $84\cdot6=504$ \\ \hline
-    $BB_{5}$ & $2\cdot2\cdot60 + 5\cdot2\cdot59=830$ & $830\cdot3=2490$ \\ \hline
-    $BB_{6}$ &
-      $\displaystyle{7*9\choose2}-\sum_{1<i<6}\!BB_{i}=903$ &
-      $903\cdot4=3612$ \\ \hline \hline
+      \rr{$AB_{1}$}{$2$}{$2{\cdot}3=6$}
+         {$AC_{1}$}{$2{\cdot}9=18$}{$18{\cdot}2=36$}
+         \cline{1-3} \cline{5-7}
 
-    $BC_{1}$ & $7$ & $7\cdot5=35$ \\ \hline
-    $BC_{2}$ & $42\cdot9 + 7\cdot8=434$ & $434\cdot4=1736$ \\ \hline
-    $BC_{3}$ & $6\cdot9\cdot2 + 2\cdot8=124$ & $124\cdot3=372$ \\ \hline
-    $BC_{4}$ & $2$ & $2\cdot2=4$ \\ \hline \hline
+      \rr{$AB_{2}$}{$7$}{$7{\cdot}5=35$}
+         {$AC_{2}$}{$7{\cdot}9=63$}{$63{\cdot}3=189$}
+         \cline{1-3} \cline{5-7}
 
-    \textbf{Total} & $\textbf{3168}$ & $\textbf{11309}$ \\ \hline
+      \rr{$AB_{3}$}{$7{\cdot}62=434$}{$434{\cdot}3=1302$}
+         {$BB_{1}$}{$7{\cdot}2{\cdot}2=28$}{$28{\cdot}5=140$}
+         \cline{1-3} \cline{5-7}
+
+      \rr{$AB_{4}$}{$2{\cdot}62=124$}{$124{\cdot}2=248$}
+         {$BB_{2}$}{$6{\cdot}2{\cdot}2=24$}{$24{\cdot}4=96$}
+         \cline{1-3} \cline{5-7}
+
+      \rr{$BC_{1}$}{$7$}{$7{\cdot}5=35$}
+         {$BB_{3}$}{$6{\cdot}2{\cdot}7=84$}{$84{\cdot}6=504$}
+         \cline{1-3} \cline{5-7}
+
+      \rr{\multirow{2}{*}{$BC_{2}$}}
+         {\multirow{2}{*}{%
+           $\begin{matrix}42{\cdot}9{+}7{\cdot}8\\=434\end{matrix}$%
+         }}%
+         {\multirow{2}{*}{$434{\cdot}4=1736$}}
+         {$BB_{4}$}{$6{\cdot}2{\cdot}7=84$}{$84{\cdot}6=504$}
+         \cline{5-7}
+
+      \rr{}
+         {}
+         {}
+         {\multirow{2}{*}{$BB_{5}$}}
+         {\multirow{2}{*}{%
+           $\begin{matrix}%
+             2{\cdot}2{\cdot}60{+}5{\cdot}2{\cdot}59\\%
+             =830\\%
+           \end{matrix}$%
+         }}
+         {\multirow{2}{*}{$830{\cdot}3=2490$}} \cline{1-3}
+
+      \m{l}{\multirow{2}{*}{$BC_{3}$}} & \m{r}{\multirow{2}{*}{%
+           $\begin{matrix}
+             6{\cdot}9{\cdot}2{+}2{\cdot}8 \\
+             = 124
+           \end{matrix}$%
+         }} & \m{r|}{\multirow{2}{*}{$124{\cdot}3=372$}}
+      & &
+      \m{l}{} & \m{r}{} & \m{r|}{} \\ \cline{5-7}
+
+      \rr{}{}{}
+         {\multirow{3}{*}{$BB_{6}$}}
+             {\multirow{3}{*}{%
+               $\begin{matrix}%
+                 \displaystyle
+                 {7{\cdot}9\choose2}{-}{\sum_{i<6}}BB_{i} \\
+                 =903 \\
+               \end{matrix}$%
+             }}
+             {\multirow{3}{*}{$903{\cdot}4=3612$}}
+             \cline{1-3}
+
+      \m{l}{$BC_{4}$} & \m{r}{$2$} & \m{r|}{$2{\cdot}2=4$} & & \m{l}{} & \m{r}{} & \m{r|}{} \\ \cline{1-3}
+      & & & & \m{l}{} & \m{r}{} & \m{r|}{} \\ \cline{5-7}%
+
+      % & & & & & & \\ \cline{4-6}%
+      % & & & \multicolumn{2}{|r}{Positions} & \m{r|}{Decisions} & \\ \cline{3-6}%
+      % & & \m{l}{\textbf{Total}} & \multicolumn{2}{|r}{$\textbf{3168}$} & \m{r|}{$\textbf{11309}$} & \\ \cline{3-6}%
   \end{tabular}
-  \vspace*{-0.25cm}
+  \vspace*{0.2cm}
+  \label{tab:decisions}
   \caption{positions and decisions}
-  \label{tab:positions}
-  \vspace*{-0.60cm}
+  \vspace*{-1.00cm}
 \end{wraptable}
