@@ -49,9 +49,14 @@ his pawn to adjacent (not diagonal and unoccupied) space.
 If opponent's pawn stands on an adjacent space, current player can jump
 with his pawn to all the places where the opponent pawn can move.
 
-\section{Complexity}
-\begin{wrapfigure}{r}{0.52\textwidth}
-  \vspace*{-2.35cm}
+\section{State Complexity}
+Estimated game state complexity was $3.9905\cdot10^{42}$
+\cite{mertens} (equation \ref{eqn:mertensestimate}), however, this is very rough estimate, since
+it includes many states multiple times where it counts with permutations
+instead of combinations of walls.
+
+\begin{center}
+  \vspace*{-1.30cm}
   \begin{equation}
     \label{eqn:mertensestimate}
     \begin{aligned}
@@ -60,17 +65,8 @@ with his pawn to all the places where the opponent pawn can move.
       S\!&=\!S_p \cdot S_f = \mathbf{3.9905 \cdot 10 ^{42}}
     \end{aligned}
   \end{equation}
-  \vspace*{-1.25cm}
-\end{wrapfigure}
-
-Estimated game state complexity was $3.9905\cdot10^{42}$
-\cite{mertens} (equation \ref{eqn:mertensestimate}), however, this is very rough estimate, since
-it includes many states multiple times where it counts with permutations
-instead of combinations of walls.
-
-Average branging factor of the game has been calculated to be $60.4$ and
-average game length to be $91.1$ \cite{glendenning}. This Mertens used to
-compute game-tree size $G = 60.4^{91.1} = 1.7884{\cdot}10^{162}$.
+  \vspace*{-1.15cm}
+\end{center}
 
 My approach (equation \ref{eqn:myestimate}) with estimating state complexity
 will be similar. I will estimate maximum states of this game, which will
@@ -84,8 +80,12 @@ include impossible states such as:
   \item pawn in the winning position where it could not end due to walls
   \vspace*{-0.15cm}
 \end{itemize}
-\begin{wrapfigure}{r}{0.50\textwidth}
-  \vspace*{-1.90cm}
+Moreover, this estimate will count as a different state when different
+player is on the move, and also, different number of walls in players
+stocks. Both of these could make the game very different in the outcome.
+
+\begin{center}
+  \vspace*{-1.30cm}
   \begin{equation}
     \label{eqn:myestimate}
     \begin{aligned}
@@ -100,15 +100,12 @@ include impossible states such as:
     \end{aligned}
   \end{equation}
   \vspace*{-1.15cm}
-\end{wrapfigure}
-Moreover, this estimate will count as a different state when different
-player is on the move, and also, different number of walls in players
-stocks. Both of these could make the game very different in the outcome.
+\end{center}
 
 $S_p$ was corrected to not include both pawns in the winning positions.
 $f(i)$ % is from sequence $\{1, 2, ..., 9, 10, 11, 10, 9, ..., 2, 1\}$ and
 stands for different wall counts in the stocks.
-$2$ in $2{\cdot} S_p {\cdot} S_f$ counts different players on turn.
+$2$ in $2{\cdot} S_p {\cdot} S_f$ represents different players on turn.
 
 The result is maximum number of possible states, which is significantly
 less then former estimate. However, even if I could evaluate $10^{6}$
@@ -118,5 +115,89 @@ of memory per state. Then I would need approximately
 $1.1387{\cdot}10^{29}$ bytes of memory to store all states in the
 computer. This is why simple Q-learning is not feasible.
 
-TODO very precise estimate would be, if we could compute not crossing
-positions for each number of placed walls...
+{\color{red}TODO: very precise estimate would be, if we could compute not crossing
+positions for each number of placed walls...}
+
+\section{Game Tree Complexity}
+Average branging factor of the game has been calculated to be $60.4$ and
+average game length to be $91.1$ \cite{glendenning}. Mertens \cite{mertens}
+used this to compute game-tree size $G$:
+\begin{center}
+  \vspace*{-1.30cm}
+  \begin{equation}
+    \label{eqn:mgtc}
+    G = 60.4^{91.1} = 1.7884{\cdot}10^{162}
+  \end{equation}
+  \vspace*{-1.30cm}
+\end{center}
+
+\begin{wrapfigure}{r}{0.38\textwidth}
+  \vspace*{-0.45cm}
+  \centering
+  \includegraphics[width=0.35\textwidth]{areas.png}
+  \vspace*{-0.60cm}
+  \caption{board areas}
+  \label{fig:areas}
+  \vspace*{-0.60cm}
+\end{wrapfigure}
+
+First, I will estimate upper bound of all states where decision can be made.
+After this, I will estimate upper bound of all different decisions.
+Branching factor will be simply division of these.
+
+To count every possible pawn move, board is divided into three areas
+(fig. \ref{fig:areas}), where $A$ and $C$ are positions from the first
+and last row respectively and $B$ are positions from $7$ rows from the middle.
+So, position AC means, first pawn is in the first row and second pawn is
+in the last row or BB means, both pawns are in the middle $7$ rows. Then, for
+each pattern (fig. \ref{fig:decisions}), possible positions for making
+decision and possible decisions are counted.
+% where $P$ represents number of possibilites and $D$ represents number of decisions possible.
+
+\begin{wrapfigure}{H}{0.99\textwidth}
+  \vspace*{-12.40cm}
+  \centering
+  \includegraphics[width=0.95\textwidth]{decisions.png}
+  \vspace*{-0.25cm}
+  \caption{decission patterns}
+  \label{fig:decisions}
+  \vspace*{-0.60cm}
+\end{wrapfigure}
+
+\vspace{11.70cm}
+.
+
+\begin{wraptable}{r}{0.55\textwidth}
+  \centering
+  \begin{tabular}{| l | r | r |}
+    \hline
+    & Possitions & Decisions \\ \hline
+    $AB_{1}$ & $2$ & $2\cdot3=6$ \\ \hline
+    $AB_{2}$ & $7$ & $7\cdot5=35$ \\ \hline
+    $AB_{3}$ & $7\cdot62=434$ & $434\cdot3=1302$ \\ \hline
+    $AB_{4}$ & $2\cdot62=124$ & $124\cdot2=248$ \\ \hline \hline
+
+    $AC_{1}$ & $2\cdot9=18$ & $18\cdot2=36$ \\ \hline
+    $AC_{2}$ & $7\cdot9=63$ & $63\cdot3=189$ \\ \hline \hline
+
+    $BB_{1}$ & $7\cdot2\cdot2=28$ & $28\cdot5=140$ \\ \hline
+    $BB_{2}$ & $6\cdot2\cdot2=24$ & $24\cdot4=96$ \\ \hline
+    $BB_{3}$ & $6\cdot2\cdot7=84$ & $84\cdot6=504$ \\ \hline
+    $BB_{4}$ & $6\cdot2\cdot7=84$ & $84\cdot6=504$ \\ \hline
+    $BB_{5}$ & $2\cdot2\cdot60 + 5\cdot2\cdot59=830$ & $830\cdot3=2490$ \\ \hline
+    $BB_{6}$ &
+      $\displaystyle{7*9\choose2}-\sum_{1<i<6}\!BB_{i}=903$ &
+      $903\cdot4=3612$ \\ \hline \hline
+
+    $BC_{1}$ & $7$ & $7\cdot5=35$ \\ \hline
+    $BC_{2}$ & $42\cdot9 + 7\cdot8=434$ & $434\cdot4=1736$ \\ \hline
+    $BC_{3}$ & $6\cdot9\cdot2 + 2\cdot8=124$ & $124\cdot3=372$ \\ \hline
+    $BC_{4}$ & $2$ & $2\cdot2=4$ \\ \hline \hline
+
+    \textbf{Total} & $\textbf{3168}$ & $\textbf{11309}$ \\ \hline
+  \end{tabular}
+  \vspace*{-0.25cm}
+  \caption{positions and decisions}
+  \label{tab:positions}
+  \vspace*{-0.60cm}
+\end{wraptable}
