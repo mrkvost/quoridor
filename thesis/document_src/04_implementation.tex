@@ -3,25 +3,76 @@
 % ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 \chapter{Implementation}\label{chap:4}
   \lhead{Chapter 4. \emph{Implementation}}
-TODO
 
 \section{Game}
-  usual properties of Game class, actions, execute move, initial\_state...TODO
+Game class is often implemented as a set of tools operating on provided state.
+With this approach, tests can be easily designed to verify functionality.
+In many cases, following methods or attributes are available:
+\begin{itemize}
+  \vspace*{-0.25cm}
+  \setlength\itemsep{-0.15cm}
 
-  \subsection{State}
-  State is smallest possible representation of the game state...TODO
+  \item initial\_state - initial state of the game
+  \item is\_terminal - whether the given state is terminal
+  \item valid - validates given state or action on the given state
+  \item actions - list of all possible actions in the given state
+  \item execute\_move - returns new state after executing given action
+  \item utility - value representing how the given state is beneficial
+                  for given player
 
-  \subsection{Context}
-  Why? Some players need it. Faster to execute when no need to check...TODO
+  \vspace*{-0.25cm}
+\end{itemize}
 
-  \subsection{ConsoleGame}
-  This was the design. Some pictures. Options...TODO
+\noindent I consider following methods also important in Quoridor, so these are
+present in my implementation:
+\begin{itemize}
+  \vspace*{-0.25cm}
+  \setlength\itemsep{-0.15cm}
+
+  \item undo - previous state before provided action and state
+  \item shortest\_path - shortest path to goal row for the given player
+  \item path\_blockers - set of wall positions that could block the given path
+  \item crossing\_actions - set of invalid actions that would cross already placed
+                            walls
+
+  \vspace*{-0.25cm}
+\end{itemize}
+
+\subsection{State}
+State should be the smallest possible representation of the game state where
+it can be easily distinguished between any two different states. Mathematicaly,
+state $S$ can be defined as:
+\begin{equation}
+  \label{eqn:state_def}
+  S = (c, p_y, p_g, s_y, s_g, w)
+  \vspace*{-0.20cm}
+\end{equation}
+Here, $c{\in}\{0, 1\} $ represents color of the player that should move,
+$p_y,p_g{\in}\{0,1,...,80\}$ are pawns positions,
+${s_y},{s_g} \in \{0, 1, ..., 10\}$ are counts of walls in stocks,
+and set of positions of placed walls are
+${w = \{\,a_i\,|\,a_i \in \{0, 1, ..., 127\}, i \in \{0, 1, ..., 20\} \}}$.
+One such state in python would be:
+\begin{lstlisting}
+state = (0, 51, 70, 5, 9, frozenset([32, 116, 119, 59, 12, 31]))
+\end{lstlisting}
+
+However, when training ANN, it may be better to convert it to zeroes and ones.
+TODO
+
+
+\subsection{Context}
+Why? Some players need it. Faster to execute when no need to check, 
+display distances...TODO
+
+\subsection{ConsoleGame}
+This was the design. Some pictures. Options...TODO
 
 \section{Heuristic player}
-  How he plays...TODO
+How he plays...TODO
 
 \section{QLNN player}
-  How he plays...TODO
+How he plays...TODO
 
 \section{Training}
-  How I trained...TODO
+How I trained...TODO
