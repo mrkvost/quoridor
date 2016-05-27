@@ -10,7 +10,7 @@
   \centering
   \includegraphics[width=0.35\textwidth]{real_board.jpg}
   \vspace*{-0.20cm}
-  \caption{quoridor board}
+  \caption{real board}
   \label{fig:quoridor_board}
   \vspace*{-1.40cm}
 \end{wrapfigure}
@@ -54,7 +54,7 @@ with his pawn to all the places where the opponent pawn can move.
 
 \section{State Complexity}
 Estimated game state complexity was $3.9905\cdot10^{42}$
-\cite{mertens} (equation \ref{eqn:mertensestimate}), however, this is very
+\cite{mertens} (eq. \ref{eqn:mertensestimate}), however, this is very
 rough estimate, since it includes many states multiple times where it counts
 with permutations instead of combinations of walls.
 
@@ -71,7 +71,7 @@ with permutations instead of combinations of walls.
   \vspace*{-1.15cm}
 \end{center}
 
-My approach (equation \ref{eqn:myestimate}) with estimating state complexity
+My approach (eq. \ref{eqn:myestimate}) with estimating state complexity
 will be similar. I will estimate maximum states of this game, which will
 include impossible states such as:
 \begin{itemize}
@@ -119,9 +119,6 @@ evaluate this many states. Also, lets assume it takes on average 50B
 of memory per state. Then I would need approximately
 $1.1387{\cdot}10^{29}$ bytes of memory to store all states in the
 computer. This is why simple Q-learning is not feasible.
-
-{\color{red}TODO: very precise estimate would be, if we could compute not crossing
-positions for each number of placed walls...}
 
 \section{Game Tree Complexity}
 Average branging factor of the game has been experimentaly measured to be
@@ -310,8 +307,8 @@ possibilities is shown in figure \ref{fig:mintess}. Naturally, placement starts
 in the corner and the following walls are placed adjacent to each other.
 
 Now, we can estimate all diferent states $S_d$ for making decision
-(eq.  \ref{eqn:sestimate}), where $f(i)$ is the same function for stock factors from
-equations \ref{eqn:myestimate}, ${128 \choose i}$ is top estimate
+(eq.  \ref{eqn:sestimate}), where $f(i)$ is the same function for stock factors
+from equations \ref{eqn:myestimate}, ${128 \choose i}$ is top estimate
 of different wall placement combinations.
 
 Number of different decisions possible $D$ are sum of all possible
