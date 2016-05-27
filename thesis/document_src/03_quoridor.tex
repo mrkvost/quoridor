@@ -5,19 +5,22 @@
   \lhead{Chapter 3. \emph{Quoridor}}
 
 \section{History}
-TODO
-
-\section{Rules}
 \begin{wrapfigure}{R}{0.4\textwidth}
-  \vspace*{-2.80cm}
+  \vspace*{-1.80cm}
   \centering
   \includegraphics[width=0.35\textwidth]{real_board.jpg}
-  \vspace*{-0.60cm}
+  \vspace*{-0.20cm}
   \caption{quoridor board}
   \label{fig:quoridor_board}
-  \vspace*{-1.00cm}
+  \vspace*{-1.40cm}
 \end{wrapfigure}
 
+Game Quoridor was invented by Mirko Marchesi based on game Blockade and
+has been published by french company Gigamic Games in 1997. Since it has been
+developed relatively early compared to other games such as Chess or Go, there
+have been only few attempts of analysing the game and creating game agents.
+
+\section{Rules}
 Quoridor is abstract board strategy game for 2 or 4 players with size of
 9x9 (81) squares. This thesis covers 2 player version of the game.
 
@@ -26,13 +29,13 @@ opposite side as the opponent.
 The goal for each player is to reach the opposite edge.
 
 \begin{wrapfigure}{L}{0.35\textwidth}
-  \vspace*{-0.20cm}
+  \vspace*{-0.60cm}
   \centering
   \includegraphics[width=0.35\textwidth]{start.png}
-  \vspace*{-1.20cm}
-  \caption{game start}
+  \vspace*{-0.80cm}
   \label{fig:game_start}
-  \vspace*{-0.40cm}
+  \caption{game start}
+  \vspace*{-0.80cm}
 \end{wrapfigure}
 
 Player also starts with 10 walls (fences) in the stock.
@@ -51,9 +54,9 @@ with his pawn to all the places where the opponent pawn can move.
 
 \section{State Complexity}
 Estimated game state complexity was $3.9905\cdot10^{42}$
-\cite{mertens} (equation \ref{eqn:mertensestimate}), however, this is very rough estimate, since
-it includes many states multiple times where it counts with permutations
-instead of combinations of walls.
+\cite{mertens} (equation \ref{eqn:mertensestimate}), however, this is very
+rough estimate, since it includes many states multiple times where it counts
+with permutations instead of combinations of walls.
 
 \begin{center}
   \vspace*{-1.30cm}
@@ -80,9 +83,10 @@ include impossible states such as:
   \item pawn in the winning position where it could not end due to walls
   \vspace*{-0.15cm}
 \end{itemize}
-Moreover, this estimate will count as a different state when different
-player is on the move, and also, different number of walls in players
-stocks. Both of these could make the game very different in the outcome.
+Moreover, this estimate will differ between states when different
+player is on the move, and also, when there is different number of walls
+in players stocks. Both of these could make the game very different
+in the outcome.
 
 \begin{center}
   \vspace*{-1.30cm}
@@ -96,7 +100,7 @@ stocks. Both of these could make the game very different in the outcome.
       \end{cases}\\
       S_f\! &=\! \sum_{i=0}^{20} f(i){128 \choose i} = 1.7796 {\cdot} 10^{23}
       \\
-      S &= 2 {\cdot} S_p {\cdot} S_f = \mathbf{2.2775 {\cdot} 10^{27}}
+      S &= 2 {\cdot} S_p {\cdot} S_f = \mathbf{2.2775{\cdot}10^{27}}
     \end{aligned}
   \end{equation}
   \vspace*{-1.15cm}
@@ -105,6 +109,7 @@ stocks. Both of these could make the game very different in the outcome.
 $S_p$ was corrected to not include both pawns in the winning positions.
 $f(i)$ % is from sequence $\{1, 2, ..., 9, 10, 11, 10, 9, ..., 2, 1\}$ and
 stands for different wall counts in the stocks.
+${128 \choose i}$ are combinations of walls.
 $2$ in $2{\cdot} S_p {\cdot} S_f$ represents different players on turn.
 
 The result is maximum number of possible states, which is significantly
@@ -119,9 +124,9 @@ computer. This is why simple Q-learning is not feasible.
 positions for each number of placed walls...}
 
 \section{Game Tree Complexity}
-Average branging factor of the game has been calculated to be $60.4$ and
-average game length to be $91.1$ \cite{glendenning}. Mertens \cite{mertens}
-used this to compute game-tree size $G$:
+Average branging factor of the game has been experimentaly measured to be
+$60.4$ and average game length to be $91.1$ \cite{glendenning}.
+Mertens \cite{mertens} used this to compute game-tree size $G$:
 \begin{center}
   \vspace*{-1.30cm}
   \begin{equation}
@@ -135,14 +140,14 @@ used this to compute game-tree size $G$:
   \vspace*{-0.45cm}
   \centering
   \includegraphics[width=0.35\textwidth]{areas.png}
-  \vspace*{-0.60cm}
+  \vspace*{-0.30cm}
   \caption{board areas}
   \label{fig:areas}
   \vspace*{-0.60cm}
 \end{wrapfigure}
 
-First, I will estimate upper bound of all states where decision can be made.
-After this, I will estimate upper bound of all different decisions.
+To create my own estimate of branching factor, I will estimate number of states
+where decision can be made and also number of different decisions possible. 
 Branching factor will be simply division of these.
 
 To count every possible pawn move, board is divided into three areas
@@ -155,7 +160,7 @@ decision and possible decisions are counted.
 % where $P$ represents number of possibilites and $D$ represents number of decisions possible.
 
 \begin{wrapfigure}{H}{0.99\textwidth}
-  \vspace*{-12.40cm}
+  \vspace*{-12.60cm}
   \centering
   \includegraphics[width=0.95\textwidth]{decisions.png}
   \vspace*{-0.25cm}
@@ -164,15 +169,19 @@ decision and possible decisions are counted.
   \vspace*{-0.60cm}
 \end{wrapfigure}
 
-\vspace{11.70cm}
+\vspace{12.00cm}
 \nobreakspace
+In total, there are 3168 different positions where pawns can make decission and
+from that, there are 11309 different decision that pawns can make
+(see tab. \ref{tab:decisionstab}).
+\newpage
 
 \newcommand{\m}[2]{\multicolumn{1}{|#1}{#2}}
 \newcommand{\rr}[6]{
   \m{l}{#1} & \m{r}{#2} & \m{r|}{#3} & & \m{l}{#4} & \m{r}{#5} & \m{r|}{#6} \\
 }
 
-\begin{wraptable}{h}{0.99\textwidth}
+\begin{table}[!h]
   \vspace*{0.2cm}
   \begin{tabular}{ l r r c l r r }
       \cline{2-3} \cline{6-7}
@@ -248,8 +257,112 @@ decision and possible decisions are counted.
       % & & & \multicolumn{2}{|r}{Positions} & \m{r|}{Decisions} & \\ \cline{3-6}%
       % & & \m{l}{\textbf{Total}} & \multicolumn{2}{|r}{$\textbf{3168}$} & \m{r|}{$\textbf{11309}$} & \\ \cline{3-6}%
   \end{tabular}
-  \vspace*{0.2cm}
-  \label{tab:decisions}
+  \vspace*{0.20cm}
   \caption{positions and decisions}
-  \vspace*{-1.00cm}
-\end{wraptable}
+  \label{tab:decisionstab}
+  \vspace*{-0.30cm}
+\end{table}
+
+Next, maximum numbers of possible wall placement $N$ relative to walls already
+placed $i$ are shown in table \ref{tab:placements}:
+\begin{table}[!h]
+  \vspace*{0.2cm}
+  \begin{tabular}{r ccccccc ccccccc}
+    \hline
+    \m{r}{$i$} &
+       \m{c}{0}  &   \m{c}{1} & \m{c}{2}   &   \m{c}{3} &   \m{c}{4} &
+       \m{c}{5}  &   \m{c}{6} & \m{c}{7}   &   \m{c}{8} &   \m{c}{9} &
+      \m{c}{10}  &  \m{c}{11} & \m{c}{12}  & \m{c|}{13} \\ \hline
+
+    \m{r}{$N$} &
+      \m{c}{128} & \m{c}{125} & \m{c}{123} & \m{c}{120} & \m{c}{118} &
+      \m{c}{115} & \m{c}{113} & \m{c}{111} & \m{c}{109} & \m{c}{107} &
+      \m{c}{105} & \m{c}{103} & \m{c}{101} & \m{c|}{98} \\ \hline
+
+    & & & & & & & & & & & & & & \\ \cline{1-8}
+    \m{r}{$i$} &
+      \m{c}{14} & \m{c}{15} & \m{c}{16} & \m{c}{17} & \m{c}{18} & \m{c}{19} &
+      \m{c|}{20} & & & & & & & \\ \cline{1-8}
+
+    \m{r}{$N$} &
+      \m{c}{96} & \m{c}{94} & \m{c}{92} & \m{c}{90} & \m{c}{88} & \m{c}{86} &
+       \m{c|}{0} & & & & & & & \\ \cline{1-8}
+
+  \end{tabular}
+  \vspace*{0.20cm}
+  \caption{wall placement possibilites}
+  \label{tab:placements}
+  \vspace*{-0.30cm}
+\end{table}
+
+\begin{wrapfigure}{R}{0.4\textwidth}
+  \vspace*{-0.60cm}
+  \centering
+  \includegraphics[width=0.35\textwidth]{tesselation.png}
+  \vspace*{-0.20cm}
+  \caption{min. tesselation example}
+  \label{fig:mintess}
+  \vspace*{-0.20cm}
+\end{wrapfigure}
+
+Optimal pattern for taking as least as possible from future wall placement
+possibilities is shown in figure \ref{fig:mintess}. Naturally, placement starts
+in the corner and the following walls are placed adjacent to each other.
+
+Now, we can estimate all diferent states $S_d$ for making decision
+(eq.  \ref{eqn:sestimate}), where $f(i)$ is the same function for stock factors from
+equations \ref{eqn:myestimate}, ${128 \choose i}$ is top estimate
+of different wall placement combinations.
+
+Number of different decisions possible $D$ are sum of all possible
+movemets and all possible wall placements. For wall placemnts
+(eq. \ref{eqn:ge}), there are different stock factors $g(i)$, since state
+where player moving has no walls in stock cannot place the wall.
+
+\begin{equation}
+  \label{eqn:ge}
+  g(i) =
+    \begin{cases}
+      i + 1  & \quad \text{if } i <= 9 \\[-0.30cm]
+      20 - i & \quad \text{if } i > 9
+    \end{cases}\\
+\end{equation}
+
+\begin{equation}
+  \label{eqn:sestimate}
+  \begin{aligned}
+    S_d &= 3168{\sum_{i=0}^{20}}{128 \choose i}f(i)
+         = 5.6379{\cdot}10^{26} \\
+    D &= {\sum_{i=0}^{20}}
+         \left[
+           11309f(i){128 \choose i}
+           +
+           3168g(i)N(i)){128 \choose i}
+         \right]
+       = 1.0766{\cdot}10^{28} \\
+  \end{aligned}
+\end{equation}
+
+However, $S_d$ and $D$ include states where there are walls crossing each other and
+pawns not having path to the winning position.
+Moreover, $D$ does not count with number of movement possibilities taken
+by placed walls.
+
+\begin{equation}
+  \label{eqn:brf}
+  b = \frac{D}{S_d} = \frac{1.0766{\cdot}10^{28}}{5.6379{\cdot}10^{26}}
+    = 19.0974
+\end{equation}
+
+The resulting estimate of branching factor $b$ is significantly lower than
+the former estimate. But, it may be biased a little towards smaller number. It
+would be caused by more combinations in situations with all walls placed having
+more impossible possitions than the other.
+
+Game tree complexity $C$ calculated with new branching factor estimate and
+with former average game length:
+\begin{equation}
+  \label{eqn:gtc}
+  C = 19.0974^{91.1} = \mathbf{4.9758{\cdot}10^{116}}
+\end{equation}
+

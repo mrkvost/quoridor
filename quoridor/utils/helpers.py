@@ -268,7 +268,7 @@ st_f = [(i+1 - (i>10)*2*(i-10)) for i in range(21)]     # stock factors
 
 states = sum([3168*st_f[i]*comb(128, i) for i in range(21)])
 possibilities = sum([
-    (12141*st_f[i] + 3168*b[i]*(st_f[i] - (i>9)))*comb(128, i)
+    (11309*st_f[i] + 3168*b[i]*(st_f[i] - (i>9)))*comb(128, i)
     for i in range(21)
 ])
 branching_factor = float(possibilities) / states
