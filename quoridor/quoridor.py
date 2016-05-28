@@ -209,6 +209,7 @@ class ConsoleGame(Quoridor2):
                  field_inner_width=FIELD_INNER_WIDTH_DEFAULT,
                  field_inner_height=FIELD_INNER_HEIGHT_DEFAULT,
                  console_colors=CONSOLE_COLORS_DEFALUT,
+                 special_chars=False,
                  *args, **kwargs):
 
         super(ConsoleGame, self).__init__(board_size=board_size)
@@ -254,6 +255,19 @@ class ConsoleGame(Quoridor2):
             self.color_end
         ])]
         self.game_menu = options + self.GAME_MENU
+
+        if special_chars:
+            self.pawn_top = u'\u203e'
+            self.pawn_left_side = u'\u23b8'
+            self.pawn_right_side = u'\u23b9'
+            self.pawn_corner_45 = u'\u27cb'
+            self.pawn_corner_135 = u'\u27cd'
+        else:
+            self.pawn_top = u'-'
+            self.pawn_left_side = u'|'
+            self.pawn_right_side = u'|'
+            self.pawn_corner_45 = u'/'
+            self.pawn_corner_135 = u'\\'
 
         self.console_colors = console_colors
         self.output_base = self.make_output_base()
@@ -380,20 +394,20 @@ class ConsoleGame(Quoridor2):
 
             # top and bottom sides:
             for column in range(leftmost, rightmost + 1):
-                base[(top, column)] = u'\u203e'
+                base[(top, column)] = self.pawn_top
                 base[(bottom, column)] = u'_'
 
             # left and right sides:
             for row in range(top, bottom + 1):
-                base[(row, leftmost)] = color_start + u'\u23b8'
-                base[(row, rightmost)] = u'\u23b9' + self.color_end
+                base[(row, leftmost)] = color_start + self.pawn_left_side
+                base[(row, rightmost)] = self.pawn_right_side + self.color_end
 
             # corners:
             base.update({
-                (top, leftmost): color_start + u'\u27cb',
-                (top, rightmost): u'\u27cd' + self.color_end,
-                (bottom, leftmost): color_start + u'\u27cd',
-                (bottom, rightmost): u'\u27cb' + self.color_end,
+                (top, leftmost): color_start + self.pawn_corner_45,
+                (top, rightmost): self.pawn_corner_135 + self.color_end,
+                (bottom, leftmost): color_start + self.pawn_corner_135,
+                (bottom, rightmost): self.pawn_corner_45 + self.color_end,
             })
 
             # text:
@@ -606,7 +620,7 @@ class ConsoleGame(Quoridor2):
         handle_training(context, save_cycle=1000)
         return 'quit'
 
-    def peto(self):
+    def tf_play(self):
         # MLP parameters
         INPUT_LAYER_SIZE = 151
         HIDDEN_LAYER_SIZE = 100
@@ -1094,8 +1108,12 @@ def main():
         help='Disable color output in console mode. Enabled by default.'
     )
     parser.add_option(
-        '-p', '--peto', dest='peto', default=False, action='store_true',
-        help='madafaka.'
+        '-t', '--tf', dest='tf', default=False, action='store_true',
+        help='Play against network trained in tensorflow.'
+    )
+    parser.add_option(
+        '-s', '--no-special-chars', dest='special', default=True,
+        action='store_false', help='Display pawns with simpler characters.'
     )
     options, args = parser.parse_args()
 
@@ -1103,7 +1121,7 @@ def main():
     if os.getenv('ANSI_COLORS_DISABLED') is not None:
         colors_on = False
 
-    game = ConsoleGame(console_colors=colors_on)
-    if options.peto:
-        game.peto()
+    game = ConsoleGame(console_colors=colors_on, special_chars=options.special)
+    if options.tf:
+        game.tf_play()
     game.run()
