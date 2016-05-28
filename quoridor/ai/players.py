@@ -323,8 +323,6 @@ class QlearningNetworkPlayer(NetworkPlayer):
             yield action
 
     def play(self, context):
-        # TODO: when learning, should it be here any randomness? e.g. first few
-        #       q_values have similar probability to be chosend to play?
         self.activations = self.activations_from_state(context.state)
         if self.explore:
             choose_from = self._choose_random()
