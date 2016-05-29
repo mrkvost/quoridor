@@ -6,7 +6,6 @@ import copy
 import random
 
 import operator
-import tensorflow as tf
 import numpy as np
 
 from optparse import OptionParser
@@ -628,76 +627,6 @@ class ConsoleGame(Quoridor2):
         handle_training(context, save_cycle=1000)
         return 'quit'
 
-    def tf_play(self):
-        # MLP parameters
-        INPUT_LAYER_SIZE = 151
-        HIDDEN_LAYER_SIZE = 100
-        OUTPUT_LAYER_SIZE = 140
-        # INIT MLP WEIGHTS
-        W_hid = tf.Variable(tf.truncated_normal([INPUT_LAYER_SIZE, HIDDEN_LAYER_SIZE], stddev=0.01))
-        b_hid = tf.Variable(tf.constant(0.01, shape=[HIDDEN_LAYER_SIZE]))
-
-        W_out = tf.Variable(tf.truncated_normal([HIDDEN_LAYER_SIZE, OUTPUT_LAYER_SIZE], stddev=0.01))
-        b_out = tf.Variable(tf.constant(0.01, shape=[OUTPUT_LAYER_SIZE]))
-
-        # INIT LAYERS
-        input_layer = tf.placeholder(tf.float32, [None, INPUT_LAYER_SIZE])
-        hidden_layer = tf.sigmoid(tf.matmul(input_layer, W_hid) + b_hid)
-        output_layer = tf.matmul(hidden_layer, W_out) + b_out
-
-        players = {
-            YELLOW: {'name': 'heuristic', 'player': None},
-            GREEN: {'name': 'heuristic', 'player': None},
-        }
-
-        kwargs = {
-            'messages': self.messages,
-            'game_controls': self.GAME_CONTROLS,
-            'fail_callback': self.wrong_human_move,
-        }
-        hp = HumanPlayer(self, **kwargs)
-
-        # INIT TENSORFLOW
-        session = tf.Session()
-        saver = tf.train.Saver()
-        saver.restore(session, 'model.ckpt')
-
-        context = QuoridorContext(self)
-        context.reset(players=players)
-
-        def _choose_from_activations(acts, color):
-            print acts
-            q_values_to_action = sorted(
-                enumerate(acts[0]),
-                key=operator.itemgetter(1),
-                reverse=True,
-            )
-            for action, value in q_values_to_action:
-                print action
-                yield action
-
-        while not context.is_terminal:
-            self.display_on_console(context)
-            # print context.state
-            if context.state[0] == GREEN:
-                action = hp(context)
-                # print action
-                # context.update(action)
-                continue
-
-            # print 'ide qlnn'
-            state = input_vector_from_game_state(context)
-            state = np.array(list(state)).reshape([1, INPUT_LAYER_SIZE])
-            qlnn_actions = session.run(output_layer, feed_dict={input_layer: state})
-            for action in _choose_from_activations(qlnn_actions, context.state[0]):
-                try:
-                    context.update(action)
-                    break
-                except InvalidMove:
-                    pass
-
-        session.close()
-
     def wrong_human_move(self, context, action, error):
         print self.red + str(error) + self.color_end
         self.display_on_console(context)
@@ -1116,10 +1045,6 @@ def main():
         help='Disable color output in console mode. Enabled by default.'
     )
     parser.add_option(
-        '-t', '--tf', dest='tf', default=False, action='store_true',
-        help='Play against network trained in tensorflow.'
-    )
-    parser.add_option(
         '-s', '--no-special-chars', dest='special', default=True,
         action='store_false', help='Display pawns with simpler characters.'
     )
@@ -1130,6 +1055,4 @@ def main():
         colors_on = False
 
     game = ConsoleGame(console_colors=colors_on, special_chars=options.special)
-    if options.tf:
-        game.tf_play()
     game.run()

@@ -1,11 +1,15 @@
-import tensorflow as tf
-import numpy as np
+import os
 import time
+import numpy as np
+import tensorflow as tf
+
+from optparse import OptionParser
 
 from core.game import YELLOW, GREEN, Quoridor2
 from core.context import QuoridorContext
-from ai.players import HeuristicPlayer
+from ai.players import HeuristicPlayer, HumanPlayer
 from ai.utils import input_vector_from_game_state
+from quoridor import ConsoleGame
 
 # MLP parameters
 INPUT_LAYER_SIZE = 151
@@ -19,7 +23,8 @@ REWARD_FACTOR = 100
 FUTURE_REWARD_DISCOUNT = 0.99
 GAME_COUNT = 10000
 
-def run():
+
+def train():
     # INIT MLP WEIGHTS
     W_hid = tf.Variable(tf.truncated_normal([INPUT_LAYER_SIZE, HIDDEN_LAYER_SIZE], stddev=0.01))
     b_hid = tf.Variable(tf.constant(0.01, shape=[HIDDEN_LAYER_SIZE]))
@@ -157,3 +162,98 @@ def run():
     print("Model saved in file: %s" % save_path)
 
     session.close()
+
+
+def tf_play(colors_on, special):
+    game = ConsoleGame(console_colors=colors_on, special_chars=special)
+
+    # INIT MLP WEIGHTS
+    W_hid = tf.Variable(tf.truncated_normal([INPUT_LAYER_SIZE, HIDDEN_LAYER_SIZE], stddev=0.01))
+    b_hid = tf.Variable(tf.constant(0.01, shape=[HIDDEN_LAYER_SIZE]))
+
+    W_out = tf.Variable(tf.truncated_normal([HIDDEN_LAYER_SIZE, OUTPUT_LAYER_SIZE], stddev=0.01))
+    b_out = tf.Variable(tf.constant(0.01, shape=[OUTPUT_LAYER_SIZE]))
+
+    # INIT LAYERS
+    input_layer = tf.placeholder(tf.float32, [None, INPUT_LAYER_SIZE])
+    hidden_layer = tf.sigmoid(tf.matmul(input_layer, W_hid) + b_hid)
+    output_layer = tf.matmul(hidden_layer, W_out) + b_out
+
+    players = {
+        YELLOW: {'name': 'heuristic', 'player': None},
+        GREEN: {'name': 'heuristic', 'player': None},
+    }
+
+    kwargs = {
+        'messages': game.messages,
+        'game_controls': game.GAME_CONTROLS,
+        'fail_callback': game.wrong_human_move,
+    }
+    hp = HumanPlayer(game, **kwargs)
+
+    # INIT TENSORFLOW
+    session = tf.Session()
+    saver = tf.train.Saver()
+    saver.restore(session, 'model.ckpt')
+
+    context = QuoridorContext(game)
+    context.reset(players=players)
+
+    def _choose_from_activations(acts, color):
+        print acts
+        q_values_to_action = sorted(
+            enumerate(acts[0]),
+            key=operator.itemgetter(1),
+            reverse=True,
+        )
+        for action, value in q_values_to_action:
+            print action
+            yield action
+
+    while not context.is_terminal:
+        game.display_on_console(context)
+        # print context.state
+        if context.state[0] == GREEN:
+            action = hp(context)
+            # print action
+            # context.update(action)
+            continue
+
+        # print 'ide qlnn'
+        state = input_vector_from_game_state(context)
+        state = np.array(list(state)).reshape([1, INPUT_LAYER_SIZE])
+        qlnn_actions = session.run(output_layer, feed_dict={input_layer: state})
+        for action in _choose_from_activations(qlnn_actions, context.state[0]):
+            try:
+                context.update(action)
+                break
+            except InvalidMove:
+                pass
+
+    session.close()
+
+
+def run():
+    parser = OptionParser()
+    parser.add_option(
+        '-c', '--colors', dest='colors_on', default=True, action='store_false',
+        help='Disable color output in console mode. Enabled by default.'
+    )
+    parser.add_option(
+        '-s', '--no-special-chars', dest='special', default=True,
+        action='store_false', help='Display pawns with simpler characters.'
+    )
+    parser.add_option(
+        '-t', '--train', dest='train', default=False,
+        action='store_true', help='Start training.'
+    )
+    options, args = parser.parse_args()
+
+    colors_on = options.colors_on
+    if os.getenv('ANSI_COLORS_DISABLED') is not None:
+        colors_on = False
+
+    if options.train:
+        train()
+    else:
+        tf_play(colors_on, options.special)
