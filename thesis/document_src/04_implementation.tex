@@ -58,12 +58,13 @@ state = (0, 51, 70, 5, 9, frozenset([32, 116, 119, 59, 12, 31]))
 \end{lstlisting}
 
 However, when training ANN, it may be better to convert it to zeroes and ones.
-TODO
+!!! TODO !!!
 
 
 \section{Context}
 For speeding up validation of the moves for agents, it turned out to be faster
 to keep in memory shortest paths and invalid actions such as crossing walls.
+{\lstinline{QuoridorContext}} class serves this purpose.
 Also, this speeded up the decision process of heuristic and path agents.
 
 \section{Console Game}
@@ -84,9 +85,10 @@ To display the game properly in the terminal, it must be at least 86 characters
 wide.
 
 In the main menu (fig. \ref{fig:main_menu}), user can choose to play a game
-against HeuristicPlayer (HP) or QLNNPlayer (QLNN) and also, to watch a game
-played eighter by HP versus himself or against QLNN. Also, loading a game and
-saving last played game is possible.
+against {\lstinline{HeuristicPlayer}} or {\lstinline{QLNNPlayer}} and also,
+to watch a game played eighter by {\lstinline{HeuristicPlayer}} versus himself
+or against {\lstinline{QLNNPlayer}}. Also, loading a game and saving last
+played game is possible.
 
 \begin{wrapfigure}{l}{0.5\textwidth}
   \vspace*{-0.35cm}
@@ -98,11 +100,11 @@ saving last played game is possible.
   \vspace*{-0.60cm}
 \end{wrapfigure}
 
-During the game (fig. \ref{fig:game_running}), human players enters to move his
-pawn with first letters of words \textit{up, left, right, down}
-(\textit{u, l, r, d}) and jumps over opponents pawn with combinations of simple
-moves (\textit{uu, ul, ur, dd, dl, dr}). To specify wall placement, first
-letters of direction are provided (\textit{h, v}) followed by number
+During the game (fig. \ref{fig:game_running}) to move the pawn, human players
+enter first letters of words \textit{up, left, right, down}
+(\textit{u, l, r, d}). To jump over opponents pawn, combination of simple
+moves (\textit{uu, ul, ur, dd, dl, dr}) is used. To specify wall placement,
+first letters of direction are provided (\textit{h, v}) followed by number
 of the position.  For example, \textit{h3}, \textit{v24} are correctly entered
 wall positions. Other options available are \textit{undo, load} or
 \textit{save}.
@@ -147,13 +149,13 @@ the goal and currently moving player.
 % \subsection{Game Menu}
 
 \section{PathPlayer}
-PathPlayer is an agent that only follows shortest path to the goal row. I have
-used this agent as a reference to compare number of won games against
-HeuristicPlayer and QlearningNetworkPlayer. User cannot choose to play against
-this player.
+{\lstinline{PathPlayer}} is an agent that only follows shortest path to the
+goal row. I have used this agent as a reference to compare number of won games
+against {\lstinline{HeuristicPlayer}} and {\lstinline{QlearningNetworkPlayer}}.
+User cannot choose to play against this player.
 
 \section{HeuristicPlayer}
-HeuristicPlayer's algorithm is following:
+{\lstinline{HeuristicPlayer}}'s algorithm is following:
 \begin{itemize}
   \vspace*{-0.25cm}
   \setlength\itemsep{-0.15cm}
@@ -171,10 +173,31 @@ HeuristicPlayer's algorithm is following:
   \vspace*{-0.25cm}
 \end{itemize}
 
-\section{QLNNPlayer Training}
-How I trained...TODO
-
 \section{QLNNPlayer}
-QLNNPlayer evaluates every action in the current state, takes action
+{\lstinline{QLNNPlayer}} evaluates every action in the current state, takes action
 with maximum value and tries to play it. If move is not possible, it tries to
 play next best action.
+
+\section{Training}
+To speed up the learning proccess, I have created
+{\lstinline{TrainingStateGenerator}} class which provides states
+to start with for the training. As a game count rises, less trivial states are
+returned, until only standard initial state is used.
+
+Each time {\lstinline{QLNNPlayer}} plays during the training game (inspired
+by eq. \ref{eqn:otheloqupdate}), desired output vector $\hat{Q}_{new}(s, t)$
+is a copy of current output vector $\hat{Q}(s, t)$,
+where only value representing action performed by {\lstinline{QLNNPlayer}}
+is updated to be eighter one of rewards $r_{t+1}$, $r_{t+2}$ or maximum of
+the new q-value estimates $\displaystyle{\max_a}\hat{Q}(s', t{+}2)$
+in the position, where {\lstinline{QLNNPlayer}} is on the move again.
+
+In the training, {\lstinline{QLNNPlayer}} has probability of
+playing random move decreasing over time, so that there is a chance to explore
+and find better moves.
+
+Function {\lstinline{handle_training}} running the training along with
+{\lstinline{TrainingStateGenerator}} and {\lstinline{TRAINING_STATES}}
+resides in {\lstinline{quoridor.ai.training}}. It is started through the game
+menu and it is possible to train against {\lstinline{PathPlayer}} or
+{\lstinline{HeuristicPlayer}}.
