@@ -84,9 +84,9 @@ To display the game properly in the terminal, it must be at least 86 characters
 wide.
 
 In the main menu (fig. \ref{fig:main_menu}), user can choose to play a game
-against HeuristicPlayer (HP) or QLNNPlayer (QLNN) and also, watch game played
-eighter by HP versus himself or against QLNN. Also, loading and saving a game
-is possible.
+against HeuristicPlayer (HP) or QLNNPlayer (QLNN) and also, to watch a game
+played eighter by HP versus himself or against QLNN. Also, loading a game and
+saving last played game is possible.
 
 \begin{wrapfigure}{l}{0.5\textwidth}
   \vspace*{-0.35cm}
@@ -105,9 +105,12 @@ moves (\textit{uu, ul, ur, dd, dl, dr}). To specify wall placement, first
 letters of direction are provided (\textit{h, v}) followed by number
 of the position.  For example, \textit{h3}, \textit{v24} are correctly entered
 wall positions. Other options available are \textit{undo, load} or
-\textit{save}. On the right side along the options possible, user can see some
-of the last moves in the HISTORY section. Below the board, there are displayed
-move number, wall stocks, who moves and current distances from the goal.
+\textit{save}.
+
+On the right side of the game board along the options possible, user can see
+some of the last moves in the HISTORY section. Below the board, there are
+displayed information such as move number, wall stocks, current distances from
+the goal and currently moving player.
 
 
 % \begin{itemize}
@@ -146,7 +149,8 @@ move number, wall stocks, who moves and current distances from the goal.
 \section{PathPlayer}
 PathPlayer is an agent that only follows shortest path to the goal row. I have
 used this agent as a reference to compare number of won games against
-HeuristicPlayer and QlearningNetworkPlayer.
+HeuristicPlayer and QlearningNetworkPlayer. User cannot choose to play against
+this player.
 
 \section{HeuristicPlayer}
 HeuristicPlayer's algorithm is following:
