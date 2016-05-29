@@ -34,11 +34,12 @@ clone the quoridor repository::
 
     $ git clone https://github.com/mrkvost/quoridor
 
-create virtualenvironment and activate it::
+create virtualenvironment, activate it and install requirements::
 
     $ cd quoridor/
     $ virtualenv e
     $ . e/bin/activate
+    (e) $ pip install -r requirements.txt
 
 run install::
 
@@ -47,6 +48,11 @@ run install::
 or for developers::
 
     (e) $ python setup.py develop
+
+Note, that for development, `tensorflow` package is required. Also,
+to have other tools working following system packages are necessary too::
+
+    $ sudo apt-get install gcc python-dev python-virtualenv sqlite3 libfreetype6-dev libxft-dev
 
 RUN
 ===
@@ -80,11 +86,8 @@ linux.
 
 
 TODOS:
- - save / load game
  - documentation strings for core module, core functions
 
- - Neural Network player
- - save / load NN player weights
  - save / load QLPlayer data
 
  - verify installation on clean system
