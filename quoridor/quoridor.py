@@ -55,6 +55,11 @@ CONSOLE_COLORS_DEFALUT = False
 
 PLAYERS_DEFAULT = {YELLOW: 'human', GREEN: 'human'}
 MENU_CHOICE = {
+    # 0: {
+    #     'mode': 'rules',
+    #     'player_names': PLAYERS_DEFAULT,
+    #     'text': 'Show rules',
+    # },
     0: {
         'mode': 'game',
         'player_names': PLAYERS_DEFAULT,
@@ -560,6 +565,9 @@ class ConsoleGame(Quoridor2):
                 self.color_end,
             ]),
         }
+
+    def show_game_rules(self):
+        pass # TODO:
 
     def prompt(self, message):
         user_input = raw_input(message)
