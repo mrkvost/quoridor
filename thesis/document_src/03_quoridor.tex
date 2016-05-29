@@ -79,7 +79,6 @@ include impossible states such as:
   \vspace*{-0.25cm}
   \setlength\itemsep{0cm}
   \item walls crossing each other
-  \item pawns in the winning position and on turn
   \item pawns not having the path to the winning position
   \item pawn in the winning position where it could not end due to walls
   \vspace*{-0.15cm}
@@ -110,7 +109,7 @@ in the outcome.
 $S_p$ was corrected to not include both pawns in the winning positions.
 $f(i)$ % is from sequence $\{1, 2, ..., 9, 10, 11, 10, 9, ..., 2, 1\}$ and
 stands for different wall counts in the stocks.
-${128 \choose i}$ are combinations of walls.
+${128 \choose i}$ are all (valid and invalid) combinations of walls.
 $2$ in $2{\cdot} S_p {\cdot} S_f$ represents different players on turn.
 
 The result is maximum number of possible states, which is significantly
@@ -120,6 +119,9 @@ evaluate this many states. Also, lets assume it takes on average 50B
 of memory per state. Then I would need approximately
 $1.1387{\cdot}10^{29}$ bytes of memory to store all states in the
 computer. This is why simple Q-learning is not feasible.
+
+It is worth to note, that if invalid wall combinations with walls crossing
+could be removed from ${128 \choose i}$, this estimate would be very precise.
 
 \section{Game Tree Complexity}
 Average branging factor of the game has been experimentaly measured to be

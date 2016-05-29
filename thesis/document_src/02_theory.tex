@@ -18,7 +18,7 @@ standard component among many linux distributions. Main reasons why I chose
 Python was that I had four years of experience with it and for its
 maintainability.
 
-\section{Agent based model}
+\section{Agent based model, Markov decision process and Game theory}
 Agent based model (ABM) is a paradigm in modeling systems comprised
 of autonomous agents. Also, it is a class of computational models for
 simulations of the actions and interactions between agents. Althought, there
@@ -27,11 +27,29 @@ is an identifiable component with reaction rules able to make independent
 decisions (or behaviours) and sometimes with ability to learn and adapt to
 the environment.
 
-\section{Game theory}
-TODO
+Markov decision process (MDP) is a mathematical model for describing stochastic
+discrete time decision processes. Important property that the proccess must
+have is a memorlylessness, which means that the next state depends only
+on current state and not on any other preceeding states.
 
-\section{Markov decission process}
-TODO
+Game theory studies conflict or cooperation between rational decision makers
+and also different strategies for given problems. Knowledge from computational
+complexity theory is used to determine or estimate game complexity. Here, MDP
+is often used to describe such rational decision makers.
+
+When trying to find the optimal strategy where due to the large number
+of states in a game it is not feasible to use brute-force, there are often
+used:
+\begin{itemize}
+  \vspace*{-0.25cm}
+  \setlength\itemsep{0cm}
+  \item Heuristic methods - A-star, Alpha-beta pruning
+  \item Reinforcement learning (RL) - Monte-carlo algorithms,
+                                      Temporal difference methods, Q-learning
+  \item Evolutionary methods - genetic algorithm
+  \item Artificial neural networks combined with RL methods
+  \vspace*{-0.15cm}
+\end{itemize}
 
 \section{A star}
 TODO
@@ -40,9 +58,6 @@ TODO
 TODO
 
 \section{Reinforcement Learning}
-TODO
-
-\section{Evolution methods and genetic algorithms}
 TODO
 
 \section{Q-Learning}
@@ -60,6 +75,9 @@ where $Q_t(s_t, a_t)$ is old value, $\alpha$ is learning rate, $R_{t+1}$ is
 reward after performing action $a_t$ in state $s_t$, $\gamma$ is discount
 factor and $\underset{a}{\max}\,Q_t(s_{t+1}, a)$ is maximum optimal future
 value.
+
+\section{Evolution methods and genetic algorithms}
+TODO
 
 \section{Perceptron}
 \begin{wrapfigure}{r}{0.4\textwidth}
