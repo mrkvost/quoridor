@@ -161,6 +161,24 @@ class PathPlayer(Player):
         context['state'] = tuple(new_state)
 
 
+class RandomPlayerWithPath(PathPlayer):
+    def __init__(self, game, randomness=0.96, *args, **kwargs):
+        self.randomness = randomness
+        super(RandomPlayerWithPath, self).__init__(game, *args, **kwargs)
+
+    def play(self, context):
+        if random.random() > self.randomness:
+            super(RandomPlayerWithPath, self).play(context)
+            return
+        while True:
+            try:
+                context.update(random.choice(list((context.game.all_actions))))
+                break
+            except InvalidMove:
+                pass
+
+
+
 class HeuristicPlayer(PathPlayer):
     def __init__(self, game, pawn_moves=0.6, **kwargs):
         super(HeuristicPlayer, self).__init__(game)
