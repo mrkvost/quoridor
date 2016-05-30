@@ -174,22 +174,11 @@ def train():
 def tf_play(colors_on, special):
     game = ConsoleGame(console_colors=colors_on, special_chars=special)
 
-    # INIT MLP WEIGHTS
-    W_hid = tf.Variable(tf.truncated_normal([INPUT_LAYER_SIZE, HIDDEN_LAYER_SIZE], stddev=0.01))
-    b_hid = tf.Variable(tf.constant(0.01, shape=[HIDDEN_LAYER_SIZE]))
-
-    W_out = tf.Variable(tf.truncated_normal([HIDDEN_LAYER_SIZE, OUTPUT_LAYER_SIZE], stddev=0.01))
-    b_out = tf.Variable(tf.constant(0.01, shape=[OUTPUT_LAYER_SIZE]))
-
-    # INIT LAYERS
-    input_layer = tf.placeholder(tf.float32, [None, INPUT_LAYER_SIZE])
-    hidden_layer = tf.sigmoid(tf.matmul(input_layer, W_hid) + b_hid)
-    output_layer = tf.matmul(hidden_layer, W_out) + b_out
-
-    players = {
-        YELLOW: {'name': 'heuristic', 'player': None},
-        GREEN: {'name': 'heuristic', 'player': None},
-    }
+    # INIT TENSORFLOW
+    session = tf.Session()
+    ann = TFPlayer(game, session)
+    saver = tf.train.Saver()
+    saver.restore(session, 'model.ckpt')
 
     kwargs = {
         'messages': game.messages,
@@ -197,52 +186,25 @@ def tf_play(colors_on, special):
         'fail_callback': game.wrong_human_move,
     }
     hp = HumanPlayer(game, **kwargs)
-
-    # INIT TENSORFLOW
-    session = tf.Session()
-    saver = tf.train.Saver()
-    saver.restore(session, 'model.ckpt')
-
     context = QuoridorContext(game)
-    context.reset(players=players)
-
-    def _choose_from_activations(acts, color):
-        print acts
-        q_values_to_action = sorted(
-            enumerate(acts[0]),
-            key=operator.itemgetter(1),
-            reverse=True,
-        )
-        for action, value in q_values_to_action:
-            print action
-            yield action
+    get_players = players_creator_factory(hp, 'human', ann)
+    context.reset(players=get_players())
 
     while not context.is_terminal:
         game.display_on_console(context)
-        # print context.state
-        if context.state[0] == GREEN:
-            action = hp(context)
-            # print action
-            # context.update(action)
-            continue
-
-        # print 'ide qlnn'
-        state = input_vector_from_game_state(context)
-        state = np.array(list(state)).reshape([1, INPUT_LAYER_SIZE])
-        qlnn_actions = session.run(output_layer, feed_dict={input_layer: state})
-        for action in _choose_from_activations(qlnn_actions, context.state[0]):
-            try:
-                context.update(action)
-                break
-            except InvalidMove:
-                pass
+        context.current['player'](context)
+    game.display_on_console(context)
 
     session.close()
 
 
-def get_tf_nn_action(context):
-    pass
-
+HIDDEN_LAYER_SIZE_DEFAULT = 100
+OUTPUT_LAYER_SIZE_DEFAULT = 140
+LEARNING_RATE_DEFAULT = 0.01
+MINI_BATCH_SIZE_DEFAULT = 100
+REWARD_FACTOR_DEFAULT = 100
+STANDARD_DEVIATION_DEFAULT = 0.01
+REPEAT_POSITION_NEURONS_DEFAULT = 1
 
 OPPONENTS = {
     'random': RandomPlayerWithPath,
@@ -259,15 +221,6 @@ def players_creator_factory(opponent, opponent_type, ann):
         """Random starting colors for players"""
         return choices[random.random() < 0.5]
     return random_players_order
-
-
-HIDDEN_LAYER_SIZE_DEFAULT = 100
-OUTPUT_LAYER_SIZE_DEFAULT = 140
-LEARNING_RATE_DEFAULT = 0.01
-MINI_BATCH_SIZE_DEFAULT = 100
-REWARD_FACTOR_DEFAULT = 100
-STANDARD_DEVIATION_DEFAULT = 0.01
-REPEAT_POSITION_NEURONS_DEFAULT = 1
 
 
 class TFPlayer(Player):
@@ -340,9 +293,9 @@ def measure(colors_on, special, opponent_type):
 
     # INIT TENSORFLOW
     # session = tf.Session()
+    # ann = TFPlayer(game, session)
     # saver = tf.train.Saver()
     # saver.restore(session, 'model.ckpt')
-    # ann = TFPlayer(game, session)
     # print 'tfplayer input layer size:', ann.input
     # print 'x'*80
 
