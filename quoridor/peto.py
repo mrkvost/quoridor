@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import random
 import numpy as np
@@ -25,7 +26,10 @@ MINI_BATCH_SIZE_DEFAULT = 1000
 STANDARD_DEVIATION_DEFAULT = 0.01
 REPEAT_POSITION_NEURONS_DEFAULT = 1
 
+SHOW_SAVE_STATUS_STEP = 2000
 CKPT_MODELS_PATH = 'tf_models/'
+TRAINING_FILENAME_FMT = 'training_model.ckpt.{num}'
+# TRAINING_NUMBER_RE = re.compile(r'training_model\.ckpt\.(?P<num>)')
 
 OPPONENTS = {
     'random': RandomPlayerWithPath,
@@ -77,10 +81,12 @@ class TFPlayer(Player):
                  output=OUTPUT_LAYER_SIZE_DEFAULT,
                  stddev=STANDARD_DEVIATION_DEFAULT,
                  repeat=REPEAT_POSITION_NEURONS_DEFAULT,
-                 alpha=LEARNING_RATE_DEFAULT):
+                 alpha=LEARNING_RATE_DEFAULT,
+                 batch=MINI_BATCH_SIZE_DEFAULT):
         super(TFPlayer, self).__init__(game)
 
         self.repeat = repeat
+        self.batch = batch
         self.tf_session = tf_session
 
         self.input = calculate_input_size(repeat)
@@ -117,6 +123,21 @@ class TFPlayer(Player):
         self.train_step = tf.train.AdamOptimizer(alpha).minimize(self.mse)
 
         self.saver = tf.train.Saver(max_to_keep=None)
+
+        # PLACEHOLDERS FOR INPUTS/DESIRED
+        self.input_vectors = np.zeros([batch, self.input])
+        self.desired_vectors = np.zeros(([batch, self.output]))
+
+    def initialize(self):
+        init = tf.initialize_all_variables()
+        self.tf_session.run(init)
+
+    @property
+    def feed_dict(self):
+        return {
+            self.input_layer: self.input_vectors,
+            self.desired: self.desired_vectors,
+        }
 
     def load(self, filename=None):
         if filename is None:
@@ -184,6 +205,37 @@ def measure(colors_on, special, opponent_type):
         break
 
 
+def model_load_or_init(ann):
+    filename = ann.last_model_filename()
+    if filename is None:
+        fmt = 'No previous training model found in {path}, initializing...'
+        print fmt.format(path=CKPT_MODELS_PATH)
+        ann.initialize()
+
+    while filename is not None:
+        prompt_fmt = 'Continue training ({filename}) y/[N]? '
+        user_input = raw_input(prompt_fmt.format(filename=filename)).lower()
+        if user_input in ('y', 'yes'):
+            ann.load()
+        elif user_input in ('', 'n', 'no'):
+            ann.initialize()
+        else:
+            print 'Incorrect answer!'
+            continue
+        break
+
+
+def print_status(start, game_num):
+    now = time.clock()
+    seconds = now - start
+    print 'GAMES: {g:<9} | RATE s/g: {sg:.5f} g/s: {gs:5<.2f} | s:{s}'.format(
+        g=game_num,
+        sg=seconds/game_num,
+        gs=float(game_num)/seconds,
+        s=int(seconds),
+    )
+
+
 def train(colors_on, special):
     game = ConsoleGame(console_colors=colors_on, special_chars=special)
     opponent = HeuristicPlayer(game)
@@ -191,23 +243,8 @@ def train(colors_on, special):
     # INIT TENSORFLOW
     session = tf.Session()
     ann = TFPlayer(game, session)
-    while True:
-        filename = ann.last_model_filename()
-        prompt_fmt = 'Continue training ({filename}) y/[N]? '
-        user_input = raw_input(prompt_fmt.format(filename=filename)).lower()
-        if user_input in ('y', 'yes'):
-            ann.load()
-        elif user_input in ('', 'n', 'no'):
-            init = tf.initialize_all_variables()
-            session.run(init)
-        else:
-            print 'Incorrect answer!'
-            continue
-        break
 
-    # PLACEHOLDERS FOR INPUTS/DESIRED
-    input_vectors = np.zeros([MINI_BATCH_SIZE_DEFAULT, ann.input])
-    desired_vectors = np.zeros(([MINI_BATCH_SIZE_DEFAULT, ann.output]))
+    model_load_or_init(ann)
 
     context = QuoridorContext(game)
     get_players = players_creator_factory(opponent, 'heuristic', ann)
@@ -221,10 +258,11 @@ def train(colors_on, special):
     game_num = 0
     move = 0
 
+    start = time.clock()
     while True:
         if context.state[0] == GREEN: # training only green player
             # store current state
-            input_vectors[move, :] = state
+            ann.input_vectors[move, :] = state
 
             # proceed to next state
             opponent.play(context)
@@ -233,7 +271,7 @@ def train(colors_on, special):
 
             # update desired vector
             action = context.last_action
-            desired_vectors[move, action] = 100
+            ann.desired_vectors[move, action] = 100
 
             move += 1
         else:
@@ -245,17 +283,13 @@ def train(colors_on, special):
             state = input_vector_from_game_state(context)
             state = np.array(list(state)).reshape([1, ann.input])
 
-            if game_num % 5000 == 0:
-                print('GAME ', game_num)
-                filename = "training_model.ckpt.{num}".format(num=game_num)
+            if game_num % SHOW_SAVE_STATUS_STEP == 0:
+                print_status(start, game_num)
+                filename = TRAINING_FILENAME_FMT.format(num=game_num)
                 ann.save(os.path.join(CKPT_MODELS_PATH, filename))
 
-        if move == MINI_BATCH_SIZE_DEFAULT:
-            feed_dict = {
-                ann.input_layer: input_vectors,
-                ann.desired: desired_vectors,
-            }
-            session.run(ann.train_step, feed_dict=feed_dict)
+        if move == ann.batch:
+            session.run(ann.train_step, feed_dict=ann.feed_dict)
             move = 0
 
 
