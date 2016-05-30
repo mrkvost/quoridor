@@ -57,10 +57,9 @@ One such state in python would be:
 state = (0, 51, 70, 5, 9, frozenset([32, 116, 119, 59, 12, 31]))
 \end{lstlisting}
 
-However, when training ANN, it may be better to convert it to zeroes and ones.
-!!! TODO !!!
-% TODO: ???databazovy model tiez???
-
+However, when providing state information to ANN, it always has to be a vector
+of same length, so placed walls are represented by 128 zeroes or ones. Then,
+the result is vector with 133 values.
 
 \section{Context}
 For speeding up validation of the moves for agents, it turned out to be faster
