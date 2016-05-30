@@ -1,5 +1,6 @@
 import os
 import time
+import random
 import numpy as np
 import tensorflow as tf
 
@@ -7,8 +8,14 @@ from optparse import OptionParser
 
 from core.game import YELLOW, GREEN, Quoridor2
 from core.context import QuoridorContext
-from ai.players import HeuristicPlayer, HumanPlayer
-from ai.utils import input_vector_from_game_state
+from ai.players import (
+    Player,
+    PathPlayer,
+    RandomPlayerWithPath,
+    HeuristicPlayer,
+    HumanPlayer,
+)
+from ai.utils import input_vector_from_game_state, calculate_input_size
 from quoridor import ConsoleGame
 
 # MLP parameters
@@ -233,11 +240,129 @@ def tf_play(colors_on, special):
     session.close()
 
 
+def get_tf_nn_action(context):
+    pass
+
+
+OPPONENTS = {
+    'random': RandomPlayerWithPath,
+    'path': PathPlayer,
+    'heuristic': HeuristicPlayer,
+}
+
+
+def players_creator_factory(opponent, opponent_type, ann):
+    opp = {'name': opponent_type, 'player': opponent}
+    ann = {'name': 'ann', 'player': ann}
+    choices = ({YELLOW: opp, GREEN: ann}, {YELLOW: ann, GREEN: opp})
+    def random_players_order():
+        """Random starting colors for players"""
+        return choices[random.random() < 0.5]
+    return random_players_order
+
+
+HIDDEN_LAYER_SIZE_DEFAULT = 100
+OUTPUT_LAYER_SIZE_DEFAULT = 140
+LEARNING_RATE_DEFAULT = 0.01
+MINI_BATCH_SIZE_DEFAULT = 100
+REWARD_FACTOR_DEFAULT = 100
+STANDARD_DEVIATION_DEFAULT = 0.01
+REPEAT_POSITION_NEURONS_DEFAULT = 1
+
+
+class TFPlayer(Player):
+    def __init__(self, game, tf_session,
+                 hidden=HIDDEN_LAYER_SIZE_DEFAULT,
+                 output=OUTPUT_LAYER_SIZE_DEFAULT,
+                 stddev=STANDARD_DEVIATION_DEFAULT,
+                 repeat=REPEAT_POSITION_NEURONS_DEFAULT):
+        super(TFPlayer, self).__init__(game)
+
+        self.repeat = repeat
+        self.tf_session = tf_session
+
+        self.input = calculate_input_size(repeat)
+        self.hidden = hidden
+        self.output = output
+
+        # INIT MLP WEIGHTS
+        self.W_hid = tf.Variable(
+            tf.truncated_normal([self.input, hidden], stddev=stddev)
+        )
+        self.b_hid = tf.Variable(tf.constant(stddev, shape=[self.hidden]))
+
+        self.W_out = tf.Variable(
+            tf.truncated_normal([hidden, output], stddev=stddev)
+        )
+        self.b_out = tf.Variable(tf.constant(stddev, shape=[output]))
+
+        # INIT LAYERS
+        self.input_layer = tf.placeholder(tf.float32, [None, self.input])
+        self.hidden_layer = tf.sigmoid(
+            tf.matmul(self.input_layer, self.W_hid) + self.b_hid
+        )
+        self.output_layer = (
+            tf.matmul(self.hidden_layer, self.W_out) + self.b_out
+        )
+
+    def _generate_action(self, output_vector, color):
+        # print output_vector
+        values_to_action = sorted(
+            enumerate(output_vector[0]),
+            key=operator.itemgetter(1),
+            reverse=True,
+        )
+        for action, value in values_to_action:
+            # print action, value
+            yield action
+
+    def play(self, context):
+        state = input_vector_from_game_state(context, repeat=self.repeat)
+        state = np.array(list(state)).reshape([1, self.input])
+        qlnn_actions = session.run(
+            self.output_layer, feed_dict={self.input_layer: state}
+        )
+
+        for action in self._generate_action(qlnn_actions, context.state[0]):
+            try:
+                context.update(action)
+                return
+            except InvalidMove:
+                pass
+
+        # this will not get here, but in case...
+        raise Exception('Could not play any action.')
+
+
+def measure(colors_on, special, opponent_type):
+    game = ConsoleGame(console_colors=colors_on, special_chars=special)
+    opponent = OPPONENTS[opponent_type](game)
+
+    # INIT TENSORFLOW
+    # session = tf.Session()
+    # saver = tf.train.Saver()
+    # saver.restore(session, 'model.ckpt')
+    # ann = TFPlayer(game, session)
+    # print 'tfplayer input layer size:', ann.input
+    # print 'x'*80
+
+    ann = RandomPlayerWithPath(game)
+
+    context = QuoridorContext(game)
+    while True:
+        get_players = players_creator_factory(opponent, opponent_type, ann)
+        context.reset(players=get_players())
+        while not context.is_terminal:
+            context.current['player'](context)
+        game.display_on_console(context)
+        break
+
+
 def run():
     parser = OptionParser()
     parser.add_option(
-        '-c', '--colors', dest='colors_on', default=True, action='store_false',
-        help='Disable color output in console mode. Enabled by default.'
+        '-c', '--no-colors', dest='colors_on', default=True,
+        action='store_false', help='Disable color output in console mode.'
     )
     parser.add_option(
         '-s', '--no-special-chars', dest='special', default=True,
@@ -247,13 +372,24 @@ def run():
         '-t', '--train', dest='train', default=False,
         action='store_true', help='Start training.'
     )
+
+    parser.add_option(
+        '-m', '--measure', dest='opponent', type='choice',
+        choices=OPPONENTS.keys(),
+        help=(
+            'Play \'measurement\' games agains specified opponent. Choices '
+            'are: {choices}'
+        ).format(choices=', '.join(OPPONENTS)),
+    )
     options, args = parser.parse_args()
 
     colors_on = options.colors_on
     if os.getenv('ANSI_COLORS_DISABLED') is not None:
         colors_on = False
 
-    if options.train:
+    if options.opponent is not None:
+        measure(colors_on, options.special, options.opponent)
+    elif options.train:
         train()
     else:
         tf_play(colors_on, options.special)
