@@ -18,157 +18,20 @@ from ai.players import (
 from ai.utils import input_vector_from_game_state, calculate_input_size
 from quoridor import ConsoleGame
 
-# MLP parameters
-INPUT_LAYER_SIZE = 151
-HIDDEN_LAYER_SIZE = 100
-OUTPUT_LAYER_SIZE = 140
-LEARNING_RATE = 0.01
-MINI_BATCH_SIZE = 100
-REWARD_FACTOR = 100
+HIDDEN_LAYER_SIZE_DEFAULT = 1000
+OUTPUT_LAYER_SIZE_DEFAULT = 140
+LEARNING_RATE_DEFAULT = 0.001
+MINI_BATCH_SIZE_DEFAULT = 1000
+STANDARD_DEVIATION_DEFAULT = 0.01
+REPEAT_POSITION_NEURONS_DEFAULT = 1
 
-# Q-learning parameters
-FUTURE_REWARD_DISCOUNT = 0.99
-GAME_COUNT = 10000
+CKPT_MODELS_PATH = 'tf_models/'
 
-
-def train():
-    # INIT MLP WEIGHTS
-    W_hid = tf.Variable(tf.truncated_normal([INPUT_LAYER_SIZE, HIDDEN_LAYER_SIZE], stddev=0.01))
-    b_hid = tf.Variable(tf.constant(0.01, shape=[HIDDEN_LAYER_SIZE]))
-
-    W_out = tf.Variable(tf.truncated_normal([HIDDEN_LAYER_SIZE, OUTPUT_LAYER_SIZE], stddev=0.01))
-    b_out = tf.Variable(tf.constant(0.01, shape=[OUTPUT_LAYER_SIZE]))
-
-    # INIT LAYERS
-    input_layer = tf.placeholder(tf.float32, [None, INPUT_LAYER_SIZE])
-    hidden_layer = tf.sigmoid(tf.matmul(input_layer, W_hid) + b_hid)
-    output_layer = tf.matmul(hidden_layer, W_out) + b_out
-
-    # PLACEHOLDER FOR DESIRED OUTPUT
-    desired = tf.placeholder(tf.float32, [None, OUTPUT_LAYER_SIZE])
-
-    # COST FUNCTION - MEAN SQUARE ERROR
-    mse = tf.reduce_mean(tf.square(desired - output_layer))
-
-    # ONE TRAINING STEP
-    train_step = tf.train.AdamOptimizer(LEARNING_RATE).minimize(mse)
-
-
-    # INIT GAME
-    game = Quoridor2()
-    context = QuoridorContext(game)
-    heuristic = HeuristicPlayer(game)
-    players = {
-        YELLOW: {'name': 'heuristic', 'player': heuristic},
-        GREEN: {'name': 'heuristic', 'player': heuristic},
-    }
-
-    # PLACEHOLDERS
-    state_min_vectors = np.zeros([MINI_BATCH_SIZE, INPUT_LAYER_SIZE])
-    action_min_vector = np.zeros([MINI_BATCH_SIZE], dtype=np.int32)
-    reward_min_vector = np.zeros([MINI_BATCH_SIZE])
-
-    state_max_vectors = np.zeros([MINI_BATCH_SIZE, INPUT_LAYER_SIZE])
-    action_max_vector = np.zeros([MINI_BATCH_SIZE], dtype=np.int32)
-    reward_max_vector = np.zeros([MINI_BATCH_SIZE])
-
-    next_state_min_vectors = np.zeros([MINI_BATCH_SIZE, INPUT_LAYER_SIZE])
-    next_state_max_vectors = np.zeros([MINI_BATCH_SIZE, INPUT_LAYER_SIZE])
-
-    desired_vectors = tf.Variable(tf.zeros([MINI_BATCH_SIZE, OUTPUT_LAYER_SIZE]))
-    des = tf.Variable(tf.zeros([MINI_BATCH_SIZE * OUTPUT_LAYER_SIZE]))
-
-    # INIT TENSORFLOW
-    session = tf.Session()
-    init = tf.initialize_all_variables()
-    session.run(init)
-    saver = tf.train.Saver()
-
-    context.reset(players=players)
-    state = input_vector_from_game_state(context)
-    state = np.array(list(state)).reshape([1, INPUT_LAYER_SIZE])
-
-    i = 0
-    move_min = 0
-    move_max = 0
-    while i < GAME_COUNT:
-        if context.state[0] == GREEN: # min turn
-            # store current state
-            state_min_vectors[move_min, :] = state
-
-            # proceed to next state
-            heuristic.play(context)
-            next_state = input_vector_from_game_state(context)
-            next_state = np.array(list(next_state)).reshape([1, INPUT_LAYER_SIZE])
-
-            # store action
-            action_min_vector[move_min] = (140 * move_min) + context.last_action
-
-            # store reward
-            reward_min_vector[move_min] = context.is_terminal * (1 - context.state[0] * 2) * REWARD_FACTOR
-
-            # store next state
-            next_state_min_vectors[move_min, :] = next_state
-
-            move_min += 1
-        else: # max turn
-            # store current state
-            state_max_vectors[move_max, :] = state
-
-            # proceed to next state
-            heuristic.play(context)
-            next_state = input_vector_from_game_state(context)
-            next_state = np.array(list(next_state)).reshape([1, INPUT_LAYER_SIZE])
-
-            # store action
-            action_max_vector[move_max] = (140 * move_max) + context.last_action
-
-            # store reward
-            reward_max_vector[move_max] = context.is_terminal * (1 - context.state[0] * 2) * REWARD_FACTOR
-
-            # store next state
-            next_state_max_vectors[move_max, :] = next_state
-
-            move_max += 1
-
-
-        if context.is_terminal:
-            i += 1
-            print('GAME ', i)
-            context.reset(players=players)
-            state = input_vector_from_game_state(context)
-            state = np.array(list(state)).reshape([1, INPUT_LAYER_SIZE])
-        else:
-            state = next_state
-
-        if move_min == MINI_BATCH_SIZE:
-            mq = session.run(tf.reduce_min(output_layer, reduction_indices=1), feed_dict={input_layer: next_state_min_vectors})
-            new_q = tf.add(FUTURE_REWARD_DISCOUNT * mq, reward_min_vector)
-            desired_vectors.assign(session.run(output_layer, feed_dict={input_layer: state_min_vectors}))
-            des.assign(tf.reshape(desired_vectors, [140 * 100]))
-            des.assign(tf.scatter_update(des, action_min_vector, new_q))
-            desired_vectors.assign(tf.reshape(des, [100, 140]))
-
-            session.run(train_step, feed_dict={input_layer: state_min_vectors, desired: desired_vectors.eval(session=session)})
-
-            move_min = 0
-
-        if move_max == MINI_BATCH_SIZE:
-            mq = session.run(tf.reduce_max(output_layer, reduction_indices=1), feed_dict={input_layer: next_state_max_vectors})
-            new_q = tf.add(FUTURE_REWARD_DISCOUNT * mq, reward_max_vector)
-            desired_vectors.assign(session.run(output_layer, feed_dict={input_layer: state_max_vectors}))
-            des.assign(tf.reshape(desired_vectors, [140 * 100]))
-            des.assign(tf.scatter_update(des, action_max_vector, new_q))
-            desired_vectors.assign(tf.reshape(des, [100, 140]))
-
-            session.run(train_step, feed_dict={input_layer: state_max_vectors, desired: desired_vectors.eval(session=session)})
-
-            move_max = 0
-
-    save_path = saver.save(session, "model.ckpt")
-    print("Model saved in file: %s" % save_path)
-
-    session.close()
+OPPONENTS = {
+    'random': RandomPlayerWithPath,
+    'path': PathPlayer,
+    'heuristic': HeuristicPlayer,
+}
 
 
 def tf_play(colors_on, special):
@@ -198,21 +61,6 @@ def tf_play(colors_on, special):
     session.close()
 
 
-HIDDEN_LAYER_SIZE_DEFAULT = 100
-OUTPUT_LAYER_SIZE_DEFAULT = 140
-LEARNING_RATE_DEFAULT = 0.01
-MINI_BATCH_SIZE_DEFAULT = 100
-REWARD_FACTOR_DEFAULT = 100
-STANDARD_DEVIATION_DEFAULT = 0.01
-REPEAT_POSITION_NEURONS_DEFAULT = 1
-
-OPPONENTS = {
-    'random': RandomPlayerWithPath,
-    'path': PathPlayer,
-    'heuristic': HeuristicPlayer,
-}
-
-
 def players_creator_factory(opponent, opponent_type, ann):
     opp = {'name': opponent_type, 'player': opponent}
     ann = {'name': 'ann', 'player': ann}
@@ -228,7 +76,8 @@ class TFPlayer(Player):
                  hidden=HIDDEN_LAYER_SIZE_DEFAULT,
                  output=OUTPUT_LAYER_SIZE_DEFAULT,
                  stddev=STANDARD_DEVIATION_DEFAULT,
-                 repeat=REPEAT_POSITION_NEURONS_DEFAULT):
+                 repeat=REPEAT_POSITION_NEURONS_DEFAULT,
+                 alpha=LEARNING_RATE_DEFAULT):
         super(TFPlayer, self).__init__(game)
 
         self.repeat = repeat
@@ -257,6 +106,30 @@ class TFPlayer(Player):
         self.output_layer = (
             tf.matmul(self.hidden_layer, self.W_out) + self.b_out
         )
+
+        # PLACEHOLDER FOR DESIRED OUTPUT
+        self.desired = tf.placeholder(tf.float32, [None, output])
+
+        # COST FUNCTION - MEAN SQUARE ERROR
+        self.mse = tf.reduce_mean(tf.square(self.desired - self.output_layer))
+
+        # ONE TRAINING STEP
+        self.train_step = tf.train.AdamOptimizer(alpha).minimize(self.mse)
+
+        self.saver = tf.train.Saver(max_to_keep=None)
+
+    def load(self, filename=None):
+        if filename is None:
+            filename = self.last_model_filename()
+        self.saver.restore(self.tf_session, filename)
+
+    def save(self, filename=None):
+        if filename is None:
+            filename = os.path.join(CKPT_MODELS_PATH, 'model.ckpt')
+        save_path = self.saver.save(self.tf_session, filename)
+
+    def last_model_filename(self):
+        return tf.train.latest_checkpoint(CKPT_MODELS_PATH)
 
     def _generate_action(self, output_vector, color):
         # print output_vector
@@ -311,6 +184,81 @@ def measure(colors_on, special, opponent_type):
         break
 
 
+def train(colors_on, special):
+    game = ConsoleGame(console_colors=colors_on, special_chars=special)
+    opponent = HeuristicPlayer(game)
+
+    # INIT TENSORFLOW
+    session = tf.Session()
+    ann = TFPlayer(game, session)
+    while True:
+        filename = ann.last_model_filename()
+        prompt_fmt = 'Continue training ({filename}) y/[N]? '
+        user_input = raw_input(prompt_fmt.format(filename=filename)).lower()
+        if user_input in ('y', 'yes'):
+            ann.load()
+        elif user_input in ('', 'n', 'no'):
+            init = tf.initialize_all_variables()
+            session.run(init)
+        else:
+            print 'Incorrect answer!'
+            continue
+        break
+
+    # PLACEHOLDERS FOR INPUTS/DESIRED
+    input_vectors = np.zeros([MINI_BATCH_SIZE_DEFAULT, ann.input])
+    desired_vectors = np.zeros(([MINI_BATCH_SIZE_DEFAULT, ann.output]))
+
+    context = QuoridorContext(game)
+    get_players = players_creator_factory(opponent, 'heuristic', ann)
+    players = get_players()
+
+    # INIT GAME
+    context.reset(players=players)
+    state = input_vector_from_game_state(context)
+    state = np.array(list(state)).reshape([1, ann.input])
+
+    game_num = 0
+    move = 0
+
+    while True:
+        if context.state[0] == GREEN: # training only green player
+            # store current state
+            input_vectors[move, :] = state
+
+            # proceed to next state
+            opponent.play(context)
+            state = input_vector_from_game_state(context)
+            state = np.array(list(state)).reshape([1, ann.input])
+
+            # update desired vector
+            action = context.last_action
+            desired_vectors[move, action] = 100
+
+            move += 1
+        else:
+            opponent.play(context)
+
+        if context.is_terminal:
+            game_num += 1
+            context.reset(players=players)
+            state = input_vector_from_game_state(context)
+            state = np.array(list(state)).reshape([1, ann.input])
+
+            if game_num % 5000 == 0:
+                print('GAME ', game_num)
+                filename = "training_model.ckpt.{num}".format(num=game_num)
+                ann.save(os.path.join(CKPT_MODELS_PATH, filename))
+
+        if move == MINI_BATCH_SIZE_DEFAULT:
+            feed_dict = {
+                ann.input_layer: input_vectors,
+                ann.desired: desired_vectors,
+            }
+            session.run(ann.train_step, feed_dict=feed_dict)
+            move = 0
+
+
 def run():
     parser = OptionParser()
     parser.add_option(
@@ -343,6 +291,6 @@ def run():
     if options.opponent is not None:
         measure(colors_on, options.special, options.opponent)
     elif options.train:
-        train()
+        train(colors_on, options.special)
     else:
         tf_play(colors_on, options.special)

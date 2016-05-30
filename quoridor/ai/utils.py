@@ -51,7 +51,7 @@ def input_vector_from_game_state_fast(context):
 
 def calculate_input_size(repeat):
     on_move = 1
-    pawn_positions = 2 * 81 * repeat
+    pawn_positions = 81 * repeat
     wall_stocks = 2 * 4
     placed_walls = 128
     return on_move + pawn_positions + wall_stocks + placed_walls
