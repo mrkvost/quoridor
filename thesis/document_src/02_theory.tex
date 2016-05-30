@@ -51,11 +51,23 @@ used:
   \vspace*{-0.15cm}
 \end{itemize}
 
-\section{A star}
-TODO
+\section{Minimax}
+The principle of the algorithm is to find the best action for an agent by
+traversing a game tree while minimizing maximum possible losses.
+The requirement for the algorithm to work is existance of a function capable to
+evaluate arbitrary position in the game. Also, it is assumed that there are no
+infinite sequences of positions allowed.
 
-\section{Alfa-beta pruning}
-TODO
+Algorithm walks througt all the possible moves, performs evaluation
+of subsequent positions and picks up the action bringing the most advantageous
+position.  Evaluation is done by static evaluation funciton or the same
+algorithm is executed recursively for the opponent. Often, recursion has
+limited depth to ensure the algorithm ends in a reasonable time.
+
+\section{Alpha-beta pruning}
+Alpha-beta pruning is enhancement of minimax algorithm. On average, it
+speeds up the minimax algorithm by eliminating branches of a game tree which
+will be certainly left off from choosing.
 
 \section{Reinforcement Learning}
 TODO
