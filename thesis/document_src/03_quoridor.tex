@@ -23,9 +23,9 @@ of analysing the game and creating game agents.
 
 \section{Rules}
 Quoridor is abstract board strategy game for 2 or 4 players with size of
-9x9 (81) squares. This thesis covers 2 player version of the game.
+9x9=81 squares. This thesis covers 2 player version of the game.
 
-Each player starts (fig. \ref{fig:game_start}) with a single pawn in the center
+Each player starts (Fig. \ref{fig:game_start}) with a single pawn in the center
 of the edge on the opposite side as the opponent.
 The goal for each player is to reach the opposite edge.
 
@@ -42,22 +42,24 @@ The goal for each player is to reach the opposite edge.
 Player also starts with 10 walls (fences) in the stock.
 Walls are two space wide and can be placed in the groove that runs between
 the spaces.
-Placed wall blocks pawns paths forcing them to go arount it.
-Walls once placed can not be moved nor removed.
-Wall can not be placed to the position already occupied or crossing by
+Wall in pawn's path forces him to go arount it.
+Once placed walls can not be moved nor removed.
+They can not be placed to the position already occupied or when crossing
 other wall.
-Also, wall can not cut off the only remaining path of any pawn to his goal.
+Final rule is, wall can not cut off the only remaining path of any pawn
+to his goal.
 
-When player is on turn, he must place wall, if he has left some, or move
-his pawn to adjacent (not diagonal and unoccupied) space.
+Upon player's on turn, he may place wall, if he has left some, or move
+his pawn to adjacent (not diagonal and occupied) space.
 If opponent's pawn stands on an adjacent space, current player can jump
 with his pawn to all the places where the opponent pawn can move.
 
 \section{State Complexity}
-Estimated game state complexity was $3.9905\cdot10^{42}$
-\cite{mertens} (eq. \ref{eqn:mertensestimate}), however, this is very
+Upper bound for estimatation of game state complexity was $3.9905\cdot10^{42}$
+\cite{mertens} (eq. \ref{eqn:mertensestimate}). However, this is very
 rough estimate, since it includes many states multiple times where it counts
-with permutations instead of combinations of walls.
+with permutations instead of combinations of walls. Author used following
+formula to estimate:
 
 \begin{center}
   \vspace*{-1.30cm}
@@ -72,8 +74,14 @@ with permutations instead of combinations of walls.
   \vspace*{-1.15cm}
 \end{center}
 
-My approach (eq. \ref{eqn:myestimate}) with estimating state complexity
-will be similar. I will estimate maximum states of this game, which will
+$S_p$ represents number of possible pawn placement combinations, $S_f$
+represents estimate of walls permutations possible and $S$ is final
+estimate including possibilities combinig pawn placements combinations with
+permutaions of walls.
+
+Our approach (eq. \ref{eqn:myestimate}) for estimating state complexity
+shares the similar idea. We will estimate maximum states for the game,
+which will
 include impossible states such as:
 \begin{itemize}
   \vspace*{-0.25cm}
@@ -113,18 +121,18 @@ ${128 \choose i}$ are all (valid and invalid) combinations of walls.
 $2$ in $2{\cdot} S_p {\cdot} S_f$ represents different players on turn.
 
 The result is maximum number of possible states, which is significantly
-less then former estimate. However, even if I could evaluate $10^{6}$
+less then former estimate. However, even if it was possible to evaluate $10^{6}$
 states in one second, it would take around $7.2172{\cdot}10^{13}$ years to
 evaluate this many states. Also, lets assume it takes on average 50B
-of memory per state. Then I would need approximately
+of memory per state. Then it would need approximately
 $1.1387{\cdot}10^{29}$ bytes of memory to store all states in the
-computer. This is why simple Q-learning is not feasible.
+computer. This is the reason why simple Q-learning is not feasible.
 
 It is worth to note, that if invalid wall combinations with walls crossing
 could be removed from ${128 \choose i}$, this estimate would be very precise.
 
 \section{Game Tree Complexity}
-Average branging factor of the game has been experimentaly measured to be
+Average branching factor of the game has been experimentaly measured to be
 $60.4$ and average game length to be $91.1$ \cite{glendenning}.
 Mertens \cite{mertens} used this to compute game-tree size $G$:
 \begin{center}
@@ -146,9 +154,9 @@ Mertens \cite{mertens} used this to compute game-tree size $G$:
   \vspace*{-0.60cm}
 \end{wrapfigure}
 
-To create my own estimate of branching factor, I will estimate number of states
-where decision can be made and also number of different decisions possible. 
-Branching factor will be simply division of these.
+To create our own estimate of branching factor, we will estimate number
+of states where decision can be made and also number of different decisions
+possible. Branching factor will be simply division of these.
 
 To count every possible pawn move, board is divided into three areas
 (fig. \ref{fig:areas}), where $A$ and $C$ are positions from the first
@@ -173,7 +181,7 @@ decision and possible decisions are counted.
 \nobreakspace
 In total, there are 3168 different positions where pawns can make decission and
 from that, there are 11309 different decision that pawns can make
-(see tab. \ref{tab:decisionstab}).
+(Tab. \ref{tab:decisionstab}).
 \newpage
 
 \newcommand{\m}[2]{\multicolumn{1}{|#1}{#2}}
@@ -315,7 +323,7 @@ from equations \ref{eqn:myestimate}, ${128 \choose i}$ is top estimate
 of different wall placement combinations.
 
 Number of different decisions possible $D$ are sum of all possible
-movemets and all possible wall placements. For wall placemnts
+movements and all possible wall placements. For wall placements
 (eq. \ref{eqn:ge}), there are different stock factors $g(i)$, since state
 where player moving has no walls in stock cannot place the wall.
 
