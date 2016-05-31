@@ -62,7 +62,7 @@ with permutations instead of combinations of walls. Author used following
 formula to estimate:
 
 \begin{center}
-  \vspace*{-1.30cm}
+  \vspace*{-1.60cm}
   \begin{equation}
     \label{eqn:mertensestimate}
     \begin{aligned}
@@ -71,7 +71,7 @@ formula to estimate:
       S\!&=\!S_p \cdot S_f = \mathbf{3.9905 \cdot 10 ^{42}}
     \end{aligned}
   \end{equation}
-  \vspace*{-1.15cm}
+  \vspace*{-1.05cm}
 \end{center}
 
 $S_p$ represents number of possible pawn placement combinations, $S_f$
@@ -80,22 +80,11 @@ estimate including possibilities combinig pawn placements combinations with
 permutaions of walls.
 
 Our approach (eq. \ref{eqn:myestimate}) for estimating state complexity
-shares the similar idea. We will estimate maximum states for the game,
-which will
-include impossible states such as:
-\begin{itemize}
-  \vspace*{-0.25cm}
-  \setlength\itemsep{0cm}
-  \item walls crossing each other
-  \item pawns not having the path to the winning position
-  \item pawn in the winning position where it could not end due to walls
-  \vspace*{-0.15cm}
-\end{itemize}
+shares the similar idea.
 Moreover, this estimate will differ between states when different
 player is on the move, and also, when there is different number of walls
 in players stocks. Both of these could make the game very different
 in the outcome.
-
 \begin{center}
   \vspace*{-1.30cm}
   \begin{equation}
@@ -119,6 +108,15 @@ $f(i)$ % is from sequence $\{1, 2, ..., 9, 10, 11, 10, 9, ..., 2, 1\}$ and
 stands for different wall counts in the stocks.
 ${128 \choose i}$ are all (valid and invalid) combinations of walls.
 $2$ in $2{\cdot} S_p {\cdot} S_f$ represents different players on turn.
+Also note that this estimate includes impossible states such as:
+\begin{itemize}
+  \vspace*{-0.30cm}
+  \setlength\itemsep{-0.25cm}
+  \item walls crossing each other
+  \item pawns not having the path to the winning position
+  \item pawn in the winning position where it could not end due to walls
+  \vspace*{-0.25cm}
+\end{itemize}
 
 The result is maximum number of possible states, which is significantly
 less then former estimate. However, even if it was possible to evaluate $10^{6}$
