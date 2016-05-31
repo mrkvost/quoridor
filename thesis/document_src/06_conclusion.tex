@@ -4,9 +4,19 @@
 \chapter{Conclusion}\label{chap:6}
   \lhead{\emph{Conclusion}}
 
-Although I significantly corrected current estimate of game complexity, still,
-in terms of creating agent able to play Quoridor utilizing
-both artifitial neural network with Q-learning method I was not completely
-successful, since it did not show signs of notable improvement.
-It could be necessary to play many more games to start improving or to provide
-the game state information encoded in the different way.
+In this work we have focused on game Quoridor. Particularly we have lowered the
+upper bound for state complexity and we have designed and implemented neural
+network based agent. Although efficacy of trained agent is far from excellent,
+it is clear that agent was able grasp strategy simply by observing various
+players actions during the game. Useful ability that agent gained during
+training was ability to find and follow shortest path in most cases.
+
+One major problem that we encountered was agent getting stucked in dead end
+and moving back and forth. What could be done in future work could be
+elimination of this problem by remembering previous actions and disallowing
+selection of same actions. We also tried using combination of neural networks
+with Q-learning, but that turned out not to be successful. Since the training
+requires several parameters to be chosen (number of epochs, number of layers,
+learning rate, discount factor, input representation, decay rates), it is
+likely that we were not able to find optimal ones.
+
