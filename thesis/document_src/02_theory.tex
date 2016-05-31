@@ -35,34 +35,35 @@ and also different strategies for given problems. Computational
 complexity theory is used to determine or estimate game complexity. Here, MDP
 is often used to describe such rational decision makers.
 
-When trying to find the optimal strategy where due to the large number
-of states in a game it is not feasible to use brute-force, there are often
-used:
+When finding the optimal strategy for a game with large number
+of states it is not feasible to use brute-force, instead following techniques
+are commonly used:
 \begin{itemize}
   \vspace*{-0.25cm}
   \setlength\itemsep{0cm}
   \item Heuristic methods - Minimax, Alpha-beta pruning
-  \item Reinforcement learning (RL) - Monte-carlo algorithms,
+  \item Reinforcement learning - Monte-carlo algorithms,
                                       Temporal difference methods, Q-learning
   \item Evolutionary methods - genetic algorithm
-  \item Artificial neural networks combined with RL methods
+  \item Artificial neural networks
+  \item Combination of different techniques
   \vspace*{-0.15cm}
 \end{itemize}
 
 \section{Minimax}
 The principle of the algorithm is to find the best action for an agent by
 traversing a game tree while minimizing maximum possible losses.
-The requirement for the algorithm to work is existance of a function capable to
-evaluate arbitrary position in the game. Also, it is assumed that there are no
-infinite sequences of positions allowed.
+The algorigthm requires a heuristic function capable of evaluating arbitrary
+state in the game. It is also assumed that there are no infinite sequences
+of positions allowed.
 
-Algorithm walks througt all the possible moves, performs heuristic evaluation
-of subsequent positions and picks up the action bringing the most advantageous
-position. Evaluation is can be done by static evaluation funciton or the same
-algorithm is executed recursively for the opponent. Often, recursion has
+Algorithm walks throug all possible moves, performing heuristic evaluation
+of subsequent positions and picking up the action offering the most
+advantageous position. Evaluation is done by static evaluation funciton with
+combination of recursive call for the opponent. Often, recursion has
 limited depth to ensure the algorithm ends in a reasonable time.
 
-\section{Alpha-beta pruning}
+\subsection{Alpha-beta pruning}
 \begin{wrapfigure}{r}{0.5\textwidth}
   \vspace*{-2.85cm}
   \centering
@@ -76,21 +77,21 @@ limited depth to ensure the algorithm ends in a reasonable time.
 Alpha-beta pruning is enhancement of minimax algorithm. On average, it
 speeds up the minimax algorithm by eliminating branches of a game tree which
 will be certainly left off from choosing. Initially, alpha is set to negative
-infinity and beta to positive infinity. When there is a node evaluated, where
-maximizing player is sure to have the same or more than player choosing
-minimum is certain to have ($\alpha{=>}\beta$), all subsequent branches will
-not be explored, since it would make outcome on the parent node worse.
+infinity and beta to positive infinity. When there is a node being evaluated,
+where it is checked whether value for maximizing players is at least as value
+for minimizing player ($\alpha{=>}\beta$), and if that is the case,
+all subsequent branches will not be explored, since it would make outcome
+on the parent node worse.
 
-
-In example scenario from figure \ref{fig:abp}, middle branch has been evaluated
-first, where minimizing player chose $11$. This has been back-propagated
-to the top node as $\alpha{>=}11$. Next, right branch evaluated ended up in the
-leave with value $2$. Minimizing parent branch is then assured to have minimum
+In example scenario at figure \ref{fig:abp}, middle branch has been evaluated
+first, with value of $11$ for minimizing player. This has been back-propagated
+to the top node as $\alpha{=}11$. Next, evaluation of the right branch yielded
+with value $2$. Minimizing parent branch is then assured to have minimum
 of $\beta{<=}2$, which is certainly less than maximizing top node can choose
-from, so the other leaf is not explored. Then, exploration gets to leaf node
+from, so the remaining leaves is not explored. Then, traversal reaches leaf node
 with value 7, which is back-propagated to the uppermost minimizing player.
 Since his $\beta{<=}7$ other branches are left off because root node would not
-pick this branch having $11$ as a better choice. At last, exploration ends up
+pick this branch having $\alpha=11$ as a better choice. At last, traversal ends up
 in the leaf with value $9$. Minimizing parent node is now certain to have
 $\beta{<=}9$ while $\alpha{>}\beta$, therefore, other nodes are not explored.
 Value $9$ is back-propagated through the parent maximizing to the uppermost
@@ -107,7 +108,7 @@ particular problem.
 
 
 \section{Reinforcement learning}
-Reinforcement learning methods are often proposed in cases with large game
+Reinforcement learning (RL) methods are often proposed in cases with large game
 decision trees where there would be necessary to create complex behaviours and
 rules otherwise.
 Commonly, it allows agent to learn best policy based on feedback from the game
@@ -117,15 +118,15 @@ esitmating value of a particular game state or by estimating values of actions
 available in the state.
 
 
-\section{Q-Learning}
-Q-Learning is such RL method. It learns an action-value
+\subsection{Q-Learning}
+Q-Learning belongs to class of RL methods. It learns an action-value
 (q-value) function for any finite Markov decision process used to find
 optimal policy for an agent. After it has learned the q-value function,
 it can follow the optimal strategy simply by choosing action with the best
-q-value.  Algorithm is value iteration update for every observed
+q-value.  Algorithm uses following value iteration update for every observed
 state\cite{rlsurvey}:
 \begin{equation}
-Q_{t+1} \leftarrow Q_t(s_t, a_t) + \alpha \cdot (
+Q_{t+1}(s_t, a_t) \leftarrow Q_t(s_t, a_t) + \alpha \cdot (
     R_{t+1} + \gamma\cdot {\max_a}\,Q_t(s_{t+1}, a) - Q_t(s_t, a_t)
 )
 \end{equation}
@@ -134,15 +135,7 @@ reward after performing action $a_t$ in state $s_t$, $\gamma$ is discount
 factor and $\underset{a}{\max}\,Q_t(s_{t+1}, a)$ is maximum optimal future
 value.
 
-\section{Evolution methods and genetic algorithms}
-Inspired by biological process of natural selection, evolution methods and
-evolutionary algorithms uses populations of agents to find optimal strategies.
-Selection process compares fitness of individuals to prefer more successful
-ones in the next generation.
-
-
-
-\section{Perceptron}
+\section{Artificial neural networks}
 \begin{wrapfigure}{r}{0.4\textwidth}
   \vspace*{-1.85cm}
   \centering
@@ -153,23 +146,28 @@ ones in the next generation.
   \vspace*{-0.60cm}
 \end{wrapfigure}
 
-Artifitial neural network (ANN) is a family of models inspired by biological
+Artificial neural network (ANN) is a family of models inspired by biological
 neural networks used in computer science to approximate functions with
-large number of inputs. Generally, artifitial neural network is presented
-as a system of interconnected neurons exchanging messages between each
-other. These connections have weights that can be adjusted based on
+large number of inputs. Generally, artificial neural network is presented
+as a system of interconnected neurons exchanging activations between each
+other. These connections uses weights that are adjusted based on
 experience which makes the network capable of learning.
 
-Perceptron is an algorithm for supervised learning of binary classifiers
-where one neuron has multiple weighted inputs and single output. Single
-perceptron can learn to decide between two linearly separable
-classes. Multiple perceptrons in multiple layers (MLP) use arbitrary
-activation function which makes it able to perform classification or
-regression based on the activation function chosen.
+Simple perceptron is an algorithm for supervised learning of binary classifiers
+where one neuron has multiple weighted inputs and single output.
+Single layer perceptron (SLP) is made by stacking simple perceptron to each
+other and can learn to classify linearly separable patterns.
+
+Multi layer perceptron is extension of SLP with arbitrary number of hidden
+linears using nonlinear activation functions. This model is able to classify
+reasonably good on non-separable classes and is able to approximate arbitrary
+continuous function.
+
+
 
 \section{Perceptron estimating Q-values}
 \begin{wrapfigure}{r}{0.42\textwidth}
-  \vspace*{-1.15cm}
+  \vspace*{-0.95cm}
   \begin{equation}
     \label{eqn:otheloqupdate}
     \hat{Q}^{new}\!\leftarrow\!r_t\!+\!{\gamma}{\max_a}\,\hat{Q}(s_{t+1},\!a)
@@ -179,9 +177,9 @@ regression based on the activation function chosen.
   \vspace*{-0.95cm}
 \end{wrapfigure}
 
-Main advantage of ANN is its ability to generalize. This is has been used
-in game othello \cite{othello} with combining Q-learning so that network
-has learned to estimate q-values for each state. Learning rate $\alpha$ has
-not been directly used in iteration update (\ref{eqn:otheloqupdate}) since
-ANN has also learning rate so it can be adjusted there.
+Main advantage of ANN is its ability to generalize. They have been used
+in game Othello \cite{othello} with combination of Q-learning
+(eq. \ref{eqn:otheloqupdate}) so network was able to learn to estimate q-values
+for each state. Learning rate $\alpha$ for Q-learning iteration update was
+set to $1.0$ since ANN has its own learning rate which was adjusted there.
 
