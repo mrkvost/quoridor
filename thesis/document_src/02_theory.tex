@@ -103,19 +103,29 @@ maximum value $11$ is chosen as a result.
 In the end, 15 out of 31 nodes were not explored. With higher branching factor,
 it could be even better ratio in the best case scenario. Despite that
 alpha-beta pruning may be improvement to minimax, with its exponential
-time complexity it is less likely to be used for problems, where there is no
-well known evaluation function for that particular problem.
+time complexity it is less likely to be used for problems, where game
+complexity is large and there is no well known evaluation function for that
+particular problem.
 
 
-\section{Reinforcement Learning}
-TODO
+\section{Reinforcement learning}
+Reinforcement learning methods are often proposed in cases with large game
+decision trees where there would be necessary to create complex behaviours and
+rules otherwise.
+Commonly, it allows agent to learn best policy based on feedback from the game
+environment in form of reward or punisment. Agent updates its behaviour to
+maximize long term reward or to minimize overall punishment. It is done by
+esitmating value of a particular game state or by estimating values of actions
+available in the state.
+
 
 \section{Q-Learning}
-Q-Learning is reinforcement learning method. It learns an action-value
+Q-Learning is such RL method. It learns an action-value
 (q-value) function for any finite Markov decision process used to find
-optimal policy for the agent. After it has learned the q-value function,
-it can follow the optimal strategy by choosing best q-value. ?citation?
-Algorithm is value iteration update for every observed state ?citation?:
+optimal policy for an agent. After it has learned the q-value function,
+it can follow the optimal strategy simply by choosing action with the best
+q-value.  Algorithm is value iteration update for every observed
+state\cite{rlsurvey}:
 \begin{equation}
 Q_{t+1} \leftarrow Q_t(s_t, a_t) + \alpha \cdot (
     R_{t+1} + \gamma\cdot {\max_a}\,Q_t(s_{t+1}, a) - Q_t(s_t, a_t)
