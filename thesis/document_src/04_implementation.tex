@@ -4,8 +4,13 @@
 \chapter{Implementation}\label{chap:4}
   \lhead{Chapter 4. \emph{Implementation}}
 
+\section{Structure of our implementation}
+Our implementation consists of several classes, each explained in its own
+subsection.
+
 \section{Game}
-Game class is often implemented as a set of tools operating on provided state.
+When implementing various games, class Game is often is often implemented
+as a set of tools operating on provided state.
 With this approach, tests can be easily designed to verify functionality.
 In many cases, following methods or attributes are available:
 \begin{itemize}
@@ -13,9 +18,9 @@ In many cases, following methods or attributes are available:
   \setlength\itemsep{-0.15cm}
 
   \item initial\_state - initial state of the game
-  \item is\_terminal - whether the given state is terminal
+  \item is\_terminal - indicates, whether the given state is terminal
   \item valid - validates given state or action on the given state
-  \item actions - list of all possible actions in the given state
+  \item actions - lists all possible actions in the given state
   \item execute\_move - returns new state after executing given action
   \item utility - value representing how the given state is beneficial
                   for given player
@@ -23,8 +28,8 @@ In many cases, following methods or attributes are available:
   \vspace*{-0.25cm}
 \end{itemize}
 
-\noindent I consider following methods also important in Quoridor, so these are
-present in my implementation:
+\noindent We also consider following methods as it turned out they play
+important role in designing intelligent agents:
 \begin{itemize}
   \vspace*{-0.25cm}
   \setlength\itemsep{-0.15cm}
