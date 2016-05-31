@@ -8,7 +8,7 @@
 Our implementation consists of several classes, each explained in its own
 subsection.
 
-\section{Game}
+\subsection{Game}
 When implementing various games, class Game is often is often implemented
 as a set of tools operating on provided state.
 With this approach, tests can be easily designed to verify functionality.
@@ -43,8 +43,8 @@ important role in designing intelligent agents:
   \vspace*{-0.25cm}
 \end{itemize}
 
-\section{State}
-State should be the smallest possible representation of the game state where
+\subsection{State}
+Class State is the smallest possible representation of the game state where
 it can be easily distinguished between any two different states. Mathematicaly,
 state $S$ can be defined as:
 \begin{equation}
@@ -66,13 +66,13 @@ However, when providing state information to ANN, it always has to be a vector
 of same length, so placed walls are represented by 128 zeroes or ones. Then,
 the result is vector with 133 values.
 
-\section{Context}
+\subsection{Context}
 For speeding up validation of the moves for agents, it turned out to be faster
 to keep shortest paths and invalid actions such as crossing walls in memory.
 {\lstinline{QuoridorContext}} class serves this purpose.
 Also, this speeded up the decision process of heuristic and path agents.
 
-\section{Console Game}
+\subsection{Console Game}
 \begin{wrapfigure}{r}{0.5\textwidth}
   \vspace*{-2.05cm}
   \centering
@@ -83,13 +83,13 @@ Also, this speeded up the decision process of heuristic and path agents.
   \vspace*{-0.70cm}
 \end{wrapfigure}
 
-Main purpose of my work was on implementation of the agent utilizing abilities
-of the ANN, so the game is played and displayed in the linux terminal
-(console), and so, all interactions are performed through command prompt.
+Main purpose of our work was implementing the neural network based agent.
+The game is played and displayed in the linux terminal
+(console), and all interactions are performed through command prompt.
 To display the game properly in the terminal, it must be at least 86 characters
 wide.
 
-In the main menu (fig. \ref{fig:main_menu}), user can choose to play a game
+In the main menu (Fig. \ref{fig:main_menu}), user can choose to play a game
 against {\lstinline{HeuristicPlayer}} or {\lstinline{QLNNPlayer}} and also,
 to watch a game played either by {\lstinline{HeuristicPlayer}} versus himself
 or against {\lstinline{QLNNPlayer}}. Also, loading a game and saving last
@@ -105,8 +105,8 @@ played game is possible.
   \vspace*{-0.60cm}
 \end{wrapfigure}
 
-During the game (fig. \ref{fig:game_running}) to move the pawn, human players
-enter first letters of words \textit{up, left, right, down}
+During the game (Fig. \ref{fig:game_running}) moving the pawn is done by
+entering first letters of words \textit{up, left, right, down}
 (\textit{u, l, r, d}). To jump over opponents pawn, combination of simple
 moves (\textit{uu, ul, ur, dd, dl, dr}) is used. To specify wall placement,
 first letters of direction are provided (\textit{h, v}) followed by number
@@ -119,13 +119,14 @@ some of the last moves in the HISTORY section. Below the board, there are
 displayed information such as move number, wall stocks, current distances from
 the goal and currently moving player.
 
-\section{PathPlayer}
+\section{Opponents}
+\subsection{PathPlayer}
 {\lstinline{PathPlayer}} is an agent that only follows shortest path to the
 goal row. I have used this agent as a reference to compare number of won games
 against {\lstinline{HeuristicPlayer}} and {\lstinline{QlearningNetworkPlayer}}.
 User cannot choose to play against this player.
 
-\section{HeuristicPlayer}
+\subsection{HeuristicPlayer}
 {\lstinline{HeuristicPlayer}}'s algorithm is following:
 \begin{itemize}
   \vspace*{-0.25cm}
@@ -144,19 +145,24 @@ User cannot choose to play against this player.
   \vspace*{-0.25cm}
 \end{itemize}
 
-\section{QLNNPlayer}
-{\lstinline{QLNNPlayer}} evaluates every action in the current state, takes action
+\subsection{NNPlayer}
+This player utilizes artificial neural network and was designed to learn from
+other players actions by watching their games.
+
+\subsection{QLNNPlayer}
+{\lstinline{QLNNPlayer}} also uses artificial neural network and
+evaluates every action in the current state, takes action
 with maximum value and tries to play it. If move is not possible, it tries to
 play next best action.
 
-\section{Training}
+\section{Training NNPlayer and QLNNPlayer}
 To speed up the learning proccess, I have created
 {\lstinline{TrainingStateGenerator}} class which provides states
-to start with for the training. As a game count rises, less trivial states are
+to start the training. As a game count rises, less trivial states are
 returned, until only standard initial state is used.
 
-Each time {\lstinline{QLNNPlayer}} plays during the training game (inspired
-by eq. \ref{eqn:otheloqupdate}), desired output vector $\hat{Q}_{new}(s, t)$
+Each time {\lstinline{QLNNPlayer}} plays during the training game
+(by eq. \ref{eqn:otheloqupdate}), desired output vector $\hat{Q}_{new}(s, t)$
 is a copy of current output vector $\hat{Q}(s, t)$,
 where only value representing action performed by {\lstinline{QLNNPlayer}}
 is updated to be eighter one of rewards $r_{t+1}$, $r_{t+2}$ or maximum of
@@ -172,3 +178,6 @@ Function {\lstinline{handle_training}} running the training along with
 resides in module {\lstinline{quoridor.ai.training}}. It is started through
 the game menu and it is possible to run training against
 {\lstinline{PathPlayer}} or {\lstinline{HeuristicPlayer}}.
+
+On the other side, NNPlayer tries to mimic an opponent. It recieves the reward
+for every move the opponent does.
