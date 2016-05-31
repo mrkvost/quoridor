@@ -43,7 +43,7 @@ used:
 \begin{itemize}
   \vspace*{-0.25cm}
   \setlength\itemsep{0cm}
-  \item Heuristic methods - A-star, Alpha-beta pruning
+  \item Heuristic methods - Minimax, Alpha-beta pruning
   \item Reinforcement learning (RL) - Monte-carlo algorithms,
                                       Temporal difference methods, Q-learning
   \item Evolutionary methods - genetic algorithm
@@ -58,16 +58,54 @@ The requirement for the algorithm to work is existance of a function capable to
 evaluate arbitrary position in the game. Also, it is assumed that there are no
 infinite sequences of positions allowed.
 
-Algorithm walks througt all the possible moves, performs evaluation
+Algorithm walks througt all the possible moves, performs heuristic evaluation
 of subsequent positions and picks up the action bringing the most advantageous
-position.  Evaluation is done by static evaluation funciton or the same
+position. Evaluation is can be done by static evaluation funciton or the same
 algorithm is executed recursively for the opponent. Often, recursion has
 limited depth to ensure the algorithm ends in a reasonable time.
 
 \section{Alpha-beta pruning}
+\begin{wrapfigure}{r}{0.5\textwidth}
+  \vspace*{-2.85cm}
+  \centering
+  \includegraphics[width=0.5\textwidth]{alpha-beta_tree2.png}
+  \vspace*{-0.85cm}
+  \caption{alpha-beta pruning}
+  \label{fig:abp}
+  \vspace*{-0.60cm}
+\end{wrapfigure}
+
 Alpha-beta pruning is enhancement of minimax algorithm. On average, it
 speeds up the minimax algorithm by eliminating branches of a game tree which
-will be certainly left off from choosing.
+will be certainly left off from choosing. Initially, alpha is set to negative
+infinity and beta to positive infinity. When there is a node evaluated, where
+maximizing player is sure to have the same or more than player choosing
+minimum is certain to have ($\alpha{=>}\beta$), all subsequent branches will
+not be explored, since it would make outcome on the parent node worse.
+
+
+In example scenario from figure \ref{fig:abp}, middle branch has been evaluated
+first, where minimizing player chose $11$. This has been back-propagated
+to the top node as $\alpha{>=}11$. Next, right branch evaluated ended up in the
+leave with value $2$. Minimizing parent branch is then assured to have minimum
+of $\beta{<=}2$, which is certainly less than maximizing top node can choose
+from, so the other leaf is not explored. Then, exploration gets to leaf node
+with value 7, which is back-propagated to the uppermost minimizing player.
+Since his $\beta{<=}7$ other branches are left off because root node would not
+pick this branch having $11$ as a better choice. At last, exploration ends up
+in the leaf with value $9$. Minimizing parent node is now certain to have
+$\beta{<=}9$ while $\alpha{>}\beta$, therefore, other nodes are not explored.
+Value $9$ is back-propagated through the parent maximizing to the uppermost
+$\beta$ value and so, this whole branch is cut off from further exploration.
+Since, there are no other branches to explore for the root maximizing player,
+maximum value $11$ is chosen as a result.
+
+In the end, 15 out of 31 nodes were not explored. With higher branching factor,
+it could be even better ratio in the best case scenario. Despite that
+alpha-beta pruning may be improvement to minimax, with its exponential
+time complexity it is less likely to be used for problems, where there is no
+well known evaluation function for that particular problem.
+
 
 \section{Reinforcement Learning}
 TODO
@@ -99,7 +137,7 @@ TODO
   \vspace*{-0.85cm}
   \caption{ANN}
   \label{fig:network}
-  \vspace*{-1.40cm}
+  \vspace*{-0.60cm}
 \end{wrapfigure}
 
 Artifitial neural network (ANN) is a family of models inspired by biological
