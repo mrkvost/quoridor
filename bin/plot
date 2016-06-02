@@ -61,10 +61,44 @@ def create_plot(xs, ys, opponent_name):
     plt.savefig('graph.png')
 
 
+# def main():
+#     options, args = parse_args()
+#     xs, ys = get_db_data(options.opponent_name)
+#     create_plot(xs, ys, options.opponent_name)
+
+
 def main():
-    options, args = parse_args()
-    xs, ys = get_db_data(options.opponent_name)
-    create_plot(xs, ys, options.opponent_name)
+    import numpy as np
+
+    formatter = FuncFormatter(lambda y, _: '{:0.0%}'.format(y))
+    # plt.gca().set_ylim([0.0, 1.0])
+    plt.gca().yaxis.set_major_formatter(formatter)
+    plt.gca().set_ylabel('Win percentage for last $10^7$ observed actions')
+    plt.gca().set_xlabel('Observed actions (x$10^4$)')
+    # plt.gca().xaxis.set_major_formatter(formatter)
+    plt.title('ann vs. heuristic')
+
+    games = np.load('eps_vs_succ_heuristic.py')
+    games = [int(not winner) for winner in games]
+
+    batch = 1000
+    xs = []
+    ys = []
+    for i, game in enumerate(games, start=1):
+        xs.append(i)
+        if i - 1 >= batch:
+            ys.append(
+                float(sum(games[i-batch: i+1])) / batch
+            )
+        # if i:
+        #     ys.append(float(sum(games[:i+1])) / i)
+        else:
+            ys.append(0)
+
+
+    # plt.scatter(xs, ys, s=1, alpha=0.5)
+    plt.plot(xs, ys)
+    plt.savefig('eps_vs_heuristic.png')
 
 
 if __name__ == '__main__':
