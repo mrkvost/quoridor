@@ -2,12 +2,13 @@ import os
 import re
 import time
 import random
+import operator
 import numpy as np
 import tensorflow as tf
 
 from optparse import OptionParser
 
-from core.game import YELLOW, GREEN, Quoridor2
+from core.game import YELLOW, GREEN, Quoridor2, InvalidMove
 from core.context import QuoridorContext
 from ai.players import (
     Player,
@@ -26,7 +27,8 @@ MINI_BATCH_SIZE_DEFAULT = 1000
 STANDARD_DEVIATION_DEFAULT = 0.01
 REPEAT_POSITION_NEURONS_DEFAULT = 1
 
-SHOW_SAVE_STATUS_STEP = 2000
+SHOW_STATUS_STEP = 2000
+SAVE_STATUS_STEP = 20000
 CKPT_MODELS_PATH = 'tf_models/'
 TRAINING_FILENAME_FMT = 'training_model.ckpt.{num}'
 # TRAINING_NUMBER_RE = re.compile(r'training_model\.ckpt\.(?P<num>)')
@@ -45,7 +47,7 @@ def tf_play(colors_on, special):
     session = tf.Session()
     ann = TFPlayer(game, session)
     saver = tf.train.Saver()
-    saver.restore(session, 'model.ckpt')
+    saver.restore(session, 'tf_models/training_model.ckpt.1820000')
 
     kwargs = {
         'messages': game.messages,
@@ -139,6 +141,12 @@ class TFPlayer(Player):
             self.desired: self.desired_vectors,
         }
 
+        # inputs = self.input_vectors[:self.batch]
+        # desireds = self.desired_vectors[:self.batch]
+        # self.input_vectors = self.input_vectors[self.batch:]
+        # self.desired_vectors = self.desired_vectors[self.batch:]
+        # return {self.input_layer: inputs, self.desired: desireds}
+
     def load(self, filename=None):
         if filename is None:
             filename = self.last_model_filename()
@@ -157,7 +165,7 @@ class TFPlayer(Player):
         values_to_action = sorted(
             enumerate(output_vector[0]),
             key=operator.itemgetter(1),
-            reverse=True,
+            reverse=color,
         )
         for action, value in values_to_action:
             # print action, value
@@ -166,7 +174,7 @@ class TFPlayer(Player):
     def play(self, context):
         state = input_vector_from_game_state(context, repeat=self.repeat)
         state = np.array(list(state)).reshape([1, self.input])
-        qlnn_actions = session.run(
+        qlnn_actions = self.tf_session.run(
             self.output_layer, feed_dict={self.input_layer: state}
         )
 
@@ -205,6 +213,9 @@ def measure(colors_on, special, opponent_type):
         break
 
 
+TRAINING_NUMBER_RE = re.compile(r'.*?(?P<number>\d+).*?')
+
+
 def model_load_or_init(ann):
     filename = ann.last_model_filename()
     if filename is None:
@@ -212,7 +223,16 @@ def model_load_or_init(ann):
         print fmt.format(path=CKPT_MODELS_PATH)
         ann.initialize()
 
+    total_game_num = 0
     while filename is not None:
+        match = TRAINING_NUMBER_RE.match(filename)
+        if match is None:
+            print (
+                'Training game number will be set to 0. '
+                'Cannot parse number from filename'
+            )
+        else:
+            total_game_num = int(match.group('number'))
         prompt_fmt = 'Continue training ({filename}) y/[N]? '
         user_input = raw_input(prompt_fmt.format(filename=filename)).lower()
         if user_input in ('y', 'yes'):
@@ -223,12 +243,21 @@ def model_load_or_init(ann):
             print 'Incorrect answer!'
             continue
         break
+    return total_game_num
 
 
-def print_status(start, game_num):
+STATUS_FMT = (
+    'GAMES: tot: {tot:<9} curr: {g:<9} | '
+    'RATE s/g: {sg:.5f} g/s: {gs:5<.2f} | '
+    's:{s}'
+)
+
+
+def print_status(start, total, game_num):
     now = time.clock()
     seconds = now - start
-    print 'GAMES: {g:<9} | RATE s/g: {sg:.5f} g/s: {gs:5<.2f} | s:{s}'.format(
+    print STATUS_FMT.format(
+        tot=total,
         g=game_num,
         sg=seconds/game_num,
         gs=float(game_num)/seconds,
@@ -244,7 +273,7 @@ def train(colors_on, special):
     session = tf.Session()
     ann = TFPlayer(game, session)
 
-    model_load_or_init(ann)
+    total_game_num = model_load_or_init(ann)
 
     context = QuoridorContext(game)
     get_players = players_creator_factory(opponent, 'heuristic', ann)
@@ -260,35 +289,40 @@ def train(colors_on, special):
 
     start = time.clock()
     while True:
-        if context.state[0] == GREEN: # training only green player
-            # store current state
-            ann.input_vectors[move, :] = state
+        # store current state
+        ann.input_vectors[move, :] = state
 
-            # proceed to next state
-            opponent.play(context)
-            state = input_vector_from_game_state(context)
-            state = np.array(list(state)).reshape([1, ann.input])
+        # proceed to next state
+        opponent.play(context)
+        state = input_vector_from_game_state(context)
+        state = np.array(list(state)).reshape([1, ann.input])
 
-            # update desired vector
-            action = context.last_action
-            ann.desired_vectors[move, action] = 100
+        # update desired vector
+        action = context.last_action
+        sign = 1 - context.state[0] * 2   # 1 or -1
+        ann.desired_vectors[move, action] = 100 * sign
 
-            move += 1
-        else:
-            opponent.play(context)
+        move += 1
 
         if context.is_terminal:
             game_num += 1
+            total_game_num += 1
             context.reset(players=players)
             state = input_vector_from_game_state(context)
             state = np.array(list(state)).reshape([1, ann.input])
 
-            if game_num % SHOW_SAVE_STATUS_STEP == 0:
-                print_status(start, game_num)
-                filename = TRAINING_FILENAME_FMT.format(num=game_num)
+            if game_num % SHOW_STATUS_STEP == 0:
+                print_status(start, total_game_num, game_num)
+
+            if game_num % SAVE_STATUS_STEP == 0:
+                filename = TRAINING_FILENAME_FMT.format(num=total_game_num)
                 ann.save(os.path.join(CKPT_MODELS_PATH, filename))
 
         if move == ann.batch:
+            # TODO: create list of q_values:
+            #           y = [1, 1*lr, 1*(lr**2), ...]
+            #           g = -y + 1
+            #       and use them for learning
             session.run(ann.train_step, feed_dict=ann.feed_dict)
             move = 0
 
