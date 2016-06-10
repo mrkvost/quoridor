@@ -50,24 +50,28 @@ def input_vector_from_game_state_fast(context):
 
 
 def calculate_input_size(repeat):
-    on_move = 1
+    on_move = 5
     pawn_positions = 81 * repeat
     wall_stocks = 2 * 4
     placed_walls = 128
-    return on_move + pawn_positions + wall_stocks + placed_walls
+    path = 7
+    return on_move + pawn_positions + wall_stocks + placed_walls + path
 
 
 def input_vector_from_game_state(context, repeat=1):
     state = context.state
+    player = state[0]
     positions = POSITIONS * repeat
     for i in range(repeat):
         positions[state[1] * repeat + i] = 1
         positions[state[2] * repeat + i] = -1
 
     return itertools.chain(
-        (state[0], ),
+        (player, ) * 5,
         positions,
         binarify(state[3], 4),
         binarify(state[4], 4),
         [int(i in state[5]) for i in range(context.game.wall_moves)],
+        binarify(len(context[player]['path']), 7),
     )
+    # default_length = 5 + 81 + 4 + 4 + 128 + 7 = 229
