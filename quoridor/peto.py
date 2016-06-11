@@ -46,8 +46,10 @@ def tf_play(colors_on, special):
     # INIT TENSORFLOW
     session = tf.Session()
     ann = TFPlayer(game, session)
-    saver = tf.train.Saver()
-    saver.restore(session, 'tf_models/training_model.ckpt.1820000')
+    filename = ann.last_model_filename()
+    if filename is None:
+        raise Exception('Could not load ANN data.')
+    ann.load(filename)
 
     kwargs = {
         'messages': game.messages,
@@ -239,6 +241,7 @@ def model_load_or_init(ann):
             ann.load()
         elif user_input in ('', 'n', 'no'):
             ann.initialize()
+            total_game_num = 0
         else:
             print 'Incorrect answer!'
             continue
